@@ -1,5 +1,31 @@
+## [11.37.1-rei0784-3.0.2](https://github.com/mei23/misskey-v11/compare/v3.0.0...v11.37.1-rei0784-3.0.2) (2020-10-24)
+
+
+
 ChangeLog
 =========
+### ✨Improvements
+* `/admin/federation`にアイコンが追加されます
+* `/admin/federation`の一部が翻訳されました
+
+
+## [11.37.1-rei0784-3.0.1](https://github.com/mei23/misskey-v11/compare/v3.0.0...v11.37.1-rei0784-3.0.1) (2020-10-24)
+
+
+
+## [11.37.1-rei0784-3.0.0](https://github.com/mei23/misskey-v11/compare/11.37.1-20201018022215...11.37.1-rei0784-3.0.0) (2020-10-24)
+
+
+
+ChangeLog
+=========
+### ⚠️注意
+* プロセスを起動(もしくは再起動)する前に`yarn migrate`を実行してください
+### ✨Improvements
+* `/admin/federation`を[mei23/misskey](https://github.com/mei23/misskey)に順したものに変更
+### 🐛Fixes
+* クリティカルなバグ修正
+
 
 11.37.1 (2020/01/07)
 --------------------

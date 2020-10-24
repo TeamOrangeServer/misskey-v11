@@ -1,30 +1,31 @@
 {
 	"name": "misskey",
 	"author": "syuilo <i@syuilo.com>",
-	"version": "11.37.1-20201018022215",
+  "version": "11.37.1-rei0784-3.0.2",
 	"codename": "daybreak",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/mei23/misskey-v11.git"
+		"url": "https://github.com/TeamOrangeServer/misskey.git"
 	},
 	"main": "./index.js",
-	"private": true,
-	"scripts": {
-		"start": "node ./index.js",
-		"init": "npm run migrate",
-		"ormconfig": "node ./built/ormconfig.js",
-		"migrate": "ts-node ./node_modules/typeorm/cli.js migration:run",
-		"migrateandstart": "npm run migrate && npm run start",
-		"build": "webpack && gulp build",
-		"webpack": "webpack",
-		"watch": "webpack --watch",
-		"gulp": "gulp build",
-		"clean": "gulp clean",
-		"cleanall": "gulp cleanall",
-		"lint": "gulp lint",
-		"test": "cross-env TS_NODE_FILES=true gulp test",
-		"format": "gulp format"
-	},
+  "private": true,
+  "scripts": {
+    "start": "node ./index.js",
+    "init": "npm run migrate",
+    "ormconfig": "node ./built/ormconfig.js",
+    "migrate": "ts-node ./node_modules/typeorm/cli.js migration:run",
+    "migrateandstart": "npm run migrate && npm run start",
+    "build": "webpack && gulp build",
+    "webpack": "webpack",
+    "watch": "webpack --watch",
+    "gulp": "gulp build",
+    "clean": "gulp clean",
+    "cleanall": "gulp cleanall",
+    "lint": "gulp lint",
+    "test": "cross-env TS_NODE_FILES=true gulp test",
+    "format": "gulp format",
+    "release": "shipjs prepare"
+  },
 	"resolutions": {
 		"lodash": "^4.17.20",
 		"gulp/gulp-cli/yargs/yargs-parser": "5.0.0-security.0",
@@ -262,5 +263,9 @@
 		"websocket": "1.0.32",
 		"ws": "7.3.1",
 		"xev": "2.0.1"
-	}
+	},
+  "devDependencies": {
+    "conventional-changelog-cli": "2.1.0",
+    "shipjs": "0.22.0"
+  }  
 }

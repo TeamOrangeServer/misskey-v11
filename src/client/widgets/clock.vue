@@ -1,34 +1,34 @@
 <template>
-<div>
-	<mk-container :naked="props.style % 2 === 0" :show-header="false">
-		<div class="vubelbmv">
-			<mk-analog-clock class="clock" :smooth="props.style < 2"/>
-		</div>
-	</mk-container>
-</div>
+<MkContainer :naked="props.transparent" :show-header="false">
+	<div class="vubelbmv">
+		<MkAnalogClock class="clock"/>
+	</div>
+</MkContainer>
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue';
 import define from './define';
-import MkContainer from '../components/ui/container.vue';
-import MkAnalogClock from '../components/analog-clock.vue';
+import MkContainer from '@/components/ui/container.vue';
+import MkAnalogClock from '@/components/analog-clock.vue';
+import * as os from '@/os';
 
-export default define({
+const widget = define({
 	name: 'clock',
 	props: () => ({
-		style: 0
+		transparent: {
+			type: 'boolean',
+			default: false,
+		},
 	})
-}).extend({
+});
+
+export default defineComponent({
+	extends: widget,
 	components: {
 		MkContainer,
 		MkAnalogClock
 	},
-	methods: {
-		func() {
-			this.props.style = (this.props.style + 1) % 4;
-			this.save();
-		}
-	}
 });
 </script>
 

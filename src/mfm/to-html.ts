@@ -3,6 +3,7 @@ import config from '../config';
 import { intersperse } from '../prelude/array';
 import { MfmForest, MfmTree } from './prelude';
 import { IMentionedRemoteUsers } from '../models/entities/note';
+import { wellKnownServices } from '../well-known-services';
 
 export function toHtml(tokens: MfmForest | null, mentionedRemoteUsers: IMentionedRemoteUsers = []) {
 	if (tokens == null) {
@@ -126,18 +127,13 @@ export function toHtml(tokens: MfmForest | null, mentionedRemoteUsers: IMentione
 		mention(token) {
 			const a = doc.createElement('a');
 			const { username, host, acct } = token.node.props;
-			switch (host) {
-				case 'github.com':
-					a.href = `https://github.com/${username}`;
-					break;
-				case 'twitter.com':
-					a.href = `https://twitter.com/${username}`;
-					break;
-				default:
-					const remoteUserInfo = mentionedRemoteUsers.find(remoteUser => remoteUser.username === username && remoteUser.host === host);
-					a.href = remoteUserInfo ? (remoteUserInfo.url ? remoteUserInfo.url : remoteUserInfo.uri) : `${config.url}/${acct}`;
-					a.className = 'u-url mention';
-					break;
+			const wellKnown = wellKnownServices.find(x => x[0] === host);
+			if (wellKnown) {
+				a.href = wellKnown[1](username);
+			} else {
+				const remoteUserInfo = mentionedRemoteUsers.find(remoteUser => remoteUser.username === username && remoteUser.host === host);
+				a.href = remoteUserInfo ? (remoteUserInfo.url ? remoteUserInfo.url : remoteUserInfo.uri) : `${config.url}/${acct}`;
+				a.className = 'u-url mention';
 			}
 			a.textContent = acct;
 			return a;
@@ -175,7 +171,7 @@ export function toHtml(tokens: MfmForest | null, mentionedRemoteUsers: IMentione
 
 		search(token) {
 			const a = doc.createElement('a');
-			a.href = `https://www.google.com/?#q=${token.node.props.query}`;
+			a.href = `https://www.google.com/search?q=${token.node.props.query}`;
 			a.textContent = token.node.props.content;
 			return a;
 		}

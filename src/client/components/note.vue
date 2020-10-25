@@ -1,95 +1,110 @@
 <template>
 <div
 	class="note _panel"
-	v-show="!isDeleted && !hideThisNote"
+	v-if="!muted"
+	v-show="!isDeleted"
 	:tabindex="!isDeleted ? '-1' : null"
 	:class="{ renote: isRenote }"
 	v-hotkey="keymap"
-	v-size="[{ max: 500 }, { max: 450 }, { max: 350 }, { max: 300 }]"
+	v-size="{ max: [500, 450, 350, 300] }"
 >
-	<x-sub v-for="note in conversation" class="reply-to-more" :key="note.id" :note="note"/>
-	<x-sub :note="appearNote.reply" class="reply-to" v-if="appearNote.reply"/>
-	<div class="info" v-if="pinned"><fa :icon="faThumbtack"/> {{ $t('pinnedNote') }}</div>
-	<div class="info" v-if="appearNote._prId_"><fa :icon="faBullhorn"/> {{ $t('promotion') }}<button class="_textButton hide" @click="readPromo()">{{ $t('hideThisNote') }} <fa :icon="faTimes"/></button></div>
-	<div class="info" v-if="appearNote._featuredId_"><fa :icon="faBolt"/> {{ $t('featured') }}</div>
+	<XSub v-for="note in conversation" class="reply-to-more" :key="note.id" :note="note"/>
+	<XSub :note="appearNote.reply" class="reply-to" v-if="appearNote.reply"/>
+	<div class="info" v-if="pinned"><Fa :icon="faThumbtack"/> {{ $t('pinnedNote') }}</div>
+	<div class="info" v-if="appearNote._prId_"><Fa :icon="faBullhorn"/> {{ $t('promotion') }}<button class="_textButton hide" @click="readPromo()">{{ $t('hideThisNote') }} <Fa :icon="faTimes"/></button></div>
+	<div class="info" v-if="appearNote._featuredId_"><Fa :icon="faBolt"/> {{ $t('featured') }}</div>
 	<div class="renote" v-if="isRenote">
-		<mk-avatar class="avatar" :user="note.user"/>
-		<fa :icon="faRetweet"/>
-		<i18n path="renotedBy" tag="span">
-			<router-link class="name" :to="note.user | userPage" v-user-preview="note.userId" place="user">
-				<mk-user-name :user="note.user"/>
-			</router-link>
-		</i18n>
+		<MkAvatar class="avatar" :user="note.user"/>
+		<Fa :icon="faRetweet"/>
+		<i18n-t keypath="renotedBy" tag="span">
+			<template #user>
+				<MkA class="name" :to="userPage(note.user)" v-user-preview="note.userId">
+					<MkUserName :user="note.user"/>
+				</MkA>
+			</template>
+		</i18n-t>
 		<div class="info">
-			<button class="_button time" @click="showRenoteMenu()" ref="renoteTime"><mk-time :time="note.createdAt"/></button>
+			<button class="_button time" @click="showRenoteMenu()" ref="renoteTime">
+				<Fa class="dropdownIcon" v-if="isMyRenote" :icon="faEllipsisH"/>
+				<MkTime :time="note.createdAt"/>
+			</button>
 			<span class="visibility" v-if="note.visibility !== 'public'">
-				<fa v-if="note.visibility === 'home'" :icon="faHome"/>
-				<fa v-if="note.visibility === 'followers'" :icon="faUnlock"/>
-				<fa v-if="note.visibility === 'specified'" :icon="faEnvelope"/>
+				<Fa v-if="note.visibility === 'home'" :icon="faHome"/>
+				<Fa v-if="note.visibility === 'followers'" :icon="faUnlock"/>
+				<Fa v-if="note.visibility === 'specified'" :icon="faEnvelope"/>
 			</span>
+			<span class="localOnly" v-if="note.localOnly"><Fa :icon="faBiohazard"/></span>
 		</div>
 	</div>
-	<article class="article">
-		<mk-avatar class="avatar" :user="appearNote.user"/>
+	<article class="article" @contextmenu="onContextmenu">
+		<MkAvatar class="avatar" :user="appearNote.user"/>
 		<div class="main">
-			<x-note-header class="header" :note="appearNote" :mini="true"/>
-			<div class="body" v-if="appearNote.deletedAt == null" ref="noteBody">
+			<XNoteHeader class="header" :note="appearNote" :mini="true"/>
+			<div class="body" ref="noteBody">
 				<p v-if="appearNote.cw != null" class="cw">
-				<mfm v-if="appearNote.cw != ''" class="text" :text="appearNote.cw" :author="appearNote.user" :i="$store.state.i" :custom-emojis="appearNote.emojis" />
-					<x-cw-button v-model="showContent" :note="appearNote"/>
+					<Mfm v-if="appearNote.cw != ''" class="text" :text="appearNote.cw" :author="appearNote.user" :i="$store.state.i" :custom-emojis="appearNote.emojis"/>
+					<XCwButton v-model:value="showContent" :note="appearNote"/>
 				</p>
 				<div class="content" v-show="appearNote.cw == null || showContent">
 					<div class="text">
 						<span v-if="appearNote.isHidden" style="opacity: 0.5">({{ $t('private') }})</span>
-						<router-link class="reply" v-if="appearNote.replyId" :to="`/notes/${appearNote.replyId}`"><fa :icon="faReply"/></router-link>
-						<mfm v-if="appearNote.text" :text="appearNote.text" :author="appearNote.user" :i="$store.state.i" :custom-emojis="appearNote.emojis"/>
+						<MkA class="reply" v-if="appearNote.replyId" :to="`/notes/${appearNote.replyId}`"><Fa :icon="faReply"/></MkA>
+						<Mfm v-if="appearNote.text" :text="appearNote.text" :author="appearNote.user" :i="$store.state.i" :custom-emojis="appearNote.emojis"/>
 						<a class="rp" v-if="appearNote.renote != null">RN:</a>
 					</div>
 					<div class="files" v-if="appearNote.files.length > 0">
-						<x-media-list :media-list="appearNote.files" :parent-element="noteBody"/>
+						<XMediaList :media-list="appearNote.files" :parent-element="noteBody"/>
 					</div>
-					<x-poll v-if="appearNote.poll" :note="appearNote" ref="pollViewer" class="poll"/>
-					<mk-url-preview v-for="url in urls" :url="url" :key="url" :compact="true" class="url-preview"/>
-					<div class="renote" v-if="appearNote.renote"><x-note-preview :note="appearNote.renote"/></div>
+					<XPoll v-if="appearNote.poll" :note="appearNote" ref="pollViewer" class="poll"/>
+					<MkUrlPreview v-for="url in urls" :url="url" :key="url" :compact="true" :detail="detail" class="url-preview"/>
+					<div class="renote" v-if="appearNote.renote"><XNotePreview :note="appearNote.renote"/></div>
 				</div>
+				<MkA v-if="appearNote.channel && !inChannel" class="channel" :to="`/channels/${appearNote.channel.id}`"><Fa :icon="faSatelliteDish"/> {{ appearNote.channel.name }}</MkA>
 			</div>
-			<footer v-if="appearNote.deletedAt == null" class="footer">
-				<x-reactions-viewer :note="appearNote" ref="reactionsViewer"/>
+			<footer class="footer">
+				<XReactionsViewer :note="appearNote" ref="reactionsViewer"/>
 				<button @click="reply()" class="button _button">
-					<template v-if="appearNote.reply"><fa :icon="faReplyAll"/></template>
-					<template v-else><fa :icon="faReply"/></template>
+					<template v-if="appearNote.reply"><Fa :icon="faReplyAll"/></template>
+					<template v-else><Fa :icon="faReply"/></template>
 					<p class="count" v-if="appearNote.repliesCount > 0">{{ appearNote.repliesCount }}</p>
 				</button>
 				<button v-if="canRenote" @click="renote()" class="button _button" ref="renoteButton">
-					<fa :icon="faRetweet"/><p class="count" v-if="appearNote.renoteCount > 0">{{ appearNote.renoteCount }}</p>
+					<Fa :icon="faRetweet"/><p class="count" v-if="appearNote.renoteCount > 0">{{ appearNote.renoteCount }}</p>
 				</button>
 				<button v-else class="button _button">
-					<fa :icon="faBan"/>
+					<Fa :icon="faBan"/>
 				</button>
-				<button v-if="!isMyNote && appearNote.myReaction == null" class="button _button" @click="react()" ref="reactButton">
-					<fa :icon="faPlus"/>
+				<button v-if="appearNote.myReaction == null" class="button _button" @click="react()" ref="reactButton">
+					<Fa :icon="faPlus"/>
 				</button>
-				<button v-if="!isMyNote && appearNote.myReaction != null" class="button _button reacted" @click="undoReact(appearNote)" ref="reactButton">
-					<fa :icon="faMinus"/>
+				<button v-if="appearNote.myReaction != null" class="button _button reacted" @click="undoReact(appearNote)" ref="reactButton">
+					<Fa :icon="faMinus"/>
 				</button>
 				<button class="button _button" @click="menu()" ref="menuButton">
-					<fa :icon="faEllipsisH"/>
+					<Fa :icon="faEllipsisH"/>
 				</button>
 			</footer>
-			<div class="deleted" v-if="appearNote.deletedAt != null">{{ $t('deleted') }}</div>
 		</div>
 	</article>
-	<x-sub v-for="note in replies" :key="note.id" :note="note" class="reply" :detail="true"/>
+	<XSub v-for="note in replies" :key="note.id" :note="note" class="reply" :detail="true"/>
+</div>
+<div v-else class="_panel muted" @click="muted = false">
+	<i18n-t keypath="userSaysSomething" tag="small">
+		<template #name>
+			<MkA class="name" :to="userPage(appearNote.user)" v-user-preview="appearNote.userId">
+				<MkUserName :user="appearNote.user"/>
+			</MkA>
+		</template>
+	</i18n-t>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { faBolt, faTimes, faBullhorn, faStar, faLink, faExternalLinkSquareAlt, faPlus, faMinus, faRetweet, faReply, faReplyAll, faEllipsisH, faHome, faUnlock, faEnvelope, faThumbtack, faBan, faQuoteRight, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
+import { computed, defineAsyncComponent, defineComponent, markRaw, ref } from 'vue';
+import { faSatelliteDish, faBolt, faTimes, faBullhorn, faStar, faLink, faExternalLinkSquareAlt, faPlus, faMinus, faRetweet, faReply, faReplyAll, faEllipsisH, faHome, faUnlock, faEnvelope, faThumbtack, faBan, faQuoteRight, faInfoCircle, faBiohazard, faPlug, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
 import { faCopy, faTrashAlt, faEdit, faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons';
 import { parse } from '../../mfm/parse';
 import { sum, unique } from '../../prelude/array';
-import i18n from '../i18n';
 import XSub from './note.sub.vue';
 import XNoteHeader from './note-header.vue';
 import XNotePreview from './note-preview.vue';
@@ -97,16 +112,24 @@ import XReactionsViewer from './reactions-viewer.vue';
 import XMediaList from './media-list.vue';
 import XCwButton from './cw-button.vue';
 import XPoll from './poll.vue';
-import MkUrlPreview from './url-preview.vue';
-import MkReactionPicker from './reaction-picker.vue';
-import pleaseLogin from '../scripts/please-login';
-import { focusPrev, focusNext } from '../scripts/focus';
-import { url } from '../config';
-import copyToClipboard from '../scripts/copy-to-clipboard';
+import { pleaseLogin } from '@/scripts/please-login';
+import { focusPrev, focusNext } from '@/scripts/focus';
+import { url } from '@/config';
+import copyToClipboard from '@/scripts/copy-to-clipboard';
+import { checkWordMute } from '@/scripts/check-word-mute';
+import { userPage } from '@/filters/user';
+import * as os from '@/os';
+import { noteActions, noteViewInterruptors } from '@/store';
 
-export default Vue.extend({
-	i18n,
-	
+function markRawAll(...xs) {
+	for (const x of xs) {
+		markRaw(x);
+	}
+}
+
+markRawAll(faEdit, faBolt, faTimes, faBullhorn, faPlus, faMinus, faRetweet, faReply, faReplyAll, faEllipsisH, faHome, faUnlock, faEnvelope, faThumbtack, faBan, faBiohazard, faPlug, faSatelliteDish);
+
+export default defineComponent({
 	components: {
 		XSub,
 		XNoteHeader,
@@ -115,7 +138,13 @@ export default Vue.extend({
 		XMediaList,
 		XCwButton,
 		XPoll,
-		MkUrlPreview,
+		MkUrlPreview: defineAsyncComponent(() => import('@/components/url-preview.vue')),
+	},
+
+	inject: {
+		inChannel: {
+			default: null
+		},
 	},
 
 	props: {
@@ -135,19 +164,25 @@ export default Vue.extend({
 		},
 	},
 
+	emits: ['update:note'],
+
 	data() {
 		return {
 			connection: null,
 			conversation: [],
 			replies: [],
 			showContent: false,
-			hideThisNote: false,
+			isDeleted: false,
+			muted: false,
 			noteBody: this.$refs.noteBody,
-			faEdit, faBolt, faTimes, faBullhorn, faPlus, faMinus, faRetweet, faReply, faReplyAll, faEllipsisH, faHome, faUnlock, faEnvelope, faThumbtack, faBan
+			faEdit, faBolt, faTimes, faBullhorn, faPlus, faMinus, faRetweet, faReply, faReplyAll, faEllipsisH, faHome, faUnlock, faEnvelope, faThumbtack, faBan, faBiohazard, faPlug, faSatelliteDish
 		};
 	},
 
 	computed: {
+		rs() {
+			return this.$store.state.settings.reactions;
+		},
 		keymap(): any {
 			return {
 				'r': () => this.reply(true),
@@ -161,16 +196,16 @@ export default Vue.extend({
 				'esc': this.blur,
 				'm|o': () => this.menu(true),
 				's': this.toggleShowContent,
-				'1': () => this.reactDirectly(this.$store.state.settings.reactions[0]),
-				'2': () => this.reactDirectly(this.$store.state.settings.reactions[1]),
-				'3': () => this.reactDirectly(this.$store.state.settings.reactions[2]),
-				'4': () => this.reactDirectly(this.$store.state.settings.reactions[3]),
-				'5': () => this.reactDirectly(this.$store.state.settings.reactions[4]),
-				'6': () => this.reactDirectly(this.$store.state.settings.reactions[5]),
-				'7': () => this.reactDirectly(this.$store.state.settings.reactions[6]),
-				'8': () => this.reactDirectly(this.$store.state.settings.reactions[7]),
-				'9': () => this.reactDirectly(this.$store.state.settings.reactions[8]),
-				'0': () => this.reactDirectly(this.$store.state.settings.reactions[9]),
+				'1': () => this.reactDirectly(this.rs[0]),
+				'2': () => this.reactDirectly(this.rs[1]),
+				'3': () => this.reactDirectly(this.rs[2]),
+				'4': () => this.reactDirectly(this.rs[3]),
+				'5': () => this.reactDirectly(this.rs[4]),
+				'6': () => this.reactDirectly(this.rs[5]),
+				'7': () => this.reactDirectly(this.rs[6]),
+				'8': () => this.reactDirectly(this.rs[7]),
+				'9': () => this.reactDirectly(this.rs[8]),
+				'0': () => this.reactDirectly(this.rs[9]),
 			};
 		},
 
@@ -185,12 +220,12 @@ export default Vue.extend({
 			return this.isRenote ? this.note.renote : this.note;
 		},
 
-		isDeleted(): boolean {
-			return this.appearNote.deletedAt != null || this.note.deletedAt != null;
-		},
-
 		isMyNote(): boolean {
 			return this.$store.getters.isSignedIn && (this.$store.state.i.id === this.appearNote.userId);
+		},
+
+		isMyRenote(): boolean {
+			return this.$store.getters.isSignedIn && (this.$store.state.i.id === this.note.userId);
 		},
 
 		canRenote(): boolean {
@@ -226,13 +261,24 @@ export default Vue.extend({
 		}
 	},
 
-	created() {
+	async created() {
 		if (this.$store.getters.isSignedIn) {
-			this.connection = this.$root.stream;
+			this.connection = os.stream;
 		}
 
+		// plugin
+		if (noteViewInterruptors.length > 0) {
+			let result = this.note;
+			for (const interruptor of noteViewInterruptors) {
+				result = await interruptor.handler(JSON.parse(JSON.stringify(result)));
+			}
+			this.$emit('update:note', Object.freeze(result));
+		}
+
+		this.muted = await checkWordMute(this.appearNote, this.$store.state.i, this.$store.state.settings.mutedWords);
+
 		if (this.detail) {
-			this.$root.api('notes/children', {
+			os.api('notes/children', {
 				noteId: this.appearNote.id,
 				limit: 30
 			}).then(replies => {
@@ -240,7 +286,7 @@ export default Vue.extend({
 			});
 
 			if (this.appearNote.replyId) {
-				this.$root.api('notes/conversation', {
+				os.api('notes/conversation', {
 					noteId: this.appearNote.replyId
 				}).then(conversation => {
 					this.conversation = conversation.reverse();
@@ -256,10 +302,10 @@ export default Vue.extend({
 			this.connection.on('_connected_', this.onStreamConnected);
 		}
 
-		this.noteBody = this.$refs.noteBody
+		this.noteBody = this.$refs.noteBody;
 	},
 
-	beforeDestroy() {
+	beforeUnmount() {
 		this.decapture(true);
 
 		if (this.$store.getters.isSignedIn) {
@@ -268,11 +314,24 @@ export default Vue.extend({
 	},
 
 	methods: {
+		updateAppearNote(v) {
+			this.$emit('update:note', Object.freeze(this.isRenote ? {
+				...this.note,
+				renote: {
+					...this.note.renote,
+					...v
+				}
+			} : {
+				...this.note,
+				...v
+			}));
+		},
+
 		readPromo() {
-			(this as any).$root.api('promo/read', {
+			os.api('promo/read', {
 				noteId: this.appearNote.id
 			});
-			this.hideThisNote = true;
+			this.isDeleted = true;
 		},
 
 		capture(withHandler = false) {
@@ -304,75 +363,96 @@ export default Vue.extend({
 				case 'reacted': {
 					const reaction = body.reaction;
 
+					// DeepではなくShallowコピーであることに注意。n.reactions[reaction] = hogeとかしないように(親からもらったデータをミューテートすることになるので)
+					let n = {
+						...this.appearNote,
+					};
+
 					if (body.emoji) {
 						const emojis = this.appearNote.emojis || [];
 						if (!emojis.includes(body.emoji)) {
-							emojis.push(body.emoji);
-							Vue.set(this.appearNote, 'emojis', emojis);
+							n.emojis = [...emojis, body.emoji];
 						}
 					}
 
-					if (this.appearNote.reactions == null) {
-						Vue.set(this.appearNote, 'reactions', {});
-					}
-
-					if (this.appearNote.reactions[reaction] == null) {
-						Vue.set(this.appearNote.reactions, reaction, 0);
-					}
+					// TODO: reactionsプロパティがない場合ってあったっけ？ なければ || {} は消せる
+					const currentCount = (this.appearNote.reactions || {})[reaction] || 0;
 
 					// Increment the count
-					this.appearNote.reactions[reaction]++;
+					n.reactions = {
+						...this.appearNote.reactions,
+						[reaction]: currentCount + 1
+					};
 
-					if (body.userId == this.$store.state.i.id) {
-						Vue.set(this.appearNote, 'myReaction', reaction);
+					if (body.userId === this.$store.state.i.id) {
+						n.myReaction = reaction;
 					}
+
+					this.updateAppearNote(n);
 					break;
 				}
 
 				case 'unreacted': {
 					const reaction = body.reaction;
 
-					if (this.appearNote.reactions == null) {
-						return;
-					}
+					// DeepではなくShallowコピーであることに注意。n.reactions[reaction] = hogeとかしないように(親からもらったデータをミューテートすることになるので)
+					let n = {
+						...this.appearNote,
+					};
 
-					if (this.appearNote.reactions[reaction] == null) {
-						return;
-					}
+					// TODO: reactionsプロパティがない場合ってあったっけ？ なければ || {} は消せる
+					const currentCount = (this.appearNote.reactions || {})[reaction] || 0;
 
 					// Decrement the count
-					if (this.appearNote.reactions[reaction] > 0) this.appearNote.reactions[reaction]--;
+					n.reactions = {
+						...this.appearNote.reactions,
+						[reaction]: Math.max(0, currentCount - 1)
+					};
 
-					if (body.userId == this.$store.state.i.id) {
-						Vue.set(this.appearNote, 'myReaction', null);
+					if (body.userId === this.$store.state.i.id) {
+						n.myReaction = null;
 					}
+
+					this.updateAppearNote(n);
 					break;
 				}
 
 				case 'pollVoted': {
 					const choice = body.choice;
-					this.appearNote.poll.choices[choice].votes++;
-					if (body.userId == this.$store.state.i.id) {
-						Vue.set(this.appearNote.poll.choices[choice], 'isVoted', true);
-					}
+
+					// DeepではなくShallowコピーであることに注意。n.reactions[reaction] = hogeとかしないように(親からもらったデータをミューテートすることになるので)
+					let n = {
+						...this.appearNote,
+					};
+
+					const choices = [...this.appearNote.poll.choices];
+					choices[choice] = {
+						...choices[choice],
+						votes: choices[choice].votes + 1,
+						...(body.userId === this.$store.state.i.id ? {
+							isVoted: true
+						} : {})
+					};
+
+					n.poll = {
+						...this.appearNote.poll,
+						choices: choices
+					};
+
+					this.updateAppearNote(n);
 					break;
 				}
 
 				case 'deleted': {
-					Vue.set(this.appearNote, 'deletedAt', body.deletedAt);
-					Vue.set(this.appearNote, 'renote', null);
-					this.appearNote.text = null;
-					this.appearNote.fileIds = [];
-					this.appearNote.poll = null;
-					this.appearNote.cw = null;
+					this.isDeleted = true;
 					break;
 				}
 			}
 		},
 
 		reply(viaKeyboard = false) {
-			pleaseLogin(this.$root);
-			this.$root.post({
+			pleaseLogin();
+			os.post({
 				reply: this.appearNote,
 				animation: !viaKeyboard,
 			}, () => {
@@ -381,57 +461,56 @@ export default Vue.extend({
 		},
 
 		renote(viaKeyboard = false) {
-			pleaseLogin(this.$root);
+			pleaseLogin();
 			this.blur();
-			this.$root.menu({
-				items: [{
-					text: this.$t('renote'),
-					icon: faRetweet,
-					action: () => {
-						(this as any).$root.api('notes/create', {
-							renoteId: this.appearNote.id
-						});
-					}
-				}, {
-					text: this.$t('quote'),
-					icon: faQuoteRight,
-					action: () => {
-						this.$root.post({
-							renote: this.appearNote,
-						});
-					}
-				}]
-				source: this.$refs.renoteButton,
+			os.modalMenu([{
+				text: this.$t('renote'),
+				icon: faRetweet,
+				action: () => {
+					os.api('notes/create', {
+						renoteId: this.appearNote.id
+					});
+				}
+			}, {
+				text: this.$t('quote'),
+				icon: faQuoteRight,
+				action: () => {
+					os.post({
+						renote: this.appearNote,
+					});
+				}
+			}], this.$refs.renoteButton, {
 				viaKeyboard
 			});
 		},
 
 		renoteDirectly() {
-			(this as any).$root.api('notes/create', {
+			os.api('notes/create', {
 				renoteId: this.appearNote.id
 			});
 		},
 
 		react(viaKeyboard = false) {
-			pleaseLogin(this.$root);
+			pleaseLogin();
 			this.blur();
-			const picker = this.$root.new(MkReactionPicker, {
-				source: this.$refs.reactButton,
+			os.popup(defineAsyncComponent(() => import('@/components/reaction-picker.vue')), {
 				showFocus: viaKeyboard,
-			});
-			picker.$once('chosen', reaction => {
-				this.$root.api('notes/reactions/create', {
-					noteId: this.appearNote.id,
-					reaction: reaction
-				}).then(() => {
-					picker.close();
-				});
-			});
-			picker.$once('closed', this.focus);
+				src: this.$refs.reactButton,
+			}, {
+				done: reaction => {
+					if (reaction) {
+						os.api('notes/reactions/create', {
+							noteId: this.appearNote.id,
+							reaction: reaction
+						});
+					}
+					this.focus();
+				},
+			}, 'closed');
 		},
 
 		reactDirectly(reaction) {
-			this.$root.api('notes/reactions/create', {
+			os.api('notes/reactions/create', {
 				noteId: this.appearNote.id,
 				reaction: reaction
 			});
@@ -440,87 +519,68 @@ export default Vue.extend({
 		undoReact(note) {
 			const oldReaction = note.myReaction;
 			if (!oldReaction) return;
-			this.$root.api('notes/reactions/delete', {
+			os.api('notes/reactions/delete', {
 				noteId: note.id
 			});
 		},
 
 		favorite() {
-			pleaseLogin(this.$root);
-			this.$root.api('notes/favorites/create', {
+			pleaseLogin();
+			os.apiWithDialog('notes/favorites/create', {
 				noteId: this.appearNote.id
-			}).then(() => {
-				this.$root.dialog({
-					type: 'success',
-					iconOnly: true, autoClose: true
-				});
 			});
 		},
 
 		del() {
-			this.$root.dialog({
+			os.dialog({
 				type: 'warning',
 				text: this.$t('noteDeleteConfirm'),
 				showCancelButton: true
 			}).then(({ canceled }) => {
 				if (canceled) return;
 
-				this.$root.api('notes/delete', {
+				os.api('notes/delete', {
 					noteId: this.appearNote.id
 				});
 			});
 		},
 
 		delEdit() {
-			this.$root.dialog({
+			os.dialog({
 				type: 'warning',
 				text: this.$t('deleteAndEditConfirm'),
 				showCancelButton: true
 			}).then(({ canceled }) => {
 				if (canceled) return;
 
-				this.$root.api('notes/delete', {
+				os.api('notes/delete', {
 					noteId: this.appearNote.id
 				});
 
-				this.$root.post({ initialNote: this.appearNote, renote: this.appearNote.renote, reply: this.appearNote.reply });
+				os.post({ initialNote: this.appearNote, renote: this.appearNote.renote, reply: this.appearNote.reply, channel: this.appearNote.channel });
 			});
 		},
 
 		toggleFavorite(favorite: boolean) {
-			this.$root.api(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
+			os.apiWithDialog(favorite ? 'notes/favorites/create' : 'notes/favorites/delete', {
 				noteId: this.appearNote.id
-			}).then(() => {
-				this.$root.dialog({
-					type: 'success',
-					iconOnly: true, autoClose: true
-				});
 			});
 		},
 
 		toggleWatch(watch: boolean) {
-			this.$root.api(watch ? 'notes/watching/create' : 'notes/watching/delete', {
+			os.apiWithDialog(watch ? 'notes/watching/create' : 'notes/watching/delete', {
 				noteId: this.appearNote.id
-			}).then(() => {
-				this.$root.dialog({
-					type: 'success',
-					iconOnly: true, autoClose: true
-				});
 			});
 		},
 
-		async menu(viaKeyboard = false) {
+		getMenu() {
 			let menu;
 			if (this.$store.getters.isSignedIn) {
-				const state = await this.$root.api('notes/state', {
+				const statePromise = os.api('notes/state', {
 					noteId: this.appearNote.id
 				});
+
 				menu = [{
-					type: 'link',
-					icon: faInfoCircle,
-					text: this.$t('details'),
-					to: '/notes/' + this.appearNote.id
-				}, null, {
 					icon: faCopy,
 					text: this.$t('copyContent'),
 					action: this.copyContent
@@ -536,7 +596,7 @@ export default Vue.extend({
 					}
 				} : undefined,
 				null,
-				state.isFavorited ? {
+				statePromise.then(state => state.isFavorited ? {
 					icon: faStar,
 					text: this.$t('unfavorite'),
 					action: () => this.toggleFavorite(false)
@@ -544,8 +604,8 @@ export default Vue.extend({
 					icon: faStar,
 					text: this.$t('favorite'),
 					action: () => this.toggleFavorite(true)
-				},
-				this.appearNote.userId != this.$store.state.i.id ? state.isWatching ? {
+				}),
+				(this.appearNote.userId != this.$store.state.i.id) ? statePromise.then(state => state.isWatching ? {
 					icon: faEyeSlash,
 					text: this.$t('unwatch'),
 					action: () => this.toggleWatch(false)
@@ -553,7 +613,7 @@ export default Vue.extend({
 					icon: faEye,
 					text: this.$t('watch'),
 					action: () => this.toggleWatch(true)
-				} : undefined,
+				}) : undefined,
 				this.appearNote.userId == this.$store.state.i.id ? (this.$store.state.i.pinnedNoteIds || []).includes(this.appearNote.id) ? {
 					icon: faThumbtack,
 					text: this.$t('unpin'),
@@ -572,6 +632,21 @@ export default Vue.extend({
 					}]
 					: []
 				),
+				...(this.appearNote.userId != this.$store.state.i.id ? [
+					null,
+					{
+						icon: faExclamationCircle,
+						text: this.$t('reportAbuse'),
+						action: () => {
+							const u = `${url}/notes/${this.appearNote.id}`;
+							os.popup(defineAsyncComponent(() => import('@/components/abuse-report-window.vue')), {
+								user: this.appearNote.user,
+								initialComment: `Note: ${u}\n-----\n`
+							}, {}, 'closed');
+						}
+					}]
+					: []
+				),
 				...(this.appearNote.userId == this.$store.state.i.id || this.$store.state.i.isModerator || this.$store.state.i.isAdmin ? [
 					null,
 					this.appearNote.userId == this.$store.state.i.id ? {
@@ -582,6 +657,7 @@ export default Vue.extend({
 					{
 						icon: faTrashAlt,
 						text: this.$t('delete'),
+						danger: true,
 						action: this.del
 					}]
 					: []
@@ -606,27 +682,50 @@ export default Vue.extend({
 				.filter(x => x !== undefined);
 			}
 
-			this.$root.menu({
-				items: menu,
-				source: this.$refs.menuButton,
+			if (noteActions.length > 0) {
+				menu = menu.concat([null, ...noteActions.map(action => ({
+					icon: faPlug,
+					text: action.title,
+					action: () => {
+						action.handler(this.appearNote);
+					}
+				}))]);
+			}
+
+			return menu;
+		},
+
+		onContextmenu(e) {
+			const isLink = (el: HTMLElement) => {
+				if (el.tagName === 'A') return true;
+				if (el.parentElement) {
+					return isLink(el.parentElement);
+				}
+			};
+			if (isLink(e.target)) return;
+			if (window.getSelection().toString() !== '') return;
+			os.contextMenu(this.getMenu(), e).then(this.focus);
+		},
+
+		menu(viaKeyboard = false) {
+			os.modalMenu(this.getMenu(), this.$refs.menuButton, {
 				viaKeyboard
 			}).then(this.focus);
 		},
 
 		showRenoteMenu(viaKeyboard = false) {
-			if (!this.$store.getters.isSignedIn || (this.$store.state.i.id !== this.note.userId)) return;
-			this.$root.menu({
-				items: [{
-					text: this.$t('unrenote'),
-					icon: faTrashAlt,
-					action: () => {
-						this.$root.api('notes/delete', {
-							noteId: this.note.id
-						});
-						Vue.set(this.note, 'deletedAt', new Date());
-					}
-				}],
-				source: this.$refs.renoteTime,
+			if (!this.isMyRenote) return;
+			os.modalMenu([{
+				text: this.$t('unrenote'),
+				icon: faTrashAlt,
+				danger: true,
+				action: () => {
+					os.api('notes/delete', {
+						noteId: this.note.id
+					});
+					this.isDeleted = true;
+				}
+			}], this.$refs.renoteTime, {
 				viaKeyboard: viaKeyboard
 			});
 		},
@@ -637,31 +736,20 @@ export default Vue.extend({
 
 		copyContent() {
 			copyToClipboard(this.appearNote.text);
-			this.$root.dialog({
-				type: 'success',
-				iconOnly: true, autoClose: true
-			});
+			os.success();
 		},
 
 		copyLink() {
 			copyToClipboard(`${url}/notes/${this.appearNote.id}`);
-			this.$root.dialog({
-				type: 'success',
-				iconOnly: true, autoClose: true
-			});
+			os.success();
 		},
 
 		togglePin(pin: boolean) {
-			this.$root.api(pin ? 'i/pin' : 'i/unpin', {
+			os.apiWithDialog(pin ? 'i/pin' : 'i/unpin', {
 				noteId: this.appearNote.id
-			}).then(() => {
-				this.$root.dialog({
-					type: 'success',
-					iconOnly: true, autoClose: true
-				});
-			}).catch(e => {
+			}, undefined, null, e => {
 				if (e.id === '72dab508-c64d-498f-8740-a8eec1ba385a') {
-					this.$root.dialog({
+					os.dialog({
 						type: 'error',
 						text: this.$t('pinLimitExceeded')
 					});
@@ -670,26 +758,16 @@ export default Vue.extend({
 		},
 
 		async promote() {
-			const { canceled, result: days } = await this.$root.dialog({
+			const { canceled, result: days } = await os.dialog({
 				title: this.$t('numberOfDays'),
 				input: { type: 'number' }
 			});
 
 			if (canceled) return;
 
-			this.$root.api('admin/promo/create', {
+			os.apiWithDialog('admin/promo/create', {
 				noteId: this.appearNote.id,
 				expiresAt: Date.now() + (86400000 * days)
-			}).then(() => {
-				this.$root.dialog({
-					type: 'success',
-					iconOnly: true, autoClose: true
-				});
-			}).catch(e => {
-				this.$root.dialog({
-					type: 'error',
-					text: e
-				});
 			});
 		},
 
@@ -707,7 +785,9 @@ export default Vue.extend({
 
 		focusAfter() {
 			focusNext(this.$el);
-		}
+		},
+
+		userPage
 	}
 });
 </script>
@@ -717,65 +797,28 @@ export default Vue.extend({
 	position: relative;
 	transition: box-shadow 0.1s ease;
 	overflow: hidden;
-
-	&.max-width_500px {
-		font-size: 0.9em;
-	}
-
-	&.max-width_450px {
-		> .renote {
-			padding: 8px 16px 0 16px;
-		}
-
-		> .article {
-			padding: 14px 16px 9px;
-
-			> .avatar {
-				margin: 0 10px 8px 0;
-				width: 50px;
-				height: 50px;
-			}
-		}
-	}
-
-	&.max-width_350px {
-		> .article {
-			> .main {
-				> .footer {
-					> .button {
-						&:not(:last-child) {
-							margin-right: 18px;
-						}
-					}
-				}
-			}
-		}
-	}
-
-	&.max-width_300px {
-		font-size: 0.825em;
-
-		> .article {
-			> .avatar {
-				width: 44px;
-				height: 44px;
-			}
-
-			> .main {
-				> .footer {
-					> .button {
-						&:not(:last-child) {
-							margin-right: 12px;
-						}
-					}
-				}
-			}
-		}
-	}
+	contain: content;
 
 	&:focus {
 		outline: none;
-		box-shadow: 0 0 0 3px var(--focus);
+
+		&:after {
+			content: "";
+			pointer-events: none;
+			display: block;
+			position: absolute;
+			z-index: 10;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			margin: auto;
+			width: calc(100% - 8px);
+			height: calc(100% - 8px);
+			border: dashed 1px var(--focus);
+			border-radius: var(--radius);
+			box-sizing: border-box;
+		}
 	}
 
 	&:hover > .article > .main > .footer > .button {
@@ -790,10 +833,6 @@ export default Vue.extend({
 		font-size: 90%;
 		white-space: pre;
 		color: #d28a3f;
-
-		@media (max-width: 450px) {
-			padding: 8px 16px 0 16px;
-		}
 
 		> [data-icon] {
 			margin-right: 4px;
@@ -857,14 +896,18 @@ export default Vue.extend({
 			> .time {
 				flex-shrink: 0;
 				color: inherit;
+
+				> .dropdownIcon {
+					margin-right: 4px;
+				}
 			}
 
 			> .visibility {
 				margin-left: 8px;
+			}
 
-				[data-icon] {
-					margin-right: 0;
-				}
+			> .localOnly {
+				margin-left: 8px;
 			}
 		}
 	}
@@ -938,6 +981,11 @@ export default Vue.extend({
 						}
 					}
 				}
+
+				> .channel {
+					opacity: 0.7;
+					font-size: 80%;
+				}
 			}
 
 			> .footer {
@@ -965,15 +1013,76 @@ export default Vue.extend({
 					}
 				}
 			}
-
-			> .deleted {
-				opacity: 0.7;
-			}
 		}
 	}
 
 	> .reply {
 		border-top: solid 1px var(--divider);
 	}
+
+	&.max-width_500px {
+		font-size: 0.9em;
+	}
+
+	&.max-width_450px {
+		> .renote {
+			padding: 8px 16px 0 16px;
+		}
+
+		> .info {
+			padding: 8px 16px 0 16px;
+		}
+
+		> .article {
+			padding: 14px 16px 9px;
+
+			> .avatar {
+				margin: 0 10px 8px 0;
+				width: 50px;
+				height: 50px;
+			}
+		}
+	}
+
+	&.max-width_350px {
+		> .article {
+			> .main {
+				> .footer {
+					> .button {
+						&:not(:last-child) {
+							margin-right: 18px;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	&.max-width_300px {
+		font-size: 0.825em;
+
+		> .article {
+			> .avatar {
+				width: 44px;
+				height: 44px;
+			}
+
+			> .main {
+				> .footer {
+					> .button {
+						&:not(:last-child) {
+							margin-right: 12px;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+.muted {
+	padding: 8px;
+	text-align: center;
+	opacity: 0.7;
 }
 </style>

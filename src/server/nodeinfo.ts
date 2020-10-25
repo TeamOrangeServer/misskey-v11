@@ -1,6 +1,7 @@
 import * as Router from '@koa/router';
 import config from '../config';
 import { fetchMeta } from '../misc/fetch-meta';
+import { Users } from '../models';
 // import User from '../models/user';
 // import Note from '../models/note';
 
@@ -33,6 +34,8 @@ const nodeinfo2 = async () => {
 		// Note.count({ '_user.host': null, replyId: null }),
 		// Note.count({ '_user.host': null, replyId: { $ne: null } })
 	]);
+
+	const proxyAccount = meta.proxyAccountId ? await Users.pack(meta.proxyAccountId).catch(() => null) : null;
 
 	return {
 		software: {
@@ -72,7 +75,8 @@ const nodeinfo2 = async () => {
 			enableGithubIntegration: meta.enableGithubIntegration,
 			enableDiscordIntegration: meta.enableDiscordIntegration,
 			enableEmail: meta.enableEmail,
-			enableServiceWorker: meta.enableServiceWorker
+			enableServiceWorker: meta.enableServiceWorker,
+			proxyAccountName: proxyAccount ? proxyAccount.username : null,
 		}
 	};
 };
@@ -81,6 +85,7 @@ router.get(nodeinfo2_1path, async ctx => {
 	const base = await nodeinfo2();
 
 	ctx.body = { version: '2.1', ...base };
+	ctx.set('Cache-Control', 'public, max-age=600');
 });
 
 router.get(nodeinfo2_0path, async ctx => {
@@ -89,6 +94,7 @@ router.get(nodeinfo2_0path, async ctx => {
 	delete base.software.repository;
 
 	ctx.body = { version: '2.0', ...base };
+	ctx.set('Cache-Control', 'public, max-age=600');
 });
 
 export default router;

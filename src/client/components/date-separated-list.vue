@@ -1,25 +1,22 @@
 <template>
-<component :is="$store.state.device.animation ? 'transition-group' : 'div'" class="sqadhkmv" name="list" tag="div" :data-direction="direction" :data-reversed="reversed ? 'true' : 'false'">
+<transition-group class="sqadhkmv _list_" name="list" tag="div" :data-direction="direction" :data-reversed="reversed ? 'true' : 'false'">
 	<template v-for="(item, i) in items">
 		<slot :item="item"></slot>
 		<div class="separator" v-if="showDate(i, item)" :key="item.id + '_date'">
 			<p class="date">
-				<span><fa class="icon" :icon="faAngleUp"/>{{ getDateText(item.createdAt) }}</span>
-				<span>{{ getDateText(items[i + 1].createdAt) }}<fa class="icon" :icon="faAngleDown"/></span>
+				<span><Fa class="icon" :icon="faAngleUp"/>{{ getDateText(item.createdAt) }}</span>
+				<span>{{ getDateText(items[i + 1].createdAt) }}<Fa class="icon" :icon="faAngleDown"/></span>
 			</p>
 		</div>
 	</template>
-</component>
+</transition-group>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { faAngleUp, faAngleDown } from '@fortawesome/free-solid-svg-icons';
-import i18n from '../i18n';
 
-export default Vue.extend({
-	i18n,
-
+export default defineComponent({
 	props: {
 		items: {
 			type: Array,
@@ -72,6 +69,10 @@ export default Vue.extend({
 
 <style lang="scss">
 .sqadhkmv {
+	> *:not(:last-child) {
+		margin-bottom: var(--margin);
+	}
+
 	> .list-move {
 		transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
 	}
@@ -81,14 +82,14 @@ export default Vue.extend({
 	}
 
 	&[data-direction="up"] {
-		> .list-enter {
+		> .list-enter-from {
 			opacity: 0;
 			transform: translateY(64px);
 		}
 	}
 
 	&[data-direction="down"] {
-		> .list-enter {
+		> .list-enter-from {
 			opacity: 0;
 			transform: translateY(-64px);
 		}

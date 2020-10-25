@@ -1,46 +1,35 @@
 <template>
 <div class="relaycxt">
-	<portal to="icon"><fa :icon="faProjectDiagram"/></portal>
-	<portal to="title">{{ $t('relays') }}</portal>
-
-	<section class="_card add">
-		<div class="_title"><fa :icon="faPlus"/> {{ $t('addRelay') }}</div>
+	<section class="_section add">
+		<div class="_title"><Fa :icon="faPlus"/> {{ $t('addRelay') }}</div>
 		<div class="_content">
-			<mk-input v-model="inbox">
+			<MkInput v-model:value="inbox">
 				<span>{{ $t('inboxUrl') }}</span>
-			</mk-input>
-			<mk-button @click="add(inbox)" primary><fa :icon="faPlus"/> {{ $t('add') }}</mk-button>
+			</MkInput>
+			<MkButton @click="add(inbox)" primary><Fa :icon="faPlus"/> {{ $t('add') }}</MkButton>
 		</div>
 	</section>
 
-	<section class="_card relays">
-		<div class="_title"><fa :icon="faProjectDiagram"/> {{ $t('addedRelays') }}</div>
+	<section class="_section relays">
+		<div class="_title"><Fa :icon="faProjectDiagram"/> {{ $t('addedRelays') }}</div>
 		<div class="_content relay" v-for="relay in relays" :key="relay.inbox">
 			<div>{{ relay.inbox }}</div>
 			<div>{{ $t(`_relayStatus.${relay.status}`) }}</div>
-			<mk-button class="button" inline @click="remove(relay.inbox)"><fa :icon="faTrashAlt"/> {{ $t('remove') }}</mk-button>
+			<MkButton class="button" inline @click="remove(relay.inbox)"><Fa :icon="faTrashAlt"/> {{ $t('remove') }}</MkButton>
 		</div>
 	</section>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { faPlus, faProjectDiagram } from '@fortawesome/free-solid-svg-icons';
 import { faSave, faTrashAlt } from '@fortawesome/free-regular-svg-icons';
-import i18n from '../../i18n';
-import MkButton from '../../components/ui/button.vue';
-import MkInput from '../../components/ui/input.vue';
+import MkButton from '@/components/ui/button.vue';
+import MkInput from '@/components/ui/input.vue';
+import * as os from '@/os';
 
-export default Vue.extend({
-	i18n,
-
-	metaInfo() {
-		return {
-			title: this.$t('relays') as string
-		};
-	},
-
+export default defineComponent({
 	components: {
 		MkButton,
 		MkInput,
@@ -48,6 +37,12 @@ export default Vue.extend({
 
 	data() {
 		return {
+			INFO: {
+				header: [{
+					title: this.$t('relays'),
+					icon: faProjectDiagram,
+				}],
+			},
 			relays: [],
 			inbox: '',
 			faPlus, faProjectDiagram, faSave, faTrashAlt
@@ -60,23 +55,33 @@ export default Vue.extend({
 
 	methods: {
 		add(inbox: string) {
-			this.$root.api('admin/relays/add', {
+			os.api('admin/relays/add', {
 				inbox
 			}).then((relay: any) => {
 				this.refresh();
+			}).catch((e: any) => {
+				os.dialog({
+					type: 'error',
+					text: e.message || e
+				});
 			});
 		},
 
 		remove(inbox: string) {
-			this.$root.api('admin/relays/remove', {
+			os.api('admin/relays/remove', {
 				inbox
 			}).then(() => {
 				this.refresh();
+			}).catch((e: any) => {
+				os.dialog({
+					type: 'error',
+					text: e.message || e
+				});
 			});
 		},
 
 		refresh() {
-			this.$root.api('admin/relays/list').then((relays: any) => {
+			os.api('admin/relays/list').then((relays: any) => {
 				this.relays = relays;
 			});
 		}

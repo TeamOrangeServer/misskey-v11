@@ -1,46 +1,50 @@
 <template>
 <div>
-	<portal to="icon"><fa :icon="faStickyNote"/></portal>
-	<portal to="title">{{ $t('pages') }}</portal>
+	<MkTab v-model:value="tab" :items="[{ label: $t('_pages.my'), value: 'my', icon: faEdit }, { label: $t('_pages.liked'), value: 'liked', icon: faHeart }]"/>
 
-	<mk-container :body-togglable="true">
-		<template #header><fa :icon="faEdit" fixed-width/>{{ $t('_pages.my') }}</template>
-		<div class="rknalgpo my">
-			<mk-button class="new" @click="create()"><fa :icon="faPlus"/></mk-button>
-			<mk-pagination :pagination="myPagesPagination" #default="{items}">
-				<mk-page-preview v-for="page in items" class="ckltabjg" :page="page" :key="page.id"/>
-			</mk-pagination>
+	<div class="_section">
+		<div class="rknalgpo _content my" v-if="tab === 'my'">
+			<MkButton class="new" @click="create()"><Fa :icon="faPlus"/></MkButton>
+			<MkPagination :pagination="myPagesPagination" #default="{items}">
+				<MkPagePreview v-for="page in items" class="ckltabjg" :page="page" :key="page.id"/>
+			</MkPagination>
 		</div>
-	</mk-container>
 
-	<mk-container :body-togglable="true">
-		<template #header><fa :icon="faHeart" fixed-width/>{{ $t('_pages.liked') }}</template>
-		<div class="rknalgpo">
-			<mk-pagination :pagination="likedPagesPagination" #default="{items}">
-				<mk-page-preview v-for="like in items" class="ckltabjg" :page="like.page" :key="like.page.id"/>
-			</mk-pagination>
+		<div class="rknalgpo _content" v-if="tab === 'liked'">
+			<MkPagination :pagination="likedPagesPagination" #default="{items}">
+				<MkPagePreview v-for="like in items" class="ckltabjg" :page="like.page" :key="like.page.id"/>
+			</MkPagination>
 		</div>
-	</mk-container>
+	</div>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { faPlus, faEdit } from '@fortawesome/free-solid-svg-icons';
 import { faStickyNote, faHeart } from '@fortawesome/free-regular-svg-icons';
-import i18n from '../i18n';
-import MkPagePreview from '../components/page-preview.vue';
-import MkPagination from '../components/ui/pagination.vue';
-import MkButton from '../components/ui/button.vue';
-import MkContainer from '../components/ui/container.vue';
+import MkPagePreview from '@/components/page-preview.vue';
+import MkPagination from '@/components/ui/pagination.vue';
+import MkButton from '@/components/ui/button.vue';
+import MkTab from '@/components/tab.vue';
 
-export default Vue.extend({
-	i18n,
+export default defineComponent({
 	components: {
-		MkPagePreview, MkPagination, MkButton, MkContainer
+		MkPagePreview, MkPagination, MkButton, MkTab
 	},
 	data() {
 		return {
+			INFO: {
+				header: [{
+					title: this.$t('pages'),
+					icon: faStickyNote
+				}],
+				action: {
+					icon: faPlus,
+					handler: this.create
+				}
+			},
+			tab: 'my',
 			myPagesPagination: {
 				endpoint: 'i/pages',
 				limit: 5,
@@ -62,8 +66,6 @@ export default Vue.extend({
 
 <style lang="scss" scoped>
 .rknalgpo {
-	padding: 16px;
-
 	&.my .ckltabjg:first-child {
 		margin-top: 16px;
 	}

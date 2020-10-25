@@ -23,18 +23,20 @@ const meta = require('./package.json');
 const postcss = {
 	loader: 'postcss-loader',
 	options: {
-		plugins: [
-			require('cssnano')({
-				preset: 'default'
-			})
-		]
+		postcssOptions: {
+			plugins: [
+				require('cssnano')({
+					preset: 'default'
+				})
+			]
+		}
 	},
 };
 
 module.exports = {
 	entry: {
 		app: './src/client/init.ts',
-		sw: './src/client/sw.js'
+		sw: './src/client/sw.ts'
 	},
 	module: {
 		rules: [{
@@ -48,8 +50,6 @@ module.exports = {
 						preserveWhitespace: false
 					}
 				}
-			}, {
-				loader: 'vue-svg-inline-loader-corejs3'
 			}]
 		}, {
 			test: /\.scss?$/,
@@ -61,7 +61,9 @@ module.exports = {
 				}, {
 					loader: 'css-loader',
 					options: {
-						modules: true
+						modules: true,
+						esModule: false, // TODO: trueにすると壊れる。Vue3移行の折にはtrueにできるかもしれない
+						url: false,
 					}
 				}, postcss, {
 					loader: 'sass-loader',
@@ -76,7 +78,11 @@ module.exports = {
 				use: [{
 					loader: 'vue-style-loader'
 				}, {
-					loader: 'css-loader'
+					loader: 'css-loader',
+					options: {
+						url: false,
+						esModule: false, // TODO: trueにすると壊れる。Vue3移行の折にはtrueにできるかもしれない
+					}
 				}, postcss, {
 					loader: 'sass-loader',
 					options: {
@@ -92,7 +98,10 @@ module.exports = {
 			use: [{
 				loader: 'vue-style-loader'
 			}, {
-				loader: 'css-loader'
+				loader: 'css-loader',
+				options: {
+					esModule: false, // TODO: trueにすると壊れる。Vue3移行の折にはtrueにできるかもしれない
+				}
 			}, postcss]
 		}, {
 			test: /\.(eot|woff|woff2|svg|ttf)([?]?.*)$/,
@@ -123,7 +132,15 @@ module.exports = {
 		new webpack.DefinePlugin({
 			_VERSION_: JSON.stringify(meta.version),
 			_LANGS_: JSON.stringify(Object.entries(locales).map(([k, v]: [string, any]) => [k, v._lang_])),
-			_ENV_: JSON.stringify(process.env.NODE_ENV)
+			_ENV_: JSON.stringify(process.env.NODE_ENV),
+			_DEV_: process.env.NODE_ENV !== 'production',
+			_PERF_PREFIX_: JSON.stringify('Misskey:'),
+			_DATA_TRANSFER_DRIVE_FILE_: JSON.stringify('mk_drive_file'),
+			_DATA_TRANSFER_DRIVE_FOLDER_: JSON.stringify('mk_drive_folder'),
+			_DATA_TRANSFER_DECK_COLUMN_: JSON.stringify('mk_deck_column'),
+			__VUE_OPTIONS_API__: true,
+			__VUE_PROD_DEVTOOLS__: false,
+			__VUE_I18N_LEGACY_API__: false,
 		}),
 		new VueLoaderPlugin(),
 		new WebpackOnBuildPlugin((stats: any) => {
@@ -140,13 +157,16 @@ module.exports = {
 			'.js', '.ts', '.json'
 		],
 		alias: {
+			'@': __dirname + '/src/client',
 			'const.styl': __dirname + '/src/client/const.styl'
 		}
 	},
 	resolveLoader: {
 		modules: ['node_modules']
 	},
-	cache: false,
+	experiments: {
+		topLevelAwait: true
+	},
 	devtool: false, //'source-map',
 	mode: isProduction ? 'production' : 'development'
 };

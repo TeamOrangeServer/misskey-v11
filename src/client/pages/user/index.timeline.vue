@@ -1,19 +1,20 @@
 <template>
-<div class="kjeftjfm">
+<div class="kjeftjfm" v-size="{ max: [500] }">
 	<div class="with">
 		<button class="_button" @click="with_ = null" :class="{ active: with_ === null }">{{ $t('notes') }}</button>
 		<button class="_button" @click="with_ = 'replies'" :class="{ active: with_ === 'replies' }">{{ $t('notesAndReplies') }}</button>
 		<button class="_button" @click="with_ = 'files'" :class="{ active: with_ === 'files' }">{{ $t('withFiles') }}</button>
 	</div>
-	<x-notes ref="timeline" :pagination="pagination" @before="$emit('before')" @after="e => $emit('after', e)"/>
+	<XNotes ref="timeline" :pagination="pagination" @before="$emit('before')" @after="e => $emit('after', e)"/>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import XNotes from '../../components/notes.vue';
+import { defineComponent } from 'vue';
+import XNotes from '@/components/notes.vue';
+import * as os from '@/os';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		XNotes
 	},
@@ -60,10 +61,6 @@ export default Vue.extend({
 		display: flex;
 		margin-bottom: var(--margin);
 
-		@media (max-width: 500px) {
-			font-size: 80%;
-		}
-
 		> button {
 			flex: 1;
 			padding: 11px 8px 8px 8px;
@@ -73,6 +70,12 @@ export default Vue.extend({
 				color: var(--accent);
 				border-bottom-color: var(--accent);
 			}
+		}
+	}
+
+	&.max-width_500px {
+		> .with {
+			font-size: 80%;
 		}
 	}
 }

@@ -4,28 +4,28 @@
 	<div class="empty" v-if="empty" key="_empty_">
 		<slot name="empty"></slot>
 	</div>
-	<div class="more" v-if="more" key="_more_">
-		<mk-button class="button" :disabled="moreFetching" :style="{ cursor: moreFetching ? 'wait' : 'pointer' }" @click="fetchMore()" primary>
+	<div class="more" v-show="more" key="_more_">
+		<MkButton class="button" v-appear="$store.state.device.enableInfiniteScroll ? fetchMore : null" @click="fetchMore" :disabled="moreFetching" :style="{ cursor: moreFetching ? 'wait' : 'pointer' }" primary>
 			<template v-if="!moreFetching">{{ $t('loadMore') }}</template>
-			<template v-if="moreFetching"><mk-loading inline/></template>
-		</mk-button>
+			<template v-if="moreFetching"><MkLoading inline/></template>
+		</MkButton>
 	</div>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import MkButton from './button.vue';
-import paging from '../../scripts/paging';
+import paging from '@/scripts/paging';
 
-export default Vue.extend({
-	mixins: [
-		paging({}),
-	],
-
+export default defineComponent({
 	components: {
 		MkButton
 	},
+
+	mixins: [
+		paging({}),
+	],
 
 	props: {
 		pagination: {

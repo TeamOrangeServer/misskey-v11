@@ -1,13 +1,12 @@
 <template>
 <div>
-	<span v-if="!available">{{ $t('waiting') }}<mk-ellipsis/></span>
+	<span v-if="!available">{{ $t('waiting') }}<MkEllipsis/></span>
 	<div ref="captcha"></div>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import i18n from '../i18n';
+import { defineComponent } from 'vue';
 
 type Captcha = {
 	render(container: string | Node, options: {
@@ -29,9 +28,9 @@ declare global {
 	interface Window extends CaptchaContainer {
 	}
 }
+import * as os from '@/os';
 
-export default Vue.extend({
-	i18n,
+export default defineComponent({
 	props: {
 		provider: {
 			type: String,
@@ -90,7 +89,7 @@ export default Vue.extend({
 		}
 	},
 
-	beforeDestroy() {
+	beforeUnmount() {
 		this.reset();
 	},
 
@@ -112,7 +111,7 @@ export default Vue.extend({
 			}
 		},
 		callback(response?: string) {
-			this.$emit('input', typeof response == 'string' ? response : null);
+			this.$emit('update:value', typeof response == 'string' ? response : null);
 		},
 	},
 });

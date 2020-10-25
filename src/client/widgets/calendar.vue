@@ -1,6 +1,6 @@
 <template>
-<div class="mkw-calendar" :class="{ _panel: props.design === 0 }">
-	<div class="calendar" :data-is-holiday="isHoliday">
+<div class="mkw-calendar" :class="{ _panel: !props.transparent }">
+	<div class="calendar" :class="{ isHoliday }">
 		<p class="month-and-year">
 			<span class="year">{{ $t('yearX', { year }) }}</span>
 			<span class="month">{{ $t('monthX', { month }) }}</span>
@@ -32,16 +32,22 @@
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue';
 import define from './define';
-import i18n from '../i18n';
+import * as os from '@/os';
 
-export default define({
+const widget = define({
 	name: 'calendar',
 	props: () => ({
-		design: 0
+		transparent: {
+			type: 'boolean',
+			default: false,
+		},
 	})
-}).extend({
-	i18n,
+});
+
+export default defineComponent({
+	extends: widget,
 	data() {
 		return {
 			now: new Date(),
@@ -60,18 +66,10 @@ export default define({
 		this.tick();
 		this.clock = setInterval(this.tick, 1000);
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		clearInterval(this.clock);
 	},
 	methods: {
-		func() {
-			if (this.props.design === 2) {
-				this.props.design = 0;
-			} else {
-				this.props.design++;
-			}
-			this.save();
-		},
 		tick() {
 			const now = new Date();
 			const nd = now.getDate();
@@ -123,7 +121,7 @@ export default define({
 		width: 60%;
 		text-align: center;
 
-		&[data-is-holiday] {
+		&.isHoliday {
 			> .day {
 				color: #ef95a0;
 			}
@@ -174,7 +172,7 @@ export default define({
 			> .meter {
 				width: 100%;
 				overflow: hidden;
-				background: var(--aupeazdm);
+				background: var(--X11);
 				border-radius: 8px;
 
 				> .val {

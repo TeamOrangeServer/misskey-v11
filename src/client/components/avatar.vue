@@ -1,23 +1,19 @@
 <template>
-<span class="eiwwqkts" :class="{ cat }" :title="user | acct" v-if="disableLink && !disablePreview" v-user-preview="user.id" @click="onClick">
-	<span class="inner" :style="icon"></span>
+<span class="eiwwqkts" :class="{ cat }" :title="acct(user)" v-if="disableLink" v-user-preview="disablePreview ? undefined : user.id" @click="onClick">
+	<img class="inner" :src="url"/>
 </span>
-<span class="eiwwqkts" :class="{ cat }" :title="user | acct" v-else-if="disableLink && disablePreview" @click="onClick">
-	<span class="inner" :style="icon"></span>
-</span>
-<router-link class="eiwwqkts" :class="{ cat }" :to="user | userPage" :title="user | acct" :target="target" v-else-if="!disableLink && !disablePreview" v-user-preview="user.id">
-	<span class="inner" :style="icon"></span>
-</router-link>
-<router-link class="eiwwqkts" :class="{ cat }" :to="user | userPage" :title="user | acct" :target="target" v-else-if="!disableLink && disablePreview">
-	<span class="inner" :style="icon"></span>
-</router-link>
+<MkA class="eiwwqkts" :class="{ cat }" :to="userPage(user)" :title="acct(user)" :target="target" v-else v-user-preview="disablePreview ? undefined : user.id">
+	<img class="inner" :src="url"/>
+</MkA>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { getStaticImageUrl } from '../scripts/get-static-image-url';
+import { defineComponent } from 'vue';
+import { getStaticImageUrl } from '@/scripts/get-static-image-url';
+import { extractAvgColorFromBlurhash } from '@/scripts/extract-avg-color-from-blurhash';
+import { acct, userPage } from '../filters/user';
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		user: {
 			type: Object,
@@ -36,6 +32,7 @@ export default Vue.extend({
 			default: false
 		}
 	},
+	emits: ['click'],
 	computed: {
 		cat(): boolean {
 			return this.user.isCat;
@@ -45,27 +42,22 @@ export default Vue.extend({
 				? getStaticImageUrl(this.user.avatarUrl)
 				: this.user.avatarUrl;
 		},
-		icon(): any {
-			return {
-				backgroundColor: this.user.avatarColor,
-				backgroundImage: `url(${this.url})`,
-			};
-		}
 	},
 	watch: {
-		'user.avatarColor'() {
-			this.$el.style.color = this.user.avatarColor;
+		'user.avatarBlurhash'() {
+			if (this.$el == null) return;
+			this.$el.style.color = extractAvgColorFromBlurhash(this.user.avatarBlurhash);
 		}
 	},
 	mounted() {
-		if (this.user.avatarColor) {
-			this.$el.style.color = this.user.avatarColor;
-		}
+		this.$el.style.color = extractAvgColorFromBlurhash(this.user.avatarBlurhash);
 	},
 	methods: {
 		onClick(e) {
 			this.$emit('click', e);
-		}
+		},
+		acct,
+		userPage
 	}
 });
 </script>
@@ -100,17 +92,19 @@ export default Vue.extend({
 			transform: rotate(-37.5deg) skew(-30deg);
 		}
 	}
-	
+
 	.inner {
-		background-position: center center;
-		background-size: cover;
+		position: absolute;
 		bottom: 0;
 		left: 0;
-		position: absolute;
 		right: 0;
 		top: 0;
 		border-radius: 100%;
 		z-index: 1;
+		overflow: hidden;
+		object-fit: cover;
+		width: 100%;
+		height: 100%;
 	}
 }
 </style>

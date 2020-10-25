@@ -5,6 +5,7 @@ import fetch, { HeadersInit } from 'node-fetch';
 import { HttpProxyAgent } from 'http-proxy-agent';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import config from '../config';
+import { URL } from 'url';
 
 export async function getJson(url: string, accept = 'application/json, */*', timeout = 10000, headers?: HeadersInit) {
 	const res = await fetch(url, {
@@ -25,6 +26,27 @@ export async function getJson(url: string, accept = 'application/json, */*', tim
 	}
 
 	return await res.json();
+}
+
+export async function getHtml(url: string, accept = 'text/html, */*', timeout = 10000, headers?: HeadersInit) {
+	const res = await fetch(url, {
+		headers: Object.assign({
+			'User-Agent': config.userAgent,
+			Accept: accept
+		}, headers || {}),
+		timeout,
+		agent: getAgentByUrl,
+	});
+
+	if (!res.ok) {
+		throw {
+			name: `StatusError`,
+			statusCode: res.status,
+			message: `${res.status} ${res.statusText}`,
+		};
+	}
+
+	return await res.text();
 }
 
 /**
@@ -48,14 +70,14 @@ const _https = new https.Agent({
  * Get http proxy or non-proxy agent
  */
 export const httpAgent = config.proxy
-	? new HttpProxyAgent(config.proxy)
+	? new HttpProxyAgent(config.proxy) as unknown as http.Agent
 	: _http;
 
 /**
  * Get https proxy or non-proxy agent
  */
 export const httpsAgent = config.proxy
-	? new HttpsProxyAgent(config.proxy)
+	? new HttpsProxyAgent(config.proxy) as unknown as https.Agent
 	: _https;
 
 /**

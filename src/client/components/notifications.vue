@@ -1,32 +1,31 @@
 <template>
 <div class="mfcuwfyp">
-	<x-list class="notifications" :items="items" v-slot="{ item: notification }">
-		<x-note v-if="['reply', 'quote', 'mention'].includes(notification.type)" :note="notification.note" :key="notification.id"/>
-		<x-notification v-else :notification="notification" :with-time="true" :full="true" class="_panel notification" :key="notification.id"/>
-	</x-list>
+	<XList class="notifications" :items="items" v-slot="{ item: notification }">
+		<XNote v-if="['reply', 'quote', 'mention'].includes(notification.type)" :note="notification.note" @update:note="noteUpdated(notification.note, $event)" :key="notification.id"/>
+		<XNotification v-else :notification="notification" :with-time="true" :full="true" class="_panel notification" :key="notification.id"/>
+	</XList>
 
-	<button class="_panel _button" v-if="more" @click="fetchMore" :disabled="moreFetching">
+	<button class="_loadMore" v-appear="$store.state.device.enableInfiniteScroll ? fetchMore : null" @click="fetchMore" v-show="more" :disabled="moreFetching" :style="{ cursor: moreFetching ? 'wait' : 'pointer' }">
 		<template v-if="!moreFetching">{{ $t('loadMore') }}</template>
-		<template v-if="moreFetching"><mk-loading inline/></template>
+		<template v-if="moreFetching"><MkLoading inline/></template>
 	</button>
 
 	<p class="empty" v-if="empty">{{ $t('noNotifications') }}</p>
 
-	<mk-error v-if="error" @retry="init()"/>
+	<MkError v-if="error" @retry="init()"/>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import i18n from '../i18n';
-import paging from '../scripts/paging';
+import { defineComponent, PropType } from 'vue';
+import paging from '@/scripts/paging';
 import XNotification from './notification.vue';
 import XList from './date-separated-list.vue';
 import XNote from './note.vue';
+import { notificationTypes } from '../../types';
+import * as os from '@/os';
 
-export default Vue.extend({
-	i18n,
-
+export default defineComponent({
 	components: {
 		XNotification,
 		XList,
@@ -38,9 +37,10 @@ export default Vue.extend({
 	],
 
 	props: {
-		type: {
-			type: String,
-			required: false
+		includeTypes: {
+			type: Array as PropType<typeof notificationTypes[number][]>,
+			required: false,
+			default: null,
 		},
 	},
 
@@ -51,35 +51,69 @@ export default Vue.extend({
 				endpoint: 'i/notifications',
 				limit: 10,
 				params: () => ({
-					includeTypes: this.type ? [this.type] : undefined
+					includeTypes: this.allIncludeTypes || undefined,
 				})
 			},
 		};
 	},
 
+	computed: {
+		allIncludeTypes() {
+			return this.includeTypes ?? notificationTypes.filter(x => !this.$store.state.i.mutingNotificationTypes.includes(x));
+		}
+	},
+
 	watch: {
-		type() {
-			this.reload();
+		includeTypes: {
+			handler() {
+				this.reload();
+			},
+			deep: true
+		},
+		// TODO: vue/vuexのバグか仕様かは不明なものの、プロフィール更新するなどして $store.state.i が更新されると、
+		// mutingNotificationTypes に変化が無くてもこのハンドラーが呼び出され無駄なリロードが発生するのを直す
+		'$store.state.i.mutingNotificationTypes': {
+			handler() {
+				if (this.includeTypes === null) {
+					this.reload();
+				}
+			},
+			deep: true
 		}
 	},
 
 	mounted() {
-		this.connection = this.$root.stream.useSharedConnection('main');
+		this.connection = os.stream.useSharedConnection('main');
 		this.connection.on('notification', this.onNotification);
 	},
 
-	beforeDestroy() {
+	beforeUnmount() {
 		this.connection.dispose();
 	},
 
 	methods: {
 		onNotification(notification) {
-			// TODO: ユーザーが画面を見てないと思われるとき(ブラウザやタブがアクティブじゃないなど)は送信しない
-			this.$root.stream.send('readNotification', {
-				id: notification.id
-			});
+			const isMuted = !this.allIncludeTypes.includes(notification.type);
+			if (isMuted || document.visibilityState === 'visible') {
+				os.stream.send('readNotification', {
+					id: notification.id
+				});
+			}
 
-			this.prepend(notification);
+			if (!isMuted) {
+				this.prepend({
+					...notification,
+					isRead: document.visibilityState === 'visible'
+				});
+			}
+		},
+
+		noteUpdated(oldValue, newValue) {
+			const i = this.items.findIndex(n => n.note === oldValue);
+			this.items[i] = {
+				...this.items[i],
+				note: newValue
+			};
 		},
 	}
 });
@@ -87,13 +121,6 @@ export default Vue.extend({
 
 <style lang="scss" scoped>
 .mfcuwfyp {
-	> .notifications {
-		> ::v-deep * {
-			//margin-bottom: var(--margin);
-			margin-bottom: 0;
-		}
-	}
-
 	> .empty {
 		margin: 0;
 		padding: 16px;

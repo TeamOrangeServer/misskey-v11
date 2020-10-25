@@ -1,34 +1,32 @@
-import Vue from 'vue';
+import { defineComponent } from 'vue';
+import { Form } from '@/scripts/form';
+import * as os from '@/os';
 
-export default function <T extends object>(data: {
+export default function <T extends Form>(data: {
 	name: string;
 	props?: () => T;
 }) {
-	return Vue.extend({
+	return defineComponent({
 		props: {
 			widget: {
-				type: Object
+				type: Object,
+				required: false
 			},
-			isCustomizeMode: {
-				type: Boolean,
-				default: false
-			}
-		},
-
-		computed: {
-			id(): string {
-				return this.widget.id;
-			},
-
-			props(): T {
-				return this.widget.data;
+			settingCallback: {
+				required: false
 			}
 		},
 
 		data() {
 			return {
-				bakedOldProps: null
+				props: this.widget ? JSON.parse(JSON.stringify(this.widget.data)) : {}
 			};
+		},
+
+		computed: {
+			id(): string {
+				return this.widget ? this.widget.id : null;
+			},
 		},
 
 		created() {
@@ -36,7 +34,9 @@ export default function <T extends object>(data: {
 
 			this.$watch('props', () => {
 				this.mergeProps();
-			});
+			}, { deep: true });
+
+			if (this.settingCallback) this.settingCallback(this.setting);
 		},
 
 		methods: {
@@ -45,13 +45,33 @@ export default function <T extends object>(data: {
 					const defaultProps = data.props();
 					for (const prop of Object.keys(defaultProps)) {
 						if (this.props.hasOwnProperty(prop)) continue;
-						Vue.set(this.props, prop, defaultProps[prop]);
+						this.props[prop] = defaultProps[prop].default;
 					}
 				}
 			},
 
+			async setting() {
+				const form = data.props();
+				for (const item of Object.keys(form)) {
+					form[item].default = this.props[item];
+				}
+				const { canceled, result } = await os.form(data.name, form);
+				if (canceled) return;
+
+				for (const key of Object.keys(result)) {
+					this.props[key] = result[key];
+				}
+
+				this.save();
+			},
+
 			save() {
-				this.$store.commit('deviceUser/updateWidget', this.widget);
+				if (this.widget) {
+					this.$store.commit('deviceUser/updateWidget', {
+						...this.widget,
+						data: this.props
+					});
+				}
 			}
 		}
 	});

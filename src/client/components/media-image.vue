@@ -1,32 +1,39 @@
 <template>
-<div class="qjewsnkgzzxlxtzncydssfbgjibiehcy" v-if="hide" @click="hide = false">
-	<div>
-		<b><fa :icon="faExclamationTriangle"/> {{ $t('sensitive') }}</b>
-		<span>{{ $t('clickToShow') }}</span>
+<div class="qjewsnkg" v-if="hide" @click="hide = false">
+	<ImgWithBlurhash class="bg" :hash="image.blurhash" :title="image.name"/>
+	<div class="text">
+		<div>
+			<b><Fa :icon="faExclamationTriangle"/> {{ $t('sensitive') }}</b>
+			<span>{{ $t('clickToShow') }}</span>
+		</div>
 	</div>
 </div>
-<div class="gqnyydlzavusgskkfvwvjiattxdzsqlf" v-else>
-	<i><fa :icon="faEyeSlash" @click="hide = true"/></i>
+<div class="gqnyydlz" :style="{ background: color }" v-else>
+	<i><Fa :icon="faEyeSlash" @click="hide = true"/></i>
 	<a
 		:href="image.url"
-		:style="style"
 		:title="image.name"
 		@click.prevent="onClick"
 	>
-		<div v-if="image.type === 'image/gif'">GIF</div>
+		<ImgWithBlurhash :hash="image.blurhash" :src="url" :alt="image.name" :title="image.name" :cover="false"/>
+		<div class="gif" v-if="image.type === 'image/gif'">GIF</div>
 	</a>
 </div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { faExclamationTriangle, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-import i18n from '../i18n';
-import { getStaticImageUrl } from '../scripts/get-static-image-url';
+import { getStaticImageUrl } from '@/scripts/get-static-image-url';
+import { extractAvgColorFromBlurhash } from '@/scripts/extract-avg-color-from-blurhash';
 import ImageViewer from './image-viewer.vue';
+import ImgWithBlurhash from './img-with-blurhash.vue';
+import * as os from '@/os';
 
-export default Vue.extend({
-	i18n,
+export default defineComponent({
+	components: {
+		ImgWithBlurhash
+	},
 	props: {
 		image: {
 			type: Object,
@@ -39,44 +46,45 @@ export default Vue.extend({
 	data() {
 		return {
 			hide: true,
-			faExclamationTriangle,
-			faEyeSlash
+			color: null,
+			faExclamationTriangle, faEyeSlash,
 		};
 	},
 	computed: {
-		style(): any {
-			let url = `url(${
-				this.$store.state.device.disableShowingAnimatedImages
-					? getStaticImageUrl(this.image.thumbnailUrl)
-					: this.image.thumbnailUrl
-			})`;
+		url(): any {
+			let url = this.$store.state.device.disableShowingAnimatedImages
+				? getStaticImageUrl(this.image.thumbnailUrl)
+				: this.image.thumbnailUrl;
 
 			if (this.$store.state.device.loadRemoteMedia) {
 				url = null;
 			} else if (this.raw || this.$store.state.device.loadRawImages) {
-				url = `url(${this.image.url})`;
+				url = this.image.url;
 			}
 
-			return {
-				'background-color': this.image.properties.avgColor || 'transparent',
-				'background-image': url
-			};
+			return url;
 		}
 	},
 	created() {
-		this.hide = this.image.isSensitive && !this.$store.state.device.alwaysShowNsfw;
+		// Plugin:register_note_view_interruptor を使って書き換えられる可能性があるためwatchする
+		this.$watch('image', () => {
+			this.hide = this.image.isSensitive && !this.$store.state.device.alwaysShowNsfw;
+			if (this.image.blurhash) {
+				this.color = extractAvgColorFromBlurhash(this.image.blurhash);
+			}
+		}, {
+			deep: true,
+			immediate: true,
+		});
 	},
 	methods: {
 		onClick() {
 			if (this.$store.state.device.imageNewTab) {
 				window.open(this.image.url, '_blank');
 			} else {
-				const viewer = this.$root.new(ImageViewer, {
+				os.popup(ImageViewer, {
 					image: this.image
-				});
-				this.$once('hook:beforeDestroy', () => {
-					viewer.close();
-				});
+				}, {}, 'closed');
 			}
 		}
 	}
@@ -84,8 +92,40 @@ export default Vue.extend({
 </script>
 
 <style lang="scss" scoped>
-.gqnyydlzavusgskkfvwvjiattxdzsqlf {
+.qjewsnkg {
 	position: relative;
+
+	> .bg {
+		filter: brightness(0.5);
+	}
+
+	> .text {
+		position: absolute;
+		left: 0;
+		top: 0;
+		width: 100%;
+		height: 100%;
+		z-index: 1;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+
+		> div {
+			display: table-cell;
+			text-align: center;
+			font-size: 0.8em;
+			color: #fff;
+
+			> * {
+				display: block;
+			}
+		}
+	}
+}
+
+.gqnyydlz {
+	position: relative;
+	border: solid 1px var(--divider);
 
 	> i {
 		display: block;
@@ -112,7 +152,7 @@ export default Vue.extend({
 		background-size: contain;
 		background-repeat: no-repeat;
 
-		> div {
+		> .gif {
 			background-color: var(--fg);
 			border-radius: 6px;
 			color: var(--accentLighten);
@@ -125,24 +165,6 @@ export default Vue.extend({
 			text-align: center;
 			top: 12px;
 			pointer-events: none;
-		}
-	}
-}
-
-.qjewsnkgzzxlxtzncydssfbgjibiehcy {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	background: #111;
-	color: #fff;
-
-	> div {
-		display: table-cell;
-		text-align: center;
-		font-size: 12px;
-
-		> * {
-			display: block;
 		}
 	}
 }

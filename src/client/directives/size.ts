@@ -1,27 +1,10 @@
-import { ResizeObserver } from '@juggle/resize-observer';
+import { Directive } from 'vue';
+
+//const observers = new Map<Element, ResizeObserver>();
 
 export default {
-	inserted(el, binding, vn) {
+	mounted(src, binding, vn) {
 		const query = binding.value;
-
-		/*
-		const addClassRecursive = (el: Element, cls: string) => {
-			el.classList.add(cls);
-			if (el.children) {
-				for (const child of el.children) {
-					addClassRecursive(child, cls);
-				}
-			}
-		};
-
-		const removeClassRecursive = (el: Element, cls: string) => {
-			el.classList.remove(cls);
-			if (el.children) {
-				for (const child of el.children) {
-					removeClassRecursive(child, cls);
-				}
-			}
-		};*/
 
 		const addClass = (el: Element, cls: string) => {
 			el.classList.add(cls);
@@ -32,21 +15,26 @@ export default {
 		};
 
 		const calc = () => {
-			const width = el.clientWidth;
+			const width = src.clientWidth;
 
-			for (const q of query) {
-				if (q.max) {
-					if (width <= q.max) {
-						addClass(el, 'max-width_' + q.max + 'px');
+			// 要素が(一時的に)DOMに存在しないときは計算スキップ
+			if (width === 0) return;
+
+			if (query.max) {
+				for (const v of query.max) {
+					if (width <= v) {
+						addClass(src, 'max-width_' + v + 'px');
 					} else {
-						removeClass(el, 'max-width_' + q.max + 'px');
+						removeClass(src, 'max-width_' + v + 'px');
 					}
 				}
-				if (q.min) {
-					if (width >= q.min) {
-						addClass(el, 'min-width_' + q.min + 'px');
+			}
+			if (query.min) {
+				for (const v of query.min) {
+					if (width >= v) {
+						addClass(src, 'min-width_' + v + 'px');
 					} else {
-						removeClass(el, 'min-width_' + q.min + 'px');
+						removeClass(src, 'min-width_' + v + 'px');
 					}
 				}
 			}
@@ -54,18 +42,27 @@ export default {
 
 		calc();
 
-		vn.context.$on('hook:activated', calc);
+		window.addEventListener('resize', calc);
 
-		const ro = new ResizeObserver((entries, observer) => {
-			calc();
-		});
+		// Vue3では使えなくなった
+		// 無くても大丈夫か...？
+		// TODO: ↑大丈夫じゃなかったので解決策を探す
+		//vn.context.$on('hook:activated', calc);
 
-		ro.observe(el);
+		//const ro = new ResizeObserver((entries, observer) => {
+		//	calc();
+		//});
 
-		el._ro_ = ro;
+		//ro.observe(el);
+
+		// TODO: 新たにプロパティを作るのをやめMapを使う
+		// ただメモリ的には↓の方が省メモリかもしれないので検討中
+		//el._ro_ = ro;
+		src._calc_ = calc;
 	},
 
-	unbind(el, binding, vn) {
-		el._ro_.unobserve(el);
+	unmounted(src, binding, vn) {
+		//el._ro_.unobserve(el);
+		window.removeEventListener('resize', src._calc_);
 	}
-};
+} as Directive;

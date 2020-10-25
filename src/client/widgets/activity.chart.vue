@@ -25,8 +25,8 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import i18n from '../i18n';
+import { defineComponent } from 'vue';
+import * as os from '@/os';
 
 function dragListen(fn) {
 	window.addEventListener('mousemove',  fn);
@@ -40,8 +40,7 @@ function dragClear(fn) {
 	window.removeEventListener('mouseup',    dragClear);
 }
 
-export default Vue.extend({
-	i18n,
+export default defineComponent({
 	props: ['data'],
 	data() {
 		return {

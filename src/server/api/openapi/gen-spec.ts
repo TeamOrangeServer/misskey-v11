@@ -18,7 +18,7 @@ export function genOpenapiSpec(lang = 'ja-JP') {
 
 		externalDocs: {
 			description: 'Repository',
-			url: 'https://github.com/TeamOrangeServer/misskey'
+			url: 'https://github.com/syuilo/misskey'
 		},
 
 		servers: [{

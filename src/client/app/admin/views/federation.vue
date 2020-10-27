@@ -29,6 +29,8 @@
 						<span>{{ $t('users') }}</span>
 						<template #prefix><fa :icon="faUsers"/></template>
 					</ui-input>
+				</ui-horizon-group>
+				<ui-horizon-group inputs>
 					<ui-input :value="instance.followingCount | number" type="text" readonly>
 						<span>{{ $t('following') }}</span>
 						<template #prefix><fa :icon="faCaretDown"/></template>
@@ -47,56 +49,13 @@
 						<span>{{ $t('status') }}</span>
 						<template #prefix><fa :icon="faTrafficLight"/></template>
 					</ui-input>
-					<ui-input :value="instance.latestRequestReceivedAt | date" type="text" readonly>
-						<span>{{ $t('latest-request-received-at') }}</span>
-					</ui-input>
 				</ui-horizon-group>
-				<ui-horizon-group inputs>
-					<ui-input :value="instance.cc" type="text" readonly>
-						<template #prefix><mfm :text="ccToEmoji(instance.cc)" :plain="true" :nowrap="true" :key="instance.cc"/></template>
-						<span>CC</span>
-					</ui-input>
-					<ui-input :value="instance.isp" type="text" readonly>
-						<span>ISP</span>
-					</ui-input>
-					<ui-input :value="instance.org" type="text" readonly>
-						<span>ORG</span>
-					</ui-input>
-					<ui-input :value="instance.as" type="text" readonly>
-						<span>AS</span>
-					</ui-input>
-				</ui-horizon-group>
-				<ui-horizon-group inputs>
-					<ui-input :value="instance.softwareName" type="text" readonly>
-						<span>{{ $t('softwareName') }}</span>
-					</ui-input>
-					<ui-input :value="instance.softwareVersion" type="text" readonly>
-						<span>{{ $t('softwareVersion') }}</span>
-					</ui-input>
-				</ui-horizon-group>
-				<ui-horizon-group inputs>
-					<ui-input :value="instance.name" type="text" readonly>
-						<span>{{ $t('name') }}</span>
-						<template #prefix><fa :icon="faTag"/></template>
-					</ui-input>
-					<ui-input :value="instance.description" type="text" readonly>
-						<span>{{ $t('description') }}</span>
-						<template #prefix><fa :icon="faCommentAlt"/></template>
-					</ui-input>
-				</ui-horizon-group>
-				<ui-horizon-group inputs>
-					<ui-input :value="instance.maintainerName" type="text" readonly>
-						<span>{{ $t('maintainerName') }}</span>
-						<template #prefix><fa :icon="faUser"/></template>
-					</ui-input>
-					<ui-input :value="instance.maintainerEmail" type="text" readonly>
-						<span>{{ $t('maintainerEmail') }}</span>
-						<template #prefix><fa :icon="faEnvelope"/></template>
-					</ui-input>
-				</ui-horizon-group>
-				<ui-switch v-model="instance.isBlocked" @change="updateInstance()">{{ $t('block') }}</ui-switch>
+				<ui-input :value="instance.latestRequestReceivedAt | date" type="text" readonly>
+					<span>{{ $t('latest-request-received-at') }}</span>
+					<template #prefix><fa :icon="faInbox"/></template>
+				</ui-input>
 				<ui-switch v-model="instance.isMarkedAsClosed" @change="updateInstance()">{{ $t('marked-as-closed') }}</ui-switch>
-				<details :open="true">
+				<details>
 					<summary>{{ $t('charts') }}</summary>
 					<ui-horizon-group inputs>
 						<ui-select v-model="chartSrc">
@@ -163,31 +122,18 @@
 					<option value="markedAsClosed">{{ $t('states.marked-as-closed') }}</option>
 				</ui-select>
 			</ui-horizon-group>
-			<ui-horizon-group inputs>
-				<ui-input v-model="softwareName" type="text" spellcheck="false" @input="fetchInstances()">
-					<span>{{ $t('softwareName') }}</span>
-				</ui-input>
-				<ui-input v-model="cc" type="text" spellcheck="false" @input="fetchInstances()">
-					<span>CC</span>
-				</ui-input>
-			</ui-horizon-group>
 
 			<div class="instances">
 				<header>
 					<span>{{ $t('host') }}</span>
-					<span>{{ $t('system') }}</span>
 					<span>{{ $t('notes') }}</span>
 					<span>{{ $t('users') }}</span>
 					<span>{{ $t('following') }}</span>
 					<span>{{ $t('followers') }}</span>
 					<span>{{ $t('status') }}</span>
 				</header>
-				<div v-for="instance in instances" :key="instance.host" :style="{ opacity: instance.isNotResponding ? 0.5 : 1 }">
-					<a @click.prevent="showInstance(instance.host)" rel="nofollow noopener" target="_blank" :href="`https://${instance.host}`" :style="{ textDecoration: instance.isMarkedAsClosed ? 'line-through' : 'none', display: 'inline-flex', overflow: 'hidden', 'word-break': 'break-all' }">
-						<img v-if="instance.iconUrl != null" :src="`/proxy/icon.ico?${urlQuery({ url: instance.iconUrl })}`" :style="{ width: '1em', height: '1em' }"/>
-						{{ `${instance.host} ${instance.name ? ` (${instance.name})` : ''}` }}
-					</a>
-					<span>{{ `${instance.softwareName || 'unknown'}` }} <small :style="{ opacity: 0.7 }">{{ `${instance.softwareVersion || ''}` }}</small></span>
+				<div v-for="instance in instances" :style="{ opacity: instance.isNotResponding ? 0.5 : 1 }">
+					<a @click.prevent="showInstance(instance.host)" rel="nofollow noopener" target="_blank" :href="`https://${instance.host}`" :style="{ textDecoration: instance.isMarkedAsClosed ? 'line-through' : 'none' }">{{ instance.host }}</a>
 					<span>{{ instance.notesCount | number }}</span>
 					<span>{{ instance.usersCount | number }}</span>
 					<span>{{ instance.followingCount | number }}</span>
@@ -216,10 +162,9 @@
 import Vue from 'vue';
 import i18n from '../../i18n';
 import { faPaperPlane } from '@fortawesome/free-regular-svg-icons';
-import { faGlobe, faTerminal, faSearch, faMinusCircle, faServer, faCrosshairs, faEnvelopeOpenText, faUsers, faCaretDown, faCaretUp, faTrafficLight, faInbox, faUser, faEnvelope, faCommentAlt, faTag } from '@fortawesome/free-solid-svg-icons';
+import { faTrashAlt, faBan, faGlobe, faTerminal, faSearch, faMinusCircle, faServer, faCrosshairs, faEnvelopeOpenText, faUsers, faCaretDown, faCaretUp, faTrafficLight, faInbox } from '@fortawesome/free-solid-svg-icons';
 import ApexCharts from 'apexcharts';
 import * as tinycolor from 'tinycolor2';
-import { query as urlQuery } from '../../../../prelude/url';
 
 const chartLimit = 90;
 const sum = (...arr) => arr.reduce((r, a) => r.map((b, i) => a[i] + b));
@@ -238,16 +183,14 @@ export default Vue.extend({
 			target: null,
 			sort: '+lastCommunicatedAt',
 			state: 'all',
-			softwareName: '',
-			cc: '',
-			limit: 200,
+			limit: 100,
 			instances: [],
 			chart: null,
 			chartSrc: 'requests',
 			chartSpan: 'hour',
 			chartInstance: null,
-			urlQuery,
-			faGlobe, faTerminal, faSearch, faMinusCircle, faServer, faCrosshairs, faEnvelopeOpenText, faUsers, faCaretDown, faCaretUp, faPaperPlane, faTrafficLight, faInbox, faUser, faEnvelope, faCommentAlt, faTag
+			blockedHosts: '',
+			faTrashAlt, faBan, faGlobe, faTerminal, faSearch, faMinusCircle, faServer, faCrosshairs, faEnvelopeOpenText, faUsers, faCaretDown, faCaretUp, faPaperPlane, faTrafficLight, faInbox
 		};
 	},
 
@@ -347,8 +290,6 @@ export default Vue.extend({
 		fetchInstances() {
 			this.instances = [];
 			this.$root.api('federation/instances', {
-				softwareName: this.softwareName,
-				cc: this.cc,
 				blocked: this.state === 'blocked' ? true : null,
 				notResponding: this.state === 'notResponding' ? true : null,
 				markedAsClosed: this.state === 'markedAsClosed' ? true : null,
@@ -426,11 +367,7 @@ export default Vue.extend({
 					width: 2
 				},
 				tooltip: {
-					theme: this.$store.state.device.darkmode ? 'dark' : 'light',
-					x: {
-						show: true,
-						format: true ? 'dd MMM HH:mm' : 'dd MMM',
-					},
+					theme: this.$store.state.device.darkmode ? 'dark' : 'light'
 				},
 				legend: {
 					labels: {
@@ -453,7 +390,7 @@ export default Vue.extend({
 				},
 				yaxis: {
 					labels: {
-						formatter: this.data.bytes ? v => Vue.filter('bytes')(v, 2) : v => Vue.filter('number')(v),
+						formatter: this.data.bytes ? v => Vue.filter('bytes')(v, 0) : v => Vue.filter('number')(v),
 						style: {
 							color: tinycolor(getComputedStyle(document.documentElement).getPropertyValue('--text')).toRgbString()
 						}
@@ -480,12 +417,6 @@ export default Vue.extend({
 
 		format(arr) {
 			return arr.map((v, i) => ({ x: this.getDate(i).getTime(), y: v }));
-		},
-
-		ccToEmoji(cc: string | null | undefined) {
-			if (cc == null) return '';
-			if (cc === '??') return '';
-			return cc.toUpperCase().replace(/./g, c => String.fromCodePoint(c.charCodeAt(0) + 127397));
 		},
 
 		requestsChart(): any {

@@ -981,8 +981,6 @@ admin/views/federation.vue:
   host: "ホスト"
   notes: "投稿"
   users: "ユーザー"
-  system: "システム"
-  softwareName: "ソフトウェア"
   following: "フォローしとる"
   followers: "フォロワー"
   status: "ステータス"

@@ -4,7 +4,7 @@ import Relay, { IRelay } from '../models/relay';
 import { createSystemUser } from './create-system-user';
 import { renderFollowRelay } from '../remote/activitypub/renderer/follow-relay';
 import { renderActivity, attachLdSignature } from '../remote/activitypub/renderer';
-import renderUndo from '../remote/activitypub/renderer/undo';
+import { renderUndo }from '../remote/activitypub/renderer/undo';
 import { deliver } from '../queue';
 
 const ACTOR_USERNAME = 'relay.actor' as const;

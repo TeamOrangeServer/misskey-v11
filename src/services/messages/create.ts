@@ -5,7 +5,7 @@ import MessagingMessage, { pack as packMessage } from '../../models/messaging-me
 import pushNotification from '../push-notification';
 import { INote } from '../../models/note';
 import renderNote from '../../remote/activitypub/renderer/note';
-import renderCreate from '../../remote/activitypub/renderer/create';
+import { renderCreate } from '../../remote/activitypub/renderer/create';
 import { renderActivity } from '../../remote/activitypub/renderer';
 import { deliver } from '../../queue';
 

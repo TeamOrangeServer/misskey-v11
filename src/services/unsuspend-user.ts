@@ -1,5 +1,5 @@
-import renderDelete from '../remote/activitypub/renderer/delete';
-import renderUndo from '../remote/activitypub/renderer/undo';
+import { renderDelete } from '../remote/activitypub/renderer/delete';
+import { renderUndo }from '../remote/activitypub/renderer/undo';
 import { renderActivity } from '../remote/activitypub/renderer';
 import { deliver } from '../queue';
 import config from '../config';

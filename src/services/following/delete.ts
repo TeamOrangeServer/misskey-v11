@@ -2,8 +2,8 @@ import User, { isLocalUser, isRemoteUser, pack as packUser, IUser } from '../../
 import Following from '../../models/following';
 import { publishMainStream } from '../stream';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import renderFollow from '../../remote/activitypub/renderer/follow';
-import renderUndo from '../../remote/activitypub/renderer/undo';
+import { renderFollow } from '../../remote/activitypub/renderer/follow';
+import { renderUndo }from '../../remote/activitypub/renderer/undo';
 import { deliver } from '../../queue';
 import perUserFollowingChart from '../../services/chart/per-user-following';
 import Logger from '../logger';

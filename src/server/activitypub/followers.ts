@@ -7,8 +7,8 @@ import User from '../../models/user';
 import Following from '../../models/following';
 import * as url from '../../prelude/url';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import renderOrderedCollection from '../../remote/activitypub/renderer/ordered-collection';
-import renderOrderedCollectionPage from '../../remote/activitypub/renderer/ordered-collection-page';
+import { renderOrderedCollection } from '../../remote/activitypub/renderer/ordered-collection';
+import { renderOrderedCollectionPage } from '../../remote/activitypub/renderer/ordered-collection-page';
 import renderFollowUser from '../../remote/activitypub/renderer/follow-user';
 import { setResponseType } from '../activitypub';
 

@@ -2,7 +2,7 @@ import { pack as packUser, IUser, isRemoteUser, fetchProxyAccount } from '../../
 import UserList, { IUserList } from '../../models/user-list';
 import { renderActivity } from '../../remote/activitypub/renderer';
 import { deliver } from '../../queue';
-import renderFollow from '../../remote/activitypub/renderer/follow';
+import { renderFollow } from '../../remote/activitypub/renderer/follow';
 import { publishUserListStream } from '../stream';
 import Following from '../../models/following';
 import { fetchOutbox } from '../../remote/activitypub/models/person';

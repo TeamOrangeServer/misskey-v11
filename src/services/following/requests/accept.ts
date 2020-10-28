@@ -1,8 +1,8 @@
 import { IUser, isRemoteUser, ILocalUser, pack as packUser } from '../../../models/user';
 import FollowRequest from '../../../models/follow-request';
 import { renderActivity } from '../../../remote/activitypub/renderer';
-import renderFollow from '../../../remote/activitypub/renderer/follow';
-import renderAccept from '../../../remote/activitypub/renderer/accept';
+import { renderFollow } from '../../../remote/activitypub/renderer/follow';
+import { renderAccept } from '../../../remote/activitypub/renderer/accept';
 import { deliver } from '../../../queue';
 import { publishMainStream } from '../../stream';
 import { insertFollowingDoc } from '../create';

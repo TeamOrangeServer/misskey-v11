@@ -4,7 +4,7 @@ import { updateQuestion } from '../../../remote/activitypub/models/question';
 import ms = require('ms');
 import Logger from '../../logger';
 import User, { isLocalUser } from '../../../models/user';
-import renderUpdate from '../../../remote/activitypub/renderer/update';
+import { renderUpdate }from '../../../remote/activitypub/renderer/update';
 import { renderActivity } from '../../../remote/activitypub/renderer';
 import renderNote from '../../../remote/activitypub/renderer/note';
 import { deliverToFollowers } from '../../../remote/activitypub/deliver-manager';

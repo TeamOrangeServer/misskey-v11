@@ -4,8 +4,8 @@ import User, { isLocalUser, IUser, isRemoteUser, IRemoteUser, ILocalUser, getMut
 import { publishMainStream, publishNotesStream } from '../stream';
 import { createDeleteNoteJob } from '../../queue';
 import renderNote from '../../remote/activitypub/renderer/note';
-import renderCreate from '../../remote/activitypub/renderer/create';
-import renderAnnounce from '../../remote/activitypub/renderer/announce';
+import { renderCreate } from '../../remote/activitypub/renderer/create';
+import { renderAnnounce } from '../../remote/activitypub/renderer/announce';
 import { renderActivity } from '../../remote/activitypub/renderer';
 import DriveFile, { IDriveFile } from '../../models/drive-file';
 import { createNotification } from '../../services/create-notification';

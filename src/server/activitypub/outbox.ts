@@ -5,14 +5,14 @@ import $ from 'cafy';
 import ID, { transform } from '../../misc/cafy-id';
 import User from '../../models/user';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import renderOrderedCollection from '../../remote/activitypub/renderer/ordered-collection';
-import renderOrderedCollectionPage from '../../remote/activitypub/renderer/ordered-collection-page';
+import { renderOrderedCollection } from '../../remote/activitypub/renderer/ordered-collection';
+import { renderOrderedCollectionPage } from '../../remote/activitypub/renderer/ordered-collection-page';
 import { setResponseType } from '../activitypub';
 
 import Note, { INote } from '../../models/note';
 import renderNote from '../../remote/activitypub/renderer/note';
-import renderCreate from '../../remote/activitypub/renderer/create';
-import renderAnnounce from '../../remote/activitypub/renderer/announce';
+import { renderCreate } from '../../remote/activitypub/renderer/create';
+import { renderAnnounce } from '../../remote/activitypub/renderer/announce';
 import { countIf } from '../../prelude/array';
 import * as url from '../../prelude/url';
 

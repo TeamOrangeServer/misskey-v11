@@ -1,11 +1,11 @@
 import Note, { INote } from '../../models/note';
 import User, { IUser, isLocalUser, isRemoteUser, IRemoteUser } from '../../models/user';
 import { publishNoteStream } from '../stream';
-import renderDelete from '../../remote/activitypub/renderer/delete';
-import renderUndo from '../../remote/activitypub/renderer/undo';
+import { renderDelete } from '../../remote/activitypub/renderer/delete';
+import { renderUndo }from '../../remote/activitypub/renderer/undo';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import renderTombstone from '../../remote/activitypub/renderer/tombstone';
-import renderAnnounce from '../../remote/activitypub/renderer/announce';
+import { renderTombstone } from '../../remote/activitypub/renderer/tombstone';
+import { renderAnnounce } from '../../remote/activitypub/renderer/announce';
 import notesChart from '../../services/chart/notes';
 import perUserNotesChart from '../../services/chart/per-user-notes';
 import config from '../../config';

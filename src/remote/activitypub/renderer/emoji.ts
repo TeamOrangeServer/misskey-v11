@@ -1,7 +1,7 @@
 import { IEmoji } from '../../../models/emoji';
 import config from '../../../config';
 
-export default (emoji: IEmoji) => {
+export const renderEmoji = (emoji: IEmoji) => {
 	if (emoji.uri) return emoji.uri;
 
 	return {

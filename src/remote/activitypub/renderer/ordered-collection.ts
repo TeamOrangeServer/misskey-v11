@@ -6,7 +6,7 @@
  * @param last URL of last page (optional)
  * @param orderedItems attached objects (optional)
  */
-export default function(id: string | null, totalItems: any, first?: string | null, last?: string | null, orderedItems?: object | null) {
+export function renderOrderedCollection(id: string | null, totalItems: any, first?: string | null, last?: string | null, orderedItems?: object | null) {
 	const page: any = {
 		id,
 		type: 'OrderedCollection',

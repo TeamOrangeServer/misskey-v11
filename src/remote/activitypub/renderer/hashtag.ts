@@ -1,6 +1,6 @@
 import config from '../../../config';
 
-export default (tag: string) => ({
+export const renderHashtag = (tag: string) => ({
 	type: 'Hashtag',
 	href: `${config.url}/tags/${encodeURIComponent(tag)}`,
 	name: `#${tag}`

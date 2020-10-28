@@ -1,4 +1,4 @@
-import renderDelete from '../remote/activitypub/renderer/delete';
+import { renderDelete } from '../remote/activitypub/renderer/delete';
 import { renderActivity } from '../remote/activitypub/renderer';
 import { deliver } from '../queue';
 import config from '../config';

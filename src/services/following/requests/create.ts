@@ -2,11 +2,11 @@ import User, { isLocalUser, isRemoteUser, pack as packUser, IUser } from '../../
 import { publishMainStream } from '../../stream';
 import { createNotification } from '../../../services/create-notification';
 import { renderActivity } from '../../../remote/activitypub/renderer';
-import renderFollow from '../../../remote/activitypub/renderer/follow';
+import { renderFollow } from '../../../remote/activitypub/renderer/follow';
 import { deliver } from '../../../queue';
 import FollowRequest from '../../../models/follow-request';
 import Blocking from '../../../models/blocking';
-import renderReject from '../../../remote/activitypub/renderer/reject';
+import { renderReject } from '../../../remote/activitypub/renderer/reject';
 import Following from '../../../models/following';
 
 export default async function(follower: IUser, followee: IUser, requestId?: string) {

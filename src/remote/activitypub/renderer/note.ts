@@ -1,7 +1,7 @@
-import renderDocument from './document';
-import renderHashtag from './hashtag';
-import renderMention from './mention';
-import renderEmoji from './emoji';
+import { renderDocument } from './document';
+import { renderHashtag } from './hashtag';
+import { renderMention } from './mention';
+import { renderEmoji } from './emoji';
 import config from '../../../config';
 import DriveFile from '../../../models/drive-file';
 import Note, { INote } from '../../../models/note';

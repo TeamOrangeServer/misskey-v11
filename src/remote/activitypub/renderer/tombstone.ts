@@ -1,4 +1,4 @@
-export default (id: string, formerType?: string) => {
+export const renderTombstone = (id: string, formerType?: string) => {
 	const object = {
 		id,
 		type: 'Tombstone',

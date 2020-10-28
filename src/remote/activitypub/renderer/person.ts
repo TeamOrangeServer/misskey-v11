@@ -1,16 +1,16 @@
-import renderImage from './image';
-import renderKey from './key';
+import { renderImage } from './image';
+import { renderKey } from './key';
 import config from '../../../config';
 import { ILocalUser } from '../../../models/user';
 import { toHtml } from '../../../mfm/toHtml';
 import { parse } from '../../../mfm/parse';
 import DriveFile from '../../../models/drive-file';
 import { getEmojis } from './note';
-import renderEmoji from './emoji';
+import { renderEmoji } from './emoji';
 import { IIdentifier } from '../models/identifier';
-import renderHashtag from './hashtag';
+import { renderHashtag } from './hashtag';
 
-export default async (user: ILocalUser) => {
+export const renderPerson = async (user: ILocalUser) => {
 	const isSystem = !!user.username.match(/\./);
 
 	const id = `${config.url}/users/${user._id}`;

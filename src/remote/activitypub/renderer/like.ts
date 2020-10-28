@@ -2,7 +2,7 @@ import config from '../../../config';
 import { INote } from '../../../models/note';
 import { INoteReaction } from '../../../models/note-reaction';
 import Emoji from '../../../models/emoji';
-import renderEmoji from './emoji';
+import { renderEmoji } from './emoji';
 
 export const renderLike = async (noteReaction: INoteReaction, note: INote) => {
 	const reaction = generalMap[noteReaction.reaction] || noteReaction.reaction;

@@ -1,7 +1,7 @@
 import config from '../../../config';
 import { INote } from '../../../models/note';
 
-export default (object: any, note: INote) => {
+export const renderAnnounce = (object: any, note: INote) => {
 	const attributedTo = `${config.url}/users/${note.userId}`;
 
 	let to: string[] = [];

@@ -3,7 +3,7 @@ import * as Router from '@koa/router';
 import config from '../../config';
 import User from '../../models/user';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import renderOrderedCollection from '../../remote/activitypub/renderer/ordered-collection';
+import { renderOrderedCollection } from '../../remote/activitypub/renderer/ordered-collection';
 import { setResponseType } from '../activitypub';
 import Note, { INote } from '../../models/note';
 import renderNote from '../../remote/activitypub/renderer/note';

@@ -7,10 +7,10 @@ import { publishMessagingStream } from '../../../services/stream';
 import { publishMessagingIndexStream } from '../../../services/stream';
 import User, { ILocalUser, IRemoteUser } from '../../../models/user';
 import { renderActivity } from '../../../remote/activitypub/renderer';
-import { renderReadActivity } from '../../../remote/activitypub/renderer/read';
+import { renderRead } from '../../../remote/activitypub/renderer/read';
 import { deliver } from '../../../queue';
 import { toArray } from '../../../prelude/array';
-import orderedCollection from '../../../remote/activitypub/renderer/ordered-collection';
+import { renderOrderedCollection } from '../../../remote/activitypub/renderer/ordered-collection';
 
 /**
  * Mark messages as read
@@ -82,10 +82,10 @@ export default async (
 
 export async function deliverReadActivity(user: ILocalUser, recipient: IRemoteUser, messages: IMessagingMessage | IMessagingMessage[]) {
 	messages = toArray(messages).filter(x => x.uri);
-	const contents = messages.map(x => renderReadActivity(user, x));
+	const contents = messages.map(x => renderRead(user, x));
 
 	if (contents.length > 1) {
-		const collection = orderedCollection(null, contents.length, undefined, undefined, contents);
+		const collection = renderOrderedCollection(null, contents.length, undefined, undefined, contents);
 		deliver(user, renderActivity(collection), recipient.inbox);
 	} else {
 		for (const content of contents) {

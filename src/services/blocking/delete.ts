@@ -1,8 +1,8 @@
 import { isLocalUser, isRemoteUser, IUser } from '../../models/user';
 import Blocking from '../../models/blocking';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import renderBlock from '../../remote/activitypub/renderer/block';
-import renderUndo from '../../remote/activitypub/renderer/undo';
+import { renderBlock } from '../../remote/activitypub/renderer/block';
+import { renderUndo }from '../../remote/activitypub/renderer/undo';
 import { deliver } from '../../queue';
 import Logger from '../logger';
 import { publishMutingChanged } from '../create-event';

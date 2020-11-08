@@ -421,13 +421,13 @@ export const pack = async (
 		delete _user.publicKey;
 	}
 
-	_user.avatarUrl = DriveFile.findOne({
+	_user.avatarUrl = _user.avatarId ? DriveFile.findOne({
 		_id: _user.avatarId
-	}).then(file => getDriveFileUrl(file, true, false) || `${config.driveUrl}/default-avatar.jpg`);
+	}).then(file => getDriveFileUrl(file, true, false) || `${config.driveUrl}/default-avatar.jpg`) : null;
 
-	_user.bannerUrl = DriveFile.findOne({
+	_user.bannerUrl = _user.bannerUrl ? DriveFile.findOne({
 		_id: _user.bannerId
-	}).then(file => getDriveFileUrl(file, false, false) || undefined);
+	}).then(file => getDriveFileUrl(file, false, false) || undefined) : null;
 
 	if (!meId || !meId.equals(_user.id) || !opts.detail) {
 		delete _user.avatarId;

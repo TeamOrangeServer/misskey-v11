@@ -8,9 +8,24 @@ const uri = `mongodb://${u && p ? `${u}:${p}@` : ''}${config.mongodb.host}:${con
 /**
  * monk
  */
-import mongo from 'monk';
+import mongo, { TMiddleware } from 'monk';
 
 const db = mongo(uri);
+
+if (true) {
+	const log: TMiddleware = context => next => (args, method) => {
+		const name = context?.collection?.name;
+		const t0 = Date.now();
+		return next(args, method).then(res => {
+			const t1 = Date.now();
+			const td = Math.max(0, t1 - t0);
+			console.debug(`Query: ${name} ${method} ${td}ms`);
+			return res
+		})
+	}
+
+	db.addMiddleware(log);
+}
 
 export default db;
 
@@ -37,3 +52,4 @@ const nativeDbConn = async (): Promise<mongodb.Db> => {
 };
 
 export { nativeDbConn };
+

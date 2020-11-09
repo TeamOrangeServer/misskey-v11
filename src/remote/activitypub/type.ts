@@ -126,7 +126,6 @@ export interface IOrderedCollectionPage extends IObject {
 
 export interface IPost extends IObject {
 	type: 'Note' | 'Question' | 'Article' | 'Audio' | 'Document' | 'Image' | 'Page' | 'Video' | 'Event';
-	_misskey_content: string;
 	_misskey_quote?: string;
 	quoteUrl?: string;
 	_misskey_talk?: boolean;
@@ -148,7 +147,6 @@ export const isTombstone = (object: IObject): object is ITombstone =>
 
 export interface IQuestion extends IObject {
 	type: 'Note' | 'Question';
-	_misskey_content: string;
 	_misskey_quote?: string;
 	quoteUrl?: string;
 	oneOf?: IQuestionChoice[];

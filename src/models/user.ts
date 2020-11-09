@@ -423,11 +423,11 @@ export const pack = async (
 
 	_user.avatarUrl = _user.avatarId ? DriveFile.findOne({
 		_id: _user.avatarId
-	}).then(file => getDriveFileUrl(file, true, false) || `${config.driveUrl}/default-avatar.jpg`) : null;
+	}).then(file => getDriveFileUrl(file, true, false) || `${config.driveUrl}/default-avatar.jpg`) : undefined;
 
 	_user.bannerUrl = _user.bannerUrl ? DriveFile.findOne({
 		_id: _user.bannerId
-	}).then(file => getDriveFileUrl(file, false, false) || undefined) : null;
+	}).then(file => getDriveFileUrl(file, false, false) || undefined) : undefined;
 
 	if (!meId || !meId.equals(_user.id) || !opts.detail) {
 		delete _user.avatarId;

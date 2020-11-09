@@ -106,6 +106,7 @@ export function toHtml(tokens: MfmForest, mentionedRemoteUsers: INote['mentioned
 
 		center(token) {
 			const el = doc.createElement('div');
+			el.setAttribute('align', 'center');
 			appendChildren(token.children, el);
 			return el;
 		},
@@ -197,7 +198,9 @@ export function toHtml(tokens: MfmForest, mentionedRemoteUsers: INote['mentioned
 			const a = doc.createElement('a');
 			a.href = `https://www.google.com/search?q=${encodeURIComponent(token.node.props.query)}`;
 			a.textContent = token.node.props.content;
-			return a;
+			const div = doc.createElement('div');
+			div.appendChild(a);
+			return div;
 		}
 	};
 

@@ -198,9 +198,7 @@ export function toHtml(tokens: MfmForest, mentionedRemoteUsers: INote['mentioned
 			const a = doc.createElement('a');
 			a.href = `https://www.google.com/search?q=${encodeURIComponent(token.node.props.query)}`;
 			a.textContent = token.node.props.content;
-			const div = doc.createElement('div');
-			div.appendChild(a);
-			return div;
+			return a;
 		}
 	};
 

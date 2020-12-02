@@ -221,7 +221,7 @@
 		"sass": "1.27.0",
 		"sass-loader": "10.0.4",
 		"seedrandom": "3.0.5",
-		"sharp": "0.25.4",
+		"sharp": "0.26.2",
 		"showdown": "1.9.1",
 		"showdown-highlightjs-extension": "0.1.2",
 		"sonic-channel": "1.2.6",

@@ -1,5 +1,5 @@
 <template>
-<div class="mk-notes" :class="{ shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }">
+<div class="mk-notes">
 	<slot name="header"></slot>
 
 	<div class="newer-indicator" :style="{ top: $store.state.uiHeaderHeight + 'px' }" v-show="queue.length > 0"></div>
@@ -22,6 +22,9 @@
 				<span><fa icon="angle-up"/>{{ note._datetext }}</span>
 				<span><fa icon="angle-down"/>{{ _notes[i + 1]._datetext }}</span>
 			</p>
+			<p class="date" :key="note.id + '_hour'" v-if="i != notes.length - 1 && timeSplitters.includes(note._hour) && note._hour != _notes[i + 1]._hour">
+				<span>{{ note._hourtext }}</span>
+			</p>
 		</template>
 	</component>
 
@@ -38,7 +41,8 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import * as config from '../../../config';
-import shouldMuteNote from '../../../common/scripts/should-mute-note';
+import { shouldMuteNote } from '../../../common/scripts/should-mute-note';
+import { getSpeechName, getSpeechText } from '../../../../../misc/get-note-speech';
 
 const displayLimit = 30;
 
@@ -46,6 +50,11 @@ export default Vue.extend({
 	i18n: i18n(),
 
 	props: {
+		timeSplitters: {
+			type: Array,
+			required: false,
+			default: (): any[] => [],
+		},
 		makePromise: {
 			required: true
 		}
@@ -69,6 +78,9 @@ export default Vue.extend({
 				const month = new Date(note.createdAt).getMonth() + 1;
 				note._date = date;
 				note._datetext = this.$t('@.month-and-day').replace('{month}', month.toString()).replace('{day}', date.toString());
+				const hour = new Date(note.createdAt).getHours();
+				note._hour = hour;
+				note._hourtext = `${hour}:00`;
 				return note;
 			});
 		}
@@ -138,9 +150,24 @@ export default Vue.extend({
 			// 弾く
 			if (shouldMuteNote(this.$store.state.i, this.$store.state.settings, note)) return;
 
-			// タブが非表示またはスクロール位置が最上部ではないならタイトルで通知
-			if (document.hidden || !this.isScrollTop()) {
-				this.$store.commit('pushBehindNote', note);
+			// 既存をRenoteされたらそこを置き換える
+			if (note.renoteId && !note.text && !note.poll && (!note.fileIds || !note.fileIds.length)) {
+				for (let i = 0; i < 10; i++) {
+					if (!this.notes[i]) break;
+
+					// 引用投稿はスキップ
+					if (this.notes[i].renoteId && (this.notes[i].text || this.notes[i].poll || this.notes[i].fileIds?.length > 0)) {
+						continue;
+					}
+
+					const extId = this.notes[i].renoteId || this.notes[i].id;
+					const newId = note.renoteId || note.id;
+
+					if (extId == newId) {
+						Vue.set((this as any).notes, i, note);
+						return;
+					}
+				}
 			}
 
 			if (this.isScrollTop()) {
@@ -148,7 +175,7 @@ export default Vue.extend({
 				this.notes.unshift(note);
 
 				// サウンドを再生する
-				if (this.$store.state.device.enableSounds && !silent) {
+				if (this.$store.state.device.enableSounds && this.$store.state.device.enableSoundsInTimeline && !silent) {
 					const sound = new Audio(`${config.url}/assets/post.mp3`);
 					sound.volume = this.$store.state.device.soundVolume;
 					sound.play();
@@ -161,6 +188,20 @@ export default Vue.extend({
 				}
 			} else {
 				this.queue.push(note);
+			}
+
+			if (this.$store.state.device.enableSpeech && !silent) {
+				const name = getSpeechName(note);
+				const nameUttr = new SpeechSynthesisUtterance(name);
+				nameUttr.pitch = 2;
+
+				const text = getSpeechText(note);
+				const textUttr = new SpeechSynthesisUtterance(text);
+
+				if (getSpeechText) {
+					speechSynthesis.speak(nameUttr);
+					speechSynthesis.speak(textUttr);
+				}
 			}
 		},
 
@@ -194,19 +235,14 @@ export default Vue.extend({
 .mk-notes
 	background var(--face)
 	overflow hidden
-
-	&.round
-		border-radius 6px
-
-	&.shadow
-		box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
+	border-radius 6px
+	box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
 
 	.transition
 		.mk-notes-enter
 		.mk-notes-leave-to
 			opacity 0
 			transform translateY(-30px)
-
 		> *
 			transition transform .3s ease, opacity .3s ease
 
@@ -228,7 +264,6 @@ export default Vue.extend({
 			text-align center
 			color var(--dateDividerFg)
 			background var(--dateDividerBg)
-			border-bottom solid var(--lineWidth) var(--faceDivider)
 
 			span
 				margin 0 16px

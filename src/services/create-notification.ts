@@ -1,19 +1,23 @@
+/* eslint-disable no-async-promise-executor */
 import * as mongo from 'mongodb';
 import Notification from '../models/notification';
-import Mute from '../models/mute';
 import { pack } from '../models/notification';
 import { publishMainStream } from './stream';
-import User from '../models/user';
+import User, { getMute } from '../models/user';
 import pushSw from './push-notification';
 
-export default (
+export const createNotification = (
 	notifiee: mongo.ObjectID,
 	notifier: mongo.ObjectID,
 	type: string,
 	content?: any
 ) => new Promise<any>(async (resolve, reject) => {
-	if (notifiee.equals(notifier)) {
-		return resolve();
+	try {
+		if (notifiee.equals(notifier)) {
+			return resolve();
+		}
+	} catch (e) {
+		return reject(e);
 	}
 
 	// Create notification
@@ -32,27 +36,21 @@ export default (
 	// Publish notification event
 	publishMainStream(notifiee, 'notification', packed);
 
-	// Update flag
-	User.update({ _id: notifiee }, {
-		$set: {
-			hasUnreadNotification: true
-		}
-	});
-
 	// 2秒経っても(今回作成した)通知が既読にならなかったら「未読の通知がありますよ」イベントを発行する
 	setTimeout(async () => {
 		const fresh = await Notification.findOne({ _id: notification._id }, { isRead: true });
 		if (!fresh.isRead) {
 			//#region ただしミュートしているユーザーからの通知なら無視
-			const mute = await Mute.find({
-				muterId: notifiee,
-				deletedAt: { $exists: false }
-			});
-			const mutedUserIds = mute.map(m => m.muteeId.toString());
-			if (mutedUserIds.indexOf(notifier.toString()) != -1) {
-				return;
-			}
+			const mute = await getMute(notifiee, notifier);
+			if (mute) return;
 			//#endregion
+
+			// Update flag
+			User.update({ _id: notifiee }, {
+				$set: {
+					hasUnreadNotification: true
+				}
+			});
 
 			publishMainStream(notifiee, 'unreadNotification', packed);
 

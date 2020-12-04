@@ -1,5 +1,5 @@
 import * as os from 'os';
-import * as sysUtils from 'systeminformation';
+import * as systeminformation from 'systeminformation';
 import * as diskusage from 'diskusage';
 import * as Deque from 'double-ended-queue';
 import Xev from 'xev';
@@ -7,7 +7,7 @@ import * as osUtils from 'os-utils';
 
 const ev = new Xev();
 
-const interval = 1000;
+const interval = 3000;
 
 /**
  * Report server stats regularly
@@ -32,8 +32,8 @@ export default function() {
 				used: usedmem
 			},
 			disk,
-			os_uptime: os.uptime(),
-			process_uptime: process.uptime()
+			os_uptime: -1,
+			process_uptime: -1
 		};
 		ev.emit('serverStats', stats);
 		log.unshift(stats);
@@ -48,20 +48,24 @@ export default function() {
 // CPU STAT
 function cpuUsage() {
 	return new Promise((res, rej) => {
-		osUtils.cpuUsage((cpuUsage: number) => {
-			res(cpuUsage);
-		});
+		try {
+			osUtils.cpuUsage((cpuUsage: number) => {
+				res(cpuUsage);
+			});
+		} catch (e) {
+			rej(e);
+		}
 	});
 }
 
 // MEMORY(excl buffer + cache) STAT
 async function usedMem() {
-	const data = await sysUtils.mem();
+	const data = await systeminformation.mem();
 	return data.active;
 }
 
 // TOTAL MEMORY STAT
 async function totalMem() {
-	const data = await sysUtils.mem();
+	const data = await systeminformation.mem();
 	return data.total;
 }

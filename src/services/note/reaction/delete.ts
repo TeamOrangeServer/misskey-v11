@@ -2,11 +2,12 @@ import { IUser, isLocalUser, isRemoteUser } from '../../../models/user';
 import Note, { INote } from '../../../models/note';
 import NoteReaction from '../../../models/note-reaction';
 import { publishNoteStream } from '../../stream';
-import renderLike from '../../../remote/activitypub/renderer/like';
+import { renderLike } from '../../../remote/activitypub/renderer/like';
 import renderUndo from '../../../remote/activitypub/renderer/undo';
 import { renderActivity } from '../../../remote/activitypub/renderer';
-import { deliver } from '../../../queue';
+import { deliverToUser, deliverToFollowers } from '../../../remote/activitypub/deliver-manager';
 import { IdentifiableError } from '../../../misc/identifiable-error';
+import { decodeReaction } from '../../../misc/reaction-lib';
 
 export default async (user: IUser, note: INote) => {
 	// if already unreacted
@@ -16,17 +17,22 @@ export default async (user: IUser, note: INote) => {
 		deletedAt: { $exists: false }
 	});
 
-	if (exist === null) {
+	if (exist == null) {
 		throw new IdentifiableError('60527ec9-b4cb-4a88-a6bd-32d3ad26817d', 'not reacted');
 	}
 
 	// Delete reaction
-	await NoteReaction.remove({
+	const result = await NoteReaction.remove({
 		_id: exist._id
 	});
 
+	if (result.deletedCount !== 1) {
+		throw new IdentifiableError('60527ec9-b4cb-4a88-a6bd-32d3ad26817d', 'not reacted');
+	}
+
 	const dec: any = {};
 	dec[`reactionCounts.${exist.reaction}`] = -1;
+	dec.score = (user.isBot || exist.dislike) ? 0 : -1;
 
 	// Decrement reactions count
 	Note.update({ _id: note._id }, {
@@ -34,15 +40,16 @@ export default async (user: IUser, note: INote) => {
 	});
 
 	publishNoteStream(note._id, 'unreacted', {
-		reaction: exist.reaction,
+		reaction: decodeReaction(exist.reaction),
 		userId: user._id
 	});
 
 	//#region 配信
-	// リアクターがローカルユーザーかつリアクション対象がリモートユーザーの投稿なら配送
-	if (isLocalUser(user) && isRemoteUser(note._user)) {
-		const content = renderActivity(renderUndo(renderLike(user, note, exist.reaction), user));
-		deliver(user, content, note._user.inbox);
+	if (isLocalUser(user) && !note.localOnly && !user.noFederation) {
+		const content = renderActivity(renderUndo(await renderLike(exist, note), user), user);
+		if (isRemoteUser(note._user)) deliverToUser(user, content, note._user);
+		deliverToFollowers(user, content, true);
+		//deliverToRelays(user, content);
 	}
 	//#endregion
 

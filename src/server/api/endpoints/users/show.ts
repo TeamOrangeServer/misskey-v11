@@ -1,6 +1,6 @@
 import $ from 'cafy';
 import ID, { transform, transformMany } from '../../../../misc/cafy-id';
-import User, { pack } from '../../../../models/user';
+import User, { pack, isRemoteUser } from '../../../../models/user';
 import resolveRemoteUser from '../../../../remote/resolve-user';
 import define from '../../define';
 import { apiLogger } from '../../logger';
@@ -90,10 +90,20 @@ export default define(meta, async (ps, me) => {
 				: { usernameLower: ps.username.toLowerCase(), host: null };
 
 			user = await User.findOne(q, cursorOption);
+
+			if (user && isRemoteUser(user)) {
+				resolveRemoteUser(user.username, user.host);
+			}
 		}
 
 		if (user === null) {
 			throw new ApiError(meta.errors.noSuchUser);
+		}
+
+		if (me == null || !(me.isAdmin || me.isModerator)) {
+			if (user.isSuspended) {
+				throw new ApiError(meta.errors.noSuchUser);
+			}
 		}
 
 		return await pack(user, me, {

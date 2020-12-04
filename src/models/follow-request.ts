@@ -33,10 +33,10 @@ export type IFollowRequest = {
 /**
  * Pack a request for API response
  */
-export const pack = (
+export const pack = async (
 	request: any,
 	me?: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _request: any;
 
 	// Populate the request if 'request' is ID
@@ -62,5 +62,5 @@ export const pack = (
 	// Populate followee
 	_request.followee = await packUser(_request.followeeId, me);
 
-	resolve(_request);
-});
+	return _request;
+};

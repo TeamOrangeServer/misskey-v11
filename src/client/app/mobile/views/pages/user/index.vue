@@ -6,29 +6,32 @@
 	<div class="wwtwuxyh" v-if="!fetching">
 		<div class="is-suspended" v-if="user.isSuspended"><p><fa icon="exclamation-triangle"/> {{ $t('@.user-suspended') }}</p></div>
 		<div class="is-remote" v-if="user.host != null"><p><fa icon="exclamation-triangle"/> {{ $t('@.is-remote-user') }}<a :href="user.url || user.uri" rel="nofollow noopener" target="_blank">{{ $t('@.view-on-remote') }}</a></p></div>
+		<div class="no-federation" v-if="user.noFederation"><p><fa icon="exclamation-triangle"/> {{ $t('@.user-no-federation') }}</p></div>
 		<header>
 			<div class="banner" :style="style"></div>
 			<div class="body">
 				<div class="top">
-					<a class="avatar">
+					<a class="avatar" :href="user.avatarUrl">
 						<img :src="avator" alt="avatar"/>
 					</a>
 					<button class="menu" ref="menu" @click="menu"><fa icon="ellipsis-h"/></button>
-					<mk-follow-button v-if="$store.getters.isSignedIn && $store.state.i.id != user.id" :user="user"/>
+					<button class="listMenu" ref="listMenu" @click="listMenu"><fa :icon="['fas', 'list']"/></button>
+					<mk-follow-button v-if="$store.getters.isSignedIn && $store.state.i.id != user.id" :user="user" :key="user.id"/>
 				</div>
 				<div class="title">
-					<h1><mk-user-name :user="user" :key="user.id"/></h1>
-					<span class="username"><mk-acct :user="user" :detail="true" /></span>
+					<h1><mk-user-name :user="user" :key="user.id" :nowrap="false"/></h1>
+					<span class="username"><mk-acct :user="user" :detail="true" :key="user.id"/></span>
+					<span class="moved" v-if="user.movedToUser != null">moved to <router-link :to="user.movedToUser | userPage()"><mk-acct :user="user.movedToUser" :detail="true"/></router-link></span>
 					<span class="followed" v-if="user.isFollowed">{{ $t('follows-you') }}</span>
 				</div>
 				<div class="description">
 					<mfm v-if="user.description" :text="user.description" :is-note="false" :author="user" :i="$store.state.i" :custom-emojis="user.emojis" :key="user.id"/>
 					<x-integrations :user="user" style="margin:20px 0;"/>
 				</div>
-				<div class="fields" v-if="user.fields">
+				<div class="fields" v-if="user.fields" :key="user.id">
 					<dl class="field" v-for="(field, i) in user.fields" :key="i">
 						<dt class="name">
-							<mfm :text="field.name" :should-break="false" :plain-text="true" :custom-emojis="user.emojis"/>
+							<mfm :text="field.name" :plain="true" :custom-emojis="user.emojis"/>
 						</dt>
 						<dd class="value">
 							<mfm :text="field.value" :author="user" :i="$store.state.i" :custom-emojis="user.emojis"/>
@@ -36,10 +39,10 @@
 					</dl>
 				</div>
 				<div class="info">
-					<p class="location" v-if="user.host === null && user.profile.location">
+					<p class="location" v-if="user.profile && user.profile.location">
 						<fa icon="map-marker"/>{{ user.profile.location }}
 					</p>
-					<p class="birthday" v-if="user.host === null && user.profile.birthday">
+					<p class="birthday" v-if="user.profile && user.profile.birthday">
 						<fa icon="birthday-cake"/>{{ user.profile.birthday.replace('-', '年').replace('-', '月') + '日' }} ({{ $t('years-old', { age }) }})
 					</p>
 				</div>
@@ -57,9 +60,12 @@
 						<i>{{ $t('followers') }}</i>
 					</router-link>
 				</div>
+				<div class="usertags">
+					<a class="usertag" v-for="usertag in user.usertags" :key="usertag" @click="removeUsertag(usertag)"><fa :icon="faUserTag"/>{{ usertag }}</a>
+				</div>
 			</div>
 		</header>
-		<nav v-if="$route.name == 'user'" :class="{ shadow: $store.state.device.useShadow }">
+		<nav v-if="$route.name == 'user'">
 			<div class="nav-container">
 				<a :data-active="page == 'home'" @click="page = 'home'"><fa icon="home"/> {{ $t('overview') }}</a>
 				<a :data-active="page == 'notes'" @click="page = 'notes'"><fa :icon="['far', 'comment-alt']"/> {{ $t('timeline') }}</a>
@@ -85,9 +91,11 @@ import * as age from 's-age';
 import parseAcct from '../../../../../../misc/acct/parse';
 import Progress from '../../../../common/scripts/loading';
 import XUserMenu from '../../../../common/views/components/user-menu.vue';
+import XListMenu from '../../../../common/views/components/list-menu.vue';
 import XHome from './home.vue';
 import { getStaticImageUrl } from '../../../../common/scripts/get-static-image-url';
 import XIntegrations from '../../../../common/views/components/integrations.vue';
+import { faUserTag } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/pages/user.vue'),
@@ -99,7 +107,8 @@ export default Vue.extend({
 		return {
 			fetching: true,
 			user: null,
-			page: this.$route.name == 'user' ? 'home' : null
+			page: this.$route.name == 'user' ? 'home' : null,
+			faUserTag
 		};
 	},
 	computed: {
@@ -144,6 +153,38 @@ export default Vue.extend({
 				user: this.user
 			});
 		},
+
+		listMenu() {
+			this.$root.new(XListMenu, {
+				source: this.$refs.listMenu,
+				user: this.user
+			});
+		},
+
+		async removeUsertag(usertag: string) {
+			const { canceled } = await this.$root.dialog({
+				type: 'warning',
+				title: this.$t('@.removeUsertagConfirm'),
+				showCancelButton: true,
+			});
+
+			if (canceled) return;
+
+			this.$root.api('usertags/remove', {
+				targetId: this.user.id,
+				tag: usertag
+			}).then(() => {
+				this.$root.dialog({
+					type: 'success',
+					splash: true
+				});
+			}, (e: any) => {
+				this.$root.dialog({
+					type: 'error',
+					text: e
+				});
+			});
+		},
 	}
 });
 </script>
@@ -154,11 +195,12 @@ export default Vue.extend({
 
 	> .is-suspended
 	> .is-remote
+	> .no-federation
 		&.is-suspended
 			color #570808
 			background #ffdbdb
 
-		&.is-remote
+		&.is-remote, &.no-federation
 			color #573c08
 			background #fff0db
 
@@ -179,7 +221,7 @@ export default Vue.extend({
 		background $bg
 
 		> .banner
-			padding-bottom 33.3%
+			padding-bottom 160px
 			background-color rgba(0, 0, 0, 0.1)
 			background-size cover
 			background-position center
@@ -220,6 +262,13 @@ export default Vue.extend({
 					font-size 18px
 					color var(--text)
 
+				> .listMenu
+					margin 0 0 0 0
+					padding 8px
+					margin-right 8px
+					font-size 18px
+					color var(--text)
+
 			> .title
 				margin 8px 0
 
@@ -229,12 +278,15 @@ export default Vue.extend({
 					font-size 20px
 					color var(--mobileUserPageName)
 
-				> .username
+				> .username, .moved
 					display inline-block
 					line-height 20px
 					font-size 16px
 					font-weight bold
 					color var(--mobileUserPageAcct)
+
+				> .moved
+					margin-left 8px
 
 				> .followed
 					margin-left 8px
@@ -311,15 +363,20 @@ export default Vue.extend({
 				> button
 					color var(--text)
 
+			> .usertags
+				margin-left -0.5em
+
+				> .usertag
+					margin-left 0.5em
+					color var(--text)
+
 	> nav
 		position -webkit-sticky
 		position sticky
 		top 47px
 		background-color $bg
 		z-index 2
-
-		&.shadow
-			box-shadow 0 4px 4px var(--mobileUserPageHeaderShadow)
+		box-shadow 0 4px 4px var(--mobileUserPageHeaderShadow)
 
 		> .nav-container
 			display flex

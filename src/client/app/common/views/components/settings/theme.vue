@@ -45,8 +45,6 @@
 			</ui-select>
 		</label>
 
-		<a href="https://assets.msky.cafe/theme/list" rel="noopener" target="_blank">{{ $t('find-more-theme') }}</a>
-
 		<details class="creator">
 			<summary><fa icon="palette"/> {{ $t('create-a-theme') }}</summary>
 			<div>
@@ -62,17 +60,19 @@
 					<span>{{ $t('desc') }}</span>
 				</ui-textarea>
 			</div>
-			<div>
-				<div style="padding-bottom:8px;">{{ $t('primary-color') }}:</div>
-				<color-picker v-model="myThemePrimary"/>
-			</div>
-			<div>
-				<div style="padding-bottom:8px;">{{ $t('secondary-color') }}:</div>
-				<color-picker v-model="myThemeSecondary"/>
-			</div>
-			<div>
-				<div style="padding-bottom:8px;">{{ $t('text-color') }}:</div>
-				<color-picker v-model="myThemeText"/>
+			<div style="display: flex; margin: -1em; flex-wrap: wrap;">
+				<div style="margin: 1em">
+					<div style="padding-bottom:8px;">{{ $t('primary-color') }}</div>
+					<color-picker v-model="myThemePrimary" style="width: 180px"/>
+				</div>
+				<div style="margin: 1em">
+					<div style="padding-bottom:8px;">{{ $t('secondary-color') }}</div>
+					<color-picker v-model="myThemeSecondary" style="width: 180px"/>
+				</div>
+				<div style="margin: 1em">
+					<div style="padding-bottom:8px;">{{ $t('text-color') }}</div>
+					<color-picker v-model="myThemeText" style="width: 180px"/>
+				</div>
 			</div>
 			<ui-button @click="preview()"><fa icon="eye"/> {{ $t('preview-created-theme') }}</ui-button>
 			<ui-button primary @click="gen()"><fa :icon="['far', 'save']"/> {{ $t('save-created-theme') }}</ui-button>
@@ -125,7 +125,7 @@ import Vue from 'vue';
 import i18n from '../../../../i18n';
 import { lightTheme, darkTheme, builtinThemes, applyTheme, Theme } from '../../../../theme';
 import { Chrome } from 'vue-color';
-import * as uuid from 'uuid';
+import { v4 as uuid } from 'uuid';
 import * as tinycolor from 'tinycolor2';
 import * as JSON5 from 'json5';
 import { faMoon, faSun } from '@fortawesome/free-regular-svg-icons';

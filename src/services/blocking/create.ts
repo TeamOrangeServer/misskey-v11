@@ -10,6 +10,7 @@ import { deliver } from '../../queue';
 import renderReject from '../../remote/activitypub/renderer/reject';
 import perUserFollowingChart from '../../services/chart/per-user-following';
 import Blocking from '../../models/blocking';
+import { publishFollowingChanged, publishMutingChanged } from '../create-event';
 
 export default async function(blocker: IUser, blockee: IUser) {
 
@@ -29,6 +30,14 @@ export default async function(blocker: IUser, blockee: IUser) {
 	if (isLocalUser(blocker) && isRemoteUser(blockee)) {
 		const content = renderActivity(renderBlock(blocker, blockee));
 		deliver(blocker, content, blockee.inbox);
+	}
+
+	if (isLocalUser(blocker)) {
+		publishMutingChanged(blocker._id);
+	}
+
+	if (isLocalUser(blockee)) {
+		publishMutingChanged(blockee._id);
 	}
 }
 
@@ -115,6 +124,8 @@ async function unFollow(follower: IUser, followee: IUser) {
 		packUser(followee, follower, {
 			detail: true
 		}).then(packed => publishMainStream(follower._id, 'unfollow', packed));
+
+		publishFollowingChanged(follower._id);
 	}
 
 	// リモートにフォローをしていたらUndoFollow送信

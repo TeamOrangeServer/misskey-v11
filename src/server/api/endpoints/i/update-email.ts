@@ -73,11 +73,12 @@ export default define(meta, async (ps, user) => {
 			port: meta.smtpPort,
 			secure: meta.smtpSecure,
 			ignoreTLS: !enableAuth,
+			proxy: config.proxySmtp,
 			auth: enableAuth ? {
 				user: meta.smtpUser,
 				pass: meta.smtpPass
 			} : undefined
-		});
+		} as any);
 
 		const link = `${config.url}/verify-email/${code}`;
 

@@ -2,7 +2,7 @@ import * as ms from 'ms';
 import $ from 'cafy';
 import ID, { transform } from '../../../../../misc/cafy-id';
 import { validateFileName, pack } from '../../../../../models/drive-file';
-import create from '../../../../../services/drive/add-file';
+import { addFile, ProcessOptions } from '../../../../../services/drive/add-file';
 import define from '../../../define';
 import { apiLogger } from '../../../logger';
 import { ApiError } from '../../../error';
@@ -24,7 +24,7 @@ export const meta = {
 
 	requireFile: true,
 
-	kind: 'drive-write',
+	kind: ['write:drive', 'drive-write'],
 
 	params: {
 		folderId: {
@@ -33,6 +33,14 @@ export const meta = {
 			default: null as any,
 			desc: {
 				'ja-JP': 'フォルダID'
+			}
+		},
+
+		name: {
+			validator: $.optional.nullable.str,
+			default: null as any,
+			desc: {
+				'ja-JP': 'ファイル名（拡張子があるなら含めて）'
 			}
 		},
 
@@ -53,7 +61,25 @@ export const meta = {
 			desc: {
 				'ja-JP': 'true にすると、同じハッシュを持つファイルが既にアップロードされていても強制的にファイルを作成します。',
 			}
-		}
+		},
+
+		isWebpublic: {
+			validator: $.optional.either($.bool, $.str),
+			default: false,
+			transform: (v: any): boolean => v === true || v === 'true',
+			desc: {
+				'ja-JP': 'Web公開用画像か (EXIF除去/リサイズ等は不要か)',
+			}
+		},
+
+		useJpegForWeb: {
+			validator: $.optional.either($.bool, $.str),
+			default: false,
+			transform: (v: any): boolean => v === true || v === 'true',
+			desc: {
+				'ja-JP': 'Web公開用をJPEGにするか',
+			}
+		},
 	},
 
 	res: {
@@ -71,7 +97,7 @@ export const meta = {
 
 export default define(meta, async (ps, user, app, file, cleanup) => {
 	// Get 'name' parameter
-	let name = file.originalname;
+	let name = ps.name || file.originalname;
 	if (name !== undefined && name !== null) {
 		name = name.trim();
 		if (name.length === 0) {
@@ -87,7 +113,12 @@ export default define(meta, async (ps, user, app, file, cleanup) => {
 
 	try {
 		// Create file
-		const driveFile = await create(user, file.path, name, null, ps.folderId, ps.force, false, null, null, ps.isSensitive);
+		const prsOpts = {
+			isWebpublic: ps.isWebpublic,
+			useJpegForWeb: ps.useJpegForWeb,
+		} as ProcessOptions;
+
+		const driveFile = await addFile(user, file.path, name, null, ps.folderId, ps.force, false, null, null, ps.isSensitive, prsOpts);
 		return pack(driveFile, { self: true });
 	} catch (e) {
 		apiLogger.error(e);

@@ -4,10 +4,11 @@ import { IEndpoint } from './endpoints';
 import getAcct from '../../misc/acct/render';
 import { IUser } from '../../models/user';
 import Logger from '../../services/logger';
+import { addrToPeer } from '../../misc/addr-to-peer';
 
 const logger = new Logger('limiter');
 
-export default (endpoint: IEndpoint, user: IUser) => new Promise((ok, reject) => {
+export default (endpoint: IEndpoint, user?: IUser, ip?: string) => new Promise((ok, reject) => {
 	// Redisがインストールされてない場合は常に許可
 	if (limiterDB == null) {
 		ok();
@@ -15,6 +16,13 @@ export default (endpoint: IEndpoint, user: IUser) => new Promise((ok, reject) =>
 	}
 
 	const limitation = endpoint.meta.limit;
+	if (limitation == null) {
+		ok();
+		return;
+	}
+
+	const target = user ? user._id : ip ? addrToPeer(ip) : null;
+	const targetName = user ? `@${getAcct(user)}` : ip ? addrToPeer(ip) : null;
 
 	const key = limitation.hasOwnProperty('key')
 		? limitation.key
@@ -38,7 +46,7 @@ export default (endpoint: IEndpoint, user: IUser) => new Promise((ok, reject) =>
 	// Short-term limit
 	function min() {
 		const minIntervalLimiter = new Limiter({
-			id: `${user._id}:${key}:min`,
+			id: `${target}:${key}:min`,
 			duration: limitation.minInterval,
 			max: 1,
 			db: limiterDB
@@ -49,7 +57,7 @@ export default (endpoint: IEndpoint, user: IUser) => new Promise((ok, reject) =>
 				return reject('ERR');
 			}
 
-			logger.debug(`@${getAcct(user)} ${endpoint.name} min remaining: ${info.remaining}`);
+			logger.debug(`${targetName} ${endpoint.name} min remaining: ${info.remaining}`);
 
 			if (info.remaining === 0) {
 				reject('BRIEF_REQUEST_INTERVAL');
@@ -66,7 +74,7 @@ export default (endpoint: IEndpoint, user: IUser) => new Promise((ok, reject) =>
 	// Long term limit
 	function max() {
 		const limiter = new Limiter({
-			id: `${user._id}:${key}`,
+			id: `${target}:${key}`,
 			duration: limitation.duration,
 			max: limitation.max,
 			db: limiterDB
@@ -77,7 +85,7 @@ export default (endpoint: IEndpoint, user: IUser) => new Promise((ok, reject) =>
 				return reject('ERR');
 			}
 
-			logger.debug(`@${getAcct(user)} ${endpoint.name} max remaining: ${info.remaining}`);
+			logger.debug(`${targetName} ${endpoint.name} max remaining: ${info.remaining}`);
 
 			if (info.remaining === 0) {
 				reject('RATE_LIMIT_EXCEEDED');

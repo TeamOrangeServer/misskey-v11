@@ -3,6 +3,8 @@ import ID, { transform } from '../../../../../misc/cafy-id';
 import UserList, { pack } from '../../../../../models/user-list';
 import define from '../../../define';
 import { ApiError } from '../../../error';
+import { publishUserListStream } from '../../../../../services/stream';
+import { publishFilterChanged } from '../../../../../services/create-event';
 
 export const meta = {
 	desc: {
@@ -14,7 +16,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'account-write',
+	kind: ['write:account', 'account-write', 'account/write'],
 
 	params: {
 		listId: {
@@ -32,7 +34,21 @@ export const meta = {
 				'ja-JP': 'このユーザーリストの名前',
 				'en-US': 'name of this user list'
 			}
-		}
+		},
+
+		hideFromHome: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'これらのユーザーをホームに表示しない'
+			}
+		},
+
+		mediaOnly: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'メディア投稿のみ'
+			}
+		},
 	},
 
 	errors: {
@@ -55,11 +71,20 @@ export default define(meta, async (ps, user) => {
 		throw new ApiError(meta.errors.noSuchList);
 	}
 
+	const set = {
+		title: ps.title
+	} as any;
+
+	if (typeof ps.hideFromHome == 'boolean') set.hideFromHome = ps.hideFromHome;
+	if (typeof ps.mediaOnly == 'boolean') set.mediaOnly = ps.mediaOnly;
+
 	await UserList.update({ _id: userList._id }, {
-		$set: {
-			title: ps.title
-		}
+		$set: set
 	});
+
+	publishUserListStream(userList._id, 'settingChanged');
+
+	publishFilterChanged(user._id);
 
 	return await pack(userList._id);
 });

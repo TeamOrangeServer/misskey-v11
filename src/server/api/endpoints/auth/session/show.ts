@@ -37,5 +37,9 @@ export default define(meta, async (ps, user) => {
 		throw new ApiError(meta.errors.noSuchSession);
 	}
 
-	return await pack(session, user);
+	const packed = await pack(session, user);
+
+	packed.app.name = packed.app.name.replace('<', '＜');
+
+	return packed;
 });

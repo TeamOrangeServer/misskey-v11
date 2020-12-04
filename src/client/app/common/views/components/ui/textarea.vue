@@ -11,6 +11,7 @@
 			@input="$emit('input', $event.target.value)"
 			@focus="focused = true"
 			@blur="focused = false"
+			:class="{ slim }"
 		></textarea>
 	</div>
 	<div class="desc"><slot name="desc"></slot></div>
@@ -47,6 +48,11 @@ export default Vue.extend({
 			default: false
 		},
 		pre: {
+			type: Boolean,
+			required: false,
+			default: false
+		},
+		slim: {
 			type: Boolean,
 			required: false,
 			default: false
@@ -144,6 +150,9 @@ root(fill)
 			border-radius 0
 			outline none
 			box-shadow none
+
+			&.slim
+				min-height auto
 
 	> .desc
 		margin 6px 0

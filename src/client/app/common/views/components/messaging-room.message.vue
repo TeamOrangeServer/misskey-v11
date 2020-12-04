@@ -11,7 +11,7 @@
 				<div class="file" v-if="message.file">
 					<a :href="message.file.url" rel="noopener" target="_blank" :title="message.file.name">
 						<img v-if="message.file.type.split('/')[0] == 'image'" :src="message.file.url" :alt="message.file.name"
-							:style="{ backgroundColor: message.file.properties.avgColor && message.file.properties.avgColor.length == 3 ? `rgb(${message.file.properties.avgColor.join(',')})` : 'transparent' }"/>
+							:style="{ backgroundColor: `var(--face)` }"/>
 						<p v-else>{{ message.file.name }}</p>
 					</a>
 				</div>
@@ -131,6 +131,7 @@ export default Vue.extend({
 					cursor pointer
 
 			> .content
+				max-width 100%
 
 				> .is-deleted
 					display block
@@ -147,6 +148,7 @@ export default Vue.extend({
 					padding 8px 16px
 					overflow hidden
 					overflow-wrap break-word
+					word-break break-word
 					font-size 1em
 					color rgba(#000, 0.8)
 

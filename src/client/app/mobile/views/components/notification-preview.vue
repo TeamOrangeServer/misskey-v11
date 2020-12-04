@@ -61,18 +61,36 @@
 			<p class="note-ref"><fa icon="quote-left"/>{{ getNoteSummary(notification.note) }}<fa icon="quote-right"/></p>
 		</div>
 	</template>
+
+	<template v-if="notification.type == 'poll_finished'">
+		<mk-avatar class="avatar" :user="notification.user"/>
+		<div class="text">
+			<p><fa icon="chart-pie"/><mk-user-name :user="notification.user"/></p>
+			<p class="note-ref"><fa icon="quote-left"/>{{ getNoteSummary(notification.note) }}<fa icon="quote-right"/></p>
+		</div>
+	</template>
+
+	<template v-if="notification.type == 'highlight'">
+		<mk-avatar class="avatar" :user="notification.note.user"/>
+		<div class="text">
+			<p><fa :icon="faLightbulb"/><mk-user-name :user="notification.note.user"/></p>
+			<p class="note-preview">{{ getNoteSummary(notification.note) }}</p>
+		</div>
+	</template>
 </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
 import getNoteSummary from '../../../../../misc/get-note-summary';
+import { faLightbulb } from '@fortawesome/free-regular-svg-icons';
 
 export default Vue.extend({
 	props: ['notification'],
 	data() {
 		return {
-			getNoteSummary
+			getNoteSummary,
+			faLightbulb,
 		};
 	}
 });
@@ -133,5 +151,18 @@ export default Vue.extend({
 		.text p [data-icon]
 			color #fff
 
+	&.poll_vote, &.poll_finished
+		.text
+			color var(--text)
+			align-items center
+
+		&.poll_finished
+			.avatar
+				display none
+
+			.text
+				float none
+				width auto
+				padding 0
 </style>
 

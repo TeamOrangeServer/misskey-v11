@@ -1,21 +1,21 @@
 <template>
 <div class="xqnhankfuuilcwvhgsopeqncafzsquya">
 	<button class="go-index" v-if="selfNav" @click="goIndex"><fa icon="arrow-left"/></button>
-	<header><b><router-link :to="blackUser | userPage"><mk-user-name :user="blackUser"/></router-link></b>({{ $t('@.reversi.black') }}) vs <b><router-link :to="whiteUser | userPage"><mk-user-name :user="whiteUser"/></router-link></b>({{ $t('@.reversi.white') }})</header>
+	<header><b><router-link :to="blackUser | userPage"><mk-user-name :user="blackUser"/></router-link></b><span> <fa :icon="fasCircle"/></span> vs <b><router-link :to="whiteUser | userPage"><mk-user-name :user="whiteUser"/></router-link></b><span> <fa :icon="farCircle"/></span></header>
 
-	<div style="overflow: hidden; line-height: 28px;">
+	<div style="overflow: hidden; line-height: 16px;">
 		<p class="turn" v-if="!iAmPlayer && !game.isEnded">
-			<mfm :key="'turn:' + $options.filters.userName(turnUser)" :text="$t('@.reversi.turn-of', { name: $options.filters.userName(turnUser) })" :should-break="false" :plain-text="true" :custom-emojis="turnUser.emojis"/>
+			<mfm :key="'turn:' + $options.filters.userName(turnUser)" :text="$t('@.reversi.turn-of', { name: $options.filters.userName(turnUser) })" :plain="true" :custom-emojis="turnUser.emojis"/>
 			<mk-ellipsis/>
 		</p>
 		<p class="turn" v-if="logPos != logs.length">
-			<mfm :key="'past-turn-of:' + $options.filters.userName(turnUser)" :text="$t('@.reversi.past-turn-of', { name: $options.filters.userName(turnUser) })" :should-break="false" :plain-text="true" :custom-emojis="turnUser.emojis"/>
+			<mfm :key="'past-turn-of:' + $options.filters.userName(turnUser)" :text="$t('@.reversi.past-turn-of', { name: $options.filters.userName(turnUser) })" :plain="true" :custom-emojis="turnUser.emojis"/>
 		</p>
 		<p class="turn1" v-if="iAmPlayer && !game.isEnded && !isMyTurn">{{ $t('@.reversi.opponent-turn') }}<mk-ellipsis/></p>
 		<p class="turn2" v-if="iAmPlayer && !game.isEnded && isMyTurn" v-animate-css="{ classes: 'tada', iteration: 'infinite' }">{{ $t('@.reversi.my-turn') }}</p>
 		<p class="result" v-if="game.isEnded && logPos == logs.length">
 			<template v-if="game.winner">
-				<mfm :key="'won'" :text="$t('@.reversi.won', { name: $options.filters.userName(game.winner) })" :should-break="false" :plain-text="true" :custom-emojis="game.winner.emojis"/>
+				<mfm :key="'won'" :text="$t('@.reversi.won', { name: $options.filters.userName(game.winner) })" :plain="true" :custom-emojis="game.winner.emojis"/>
 				<span v-if="game.surrendered != null"> ({{ $t('surrendered') }})</span>
 			</template>
 			<template v-else>{{ $t('@.reversi.drawn') }}</template>
@@ -54,7 +54,7 @@
 		</div>
 	</div>
 
-	<p class="status"><b>{{ $t('@.reversi.this-turn', { count: logPos }) }}</b> {{ $t('@.reversi.black') }}:{{ o.blackCount }} {{ $t('@.reversi.white') }}:{{ o.whiteCount }} {{ $t('@.reversi.total') }}:{{ o.blackCount + o.whiteCount }}</p>
+	<p class="status"><b>{{ $t('@.reversi.this-turn', { count: logPos }) }}</b><fa :icon="fasCircle" style="margin-left: 0.5em"/>:{{ o.blackCount }} <fa :icon="farCircle"/>:{{ o.whiteCount }} {{ $t('@.reversi.total') }}:{{ o.blackCount + o.whiteCount }}</p>
 
 	<div class="actions" v-if="!game.isEnded && iAmPlayer">
 		<form-button @click="surrender">{{ $t('surrender') }}</form-button>

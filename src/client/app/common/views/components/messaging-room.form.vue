@@ -23,6 +23,9 @@
 		<fa :icon="['far', 'folder-open']"/>
 	</button>
 	<input ref="file" type="file" @change="onChangeFile"/>
+	<button class="emoji" @click="emoji" ref="emoji">
+		<fa :icon="['far', 'laugh']"/>
+	</button>
 </div>
 </template>
 
@@ -30,6 +33,7 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import * as autosize from 'autosize';
+import insertTextAtCursor from 'insert-text-at-cursor';
 
 export default Vue.extend({
 	i18n: i18n('common/views/components/messaging-room.form.vue'),
@@ -81,7 +85,11 @@ export default Vue.extend({
 
 			if (items.length == 1) {
 				if (items[0].kind == 'file') {
-					this.upload(items[0].getAsFile());
+					const file = items[0].getAsFile();
+					const lio = file.name.lastIndexOf('.');
+					const ext = lio >= 0 ? file.name.slice(lio) : '';
+					const name = `${new Date().toISOString().replace(/\D/g, '').substr(0, 14)}${ext}`;
+					this.upload(file, name);
 				}
 			} else {
 				if (items[0].kind == 'file') {
@@ -142,8 +150,8 @@ export default Vue.extend({
 			this.upload((this.$refs.file as any).files[0]);
 		},
 
-		upload(file) {
-			(this.$refs.uploader as any).upload(file);
+		upload(file: File, name?: string) {
+			(this.$refs.uploader as any).upload(file, null, name, false, true);
 		},
 
 		onUploaded(file) {
@@ -191,6 +199,23 @@ export default Vue.extend({
 			delete data[this.draftId];
 
 			localStorage.setItem('message_drafts', JSON.stringify(data));
+		},
+
+		async emoji() {
+			const Picker = await import('../../../desktop/views/components/emoji-picker-dialog.vue').then(m => m.default);
+			const button = this.$refs.emoji;
+			const rect = button.getBoundingClientRect();
+			const vm = this.$root.new(Picker, {
+				includeRemote: true,
+				x: button.offsetWidth + rect.left + window.pageXOffset,
+				y: rect.top + window.pageYOffset
+			});
+			vm.$once('chosen', (emoji: string) => {
+				insertTextAtCursor(this.$refs.textarea, emoji + (emoji.startsWith(':') ? String.fromCharCode(0x200B) : ''));
+			});
+			this.$once('hook:beforeDestroy', () => {
+				vm.close();
+			});
 		},
 	}
 });
@@ -284,6 +309,7 @@ export default Vue.extend({
 
 	.attach-from-local
 	.attach-from-drive
+	.emoji
 		margin 0
 		padding 10px 14px
 		font-size 1em

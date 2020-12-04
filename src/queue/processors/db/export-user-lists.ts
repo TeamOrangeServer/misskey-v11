@@ -4,20 +4,25 @@ import * as fs from 'fs';
 import * as mongo from 'mongodb';
 
 import { queueLogger } from '../../logger';
-import addFile from '../../../services/drive/add-file';
+import { addFile } from '../../../services/drive/add-file';
 import User from '../../../models/user';
 import dateFormat = require('dateformat');
 import UserList from '../../../models/user-list';
 import { getFullApAccount } from '../../../misc/convert-host';
+import { DbUserJobData } from '../..';
 
 const logger = queueLogger.createSubLogger('export-user-lists');
 
-export async function exportUserLists(job: Bull.Job, done: any): Promise<void> {
+export async function exportUserLists(job: Bull.Job<DbUserJobData>): Promise<string> {
 	logger.info(`Exporting user lists of ${job.data.user._id} ...`);
 
 	const user = await User.findOne({
 		_id: new mongo.ObjectID(job.data.user._id.toString())
 	});
+
+	if (user == null) {
+		return `skip: user not found`;
+	}
 
 	const lists = await UserList.find({
 		userId: user._id
@@ -65,9 +70,8 @@ export async function exportUserLists(job: Bull.Job, done: any): Promise<void> {
 	logger.succ(`Exported to: ${path}`);
 
 	const fileName = 'user-lists-' + dateFormat(new Date(), 'yyyy-mm-dd-HH-MM-ss') + '.csv';
-	const driveFile = await addFile(user, path, fileName, null, null, true);
+	const driveFile = await addFile(user, path, fileName, undefined, undefined, true);
 
-	logger.succ(`Exported to: ${driveFile._id}`);
 	cleanup();
-	done();
+	return `Exported to: ${driveFile._id}`;
 }

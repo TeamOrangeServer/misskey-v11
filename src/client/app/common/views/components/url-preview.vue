@@ -3,14 +3,17 @@
 	<button class="disablePlayer" @click="playerEnabled = false" :title="$t('disable-player')"><fa icon="times"/></button>
 	<iframe :src="player.url + (player.url.match(/\?/) ? '&autoplay=1&auto_play=1' : '?autoplay=1&auto_play=1')" :width="player.width || '100%'" :heigth="player.height || 250" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen />
 </div>
-<div v-else-if="tweetUrl && detail" class="twitter">
-	<blockquote ref="tweet" class="twitter-tweet" :data-theme="$store.state.device.darkmode ? 'dark' : null">
-		<a :href="url"></a>
-	</blockquote>
+<div v-else-if="tweetId && tweetExpanded" class="twitter" ref="twitter">
+	<iframe ref="tweet" scrolling="no" frameborder="no" :style="{ 'margin-top': '8px', left: `${tweetLeft}px`, width: `${tweetLeft < 0 ? 'auto' : '100%'}`, height: `${tweetHeight}px` }" :src="`https://platform.twitter.com/embed/index.html?embedId=${embedId}&amp;hideCard=false&amp;hideThread=false&amp;lang=en&amp;theme=${$store.state.device.darkmode ? 'dark' : 'light'}&amp;id=${tweetId}`"></iframe>
+	<div class="expandTweet">
+		<a @click="tweetExpanded = false">
+			<fa :icon="faTwitter"/> {{ $t('collapseTweet') }}
+		</a>
+	</div>
 </div>
 <div v-else class="mk-url-preview">
-	<a :class="{ mini: narrow, compact }" :href="url" rel="nofollow noopener" target="_blank" :title="url" v-if="!fetching">
-		<div class="thumbnail" v-if="thumbnail" :style="`background-image: url('${thumbnail}')`">
+	<a :class="{ mini: narrow, compact }" :href="landingUrl" rel="nofollow noopener" target="_blank" :title="landingUrl" v-if="!fetching">
+		<div class="thumbnail" v-if="thumbnail && (!sensitive || $store.state.device.alwaysShowNsfw)" :style="`background-image: url('${thumbnail}')`">
 			<button v-if="!playerEnabled && player.url" @click.prevent="playerEnabled = true" :title="$t('enable-player')"><fa :icon="['far', 'play-circle']"/></button>
 		</div>
 		<article>
@@ -24,20 +27,26 @@
 			</footer>
 		</article>
 	</a>
+	<div class="expandTweet" v-if="tweetId">
+		<a @click="tweetExpanded = true">
+			<fa :icon="faTwitter"/> {{ $t('expandTweet') }}
+		</a>
+	</div>
 </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import { url as misskeyUrl } from '../../../config';
+import { url as misskeyUrl, lang } from '../../../config';
+import { faTwitter } from '@fortawesome/free-brands-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('common/views/components/url-preview.vue'),
 	props: {
 		url: {
 			type: String,
-			require: true
+			required: true
 		},
 
 		detail: {
@@ -62,63 +71,94 @@ export default Vue.extend({
 	data() {
 		return {
 			fetching: true,
+			landingUrl: this.url,
 			title: null,
 			description: null,
 			thumbnail: null,
 			icon: null,
 			sitename: null,
+			sensitive: false,
 			player: {
 				url: null,
 				width: null,
 				height: null
 			},
-			tweetUrl: null,
+			tweetId: null,
+			tweetExpanded: this.detail,
+			embedId: `embed${Math.random().toString().replace(/\D/,'')}`,
+			tweetHeight: 150,
+			tweetLeft: 0,
 			playerEnabled: false,
 			misskeyUrl,
+			faTwitter
 		};
 	},
 
 	created() {
-		const url = new URL(this.url);
+		const requestUrl = new URL(this.url);
 
-		if (this.detail && url.hostname == 'twitter.com' && /^\/.+\/status(es)?\/\d+/.test(url.pathname)) {
-			this.tweetUrl = url;
-			const twttr = (window as any).twttr || {};
-			const loadTweet = () => twttr.widgets.load(this.$refs.tweet);
-
-			if (twttr.widgets) {
-				Vue.nextTick(loadTweet);
-			} else {
-				const wjsId = 'twitter-wjs';
-				if (!document.getElementById(wjsId)) {
-					const head = document.getElementsByTagName('head')[0];
-					const script = document.createElement('script');
-					script.setAttribute('id', wjsId);
-					script.setAttribute('src', 'https://platform.twitter.com/widgets.js');
-					head.appendChild(script);
-				}
-				twttr.ready = loadTweet;
-				(window as any).twttr = twttr;
-			}
+		if (this.isBlokedUrl(requestUrl)) {
 			return;
 		}
 
-		if (url.hostname === 'music.youtube.com')
-			url.hostname = 'youtube.com';
+		if (requestUrl.hostname == 'twitter.com') {
+			const m = requestUrl.pathname.match(/^\/.+\/status(?:es)?\/(\d+)/);
+			if (m) this.tweetId = m[1];
+		}
 
-		fetch(`/url?url=${encodeURIComponent(this.url)}`).then(res => {
+		if (requestUrl.hostname === 'music.youtube.com' && requestUrl.pathname.match('^/(?:watch|channel)')) {
+			requestUrl.hostname = 'www.youtube.com';
+		}
+
+		const requestLang = (lang || 'ja-JP').replace('ja-KS', 'ja-JP');
+
+		requestUrl.hash = '';
+
+		fetch(`/url?url=${encodeURIComponent(requestUrl.href)}&lang=${requestLang}`).then(res => {
 			res.json().then(info => {
 				if (info.url == null) return;
+				this.landingUrl = info.url;
 				this.title = info.title;
 				this.description = info.description;
 				this.thumbnail = info.thumbnail;
 				this.icon = info.icon;
 				this.sitename = info.sitename;
+				this.sensitive = !!info.sensitive;
 				this.fetching = false;
 				this.player = info.player;
+				if (this.tweetId && this.player) this.player.url = null;
 			})
 		});
-	}
+
+		(window as any).addEventListener('message', this.adjustTweetHeight);
+	},
+
+	mounted() {
+		// 300pxないと絶対右にはみ出るので左に移動してしまう
+		const areaWidth = (this.$el as HTMLElement)?.clientWidth;
+		if (areaWidth && areaWidth < 300) this.tweetLeft = areaWidth - 290;
+	},
+
+	methods: {
+		isBlokedUrl(url: URL) {
+			if (url.pathname.match(/\.(?:jpg|gif|png)$/)) return true;
+			if (url.pathname.match(/^\/media\/(?:[\w-]{19})$/)) return true;
+			return false;
+		},
+
+		adjustTweetHeight(message: any) {
+			if (message.origin !== 'https://platform.twitter.com') return;
+			const embed = message.data?.['twttr.embed'];
+			if (embed?.method !== 'twttr.private.resize') return;
+			if (embed?.id !== this.embedId) return;
+			const height = embed?.params[0]?.height;
+			if (height) this.tweetHeight = height;
+ 		},
+	},
+
+	beforeDestroy() {
+		(window as any).removeEventListener('message', this.adjustTweetHeight);
+	},
 });
 </script>
 
@@ -323,4 +363,11 @@ export default Vue.extend({
 					overflow hidden
 					white-space nowrap
 					text-overflow ellipsis
+
+.expandTweet
+	display flex
+
+	> a
+		font-size small
+		color var(--text)
 </style>

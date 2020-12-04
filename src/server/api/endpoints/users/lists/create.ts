@@ -1,6 +1,7 @@
 import $ from 'cafy';
 import UserList, { pack } from '../../../../../models/user-list';
 import define from '../../../define';
+import { publishFilterChanged } from '../../../../../services/create-event';
 
 export const meta = {
 	desc: {
@@ -12,7 +13,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'account-write',
+	kind: ['write:account', 'account-write', 'account/write'],
 
 	params: {
 		title: {
@@ -28,6 +29,8 @@ export default define(meta, async (ps, user) => {
 		title: ps.title,
 		userIds: []
 	});
+
+	publishFilterChanged(user._id);
 
 	return await pack(userList);
 });

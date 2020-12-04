@@ -17,7 +17,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'reaction-write',
+	kind: ['write:reactions', 'reaction-write'],
 
 	params: {
 		noteId: {
@@ -33,7 +33,14 @@ export const meta = {
 			desc: {
 				'ja-JP': 'リアクションの種類'
 			}
-		}
+		},
+
+		dislike: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'きらい'
+			}
+		},
 	},
 
 	errors: {
@@ -58,11 +65,12 @@ export const meta = {
 };
 
 export default define(meta, async (ps, user) => {
-	const note = await getNote(ps.noteId).catch(e => {
+	const note = await getNote(ps.noteId, user, true).catch(e => {
 		if (e.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 		throw e;
 	});
-	await createReaction(user, note, ps.reaction).catch(e => {
+
+	await createReaction(user, note, ps.reaction, ps.dislike).catch(e => {
 		if (e.id === '2d8e7297-1873-4c00-8404-792c68d7bef0') throw new ApiError(meta.errors.isMyNote);
 		if (e.id === '51c42bb4-931a-456b-bff7-e5a8a70dd298') throw new ApiError(meta.errors.alreadyReacted);
 		throw e;

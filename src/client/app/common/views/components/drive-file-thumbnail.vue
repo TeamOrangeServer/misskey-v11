@@ -1,7 +1,7 @@
 <template>
 <div class="zdjebgpv" :class="{ detail }" ref="thumbnail" :style="`background-color: ${ background }`">
 	<img
-		:src="file.url"
+		:src="file.webpublicUrl || file.url"
 		:alt="file.name"
 		:title="file.name"
 		@load="onThumbnailLoaded"
@@ -57,7 +57,8 @@ export default Vue.extend({
 		},
 		fit: {
 			type: String,
-			required: true
+			required: false,
+			default: 'cover'
 		},
 		detail: {
 			type: Boolean,
@@ -111,9 +112,7 @@ export default Vue.extend({
 				: false;
 		},
 		background(): string {
-			return this.file.properties.avgColor && this.file.properties.avgColor.length == 3
-				? `rgb(${this.file.properties.avgColor.join(',')})`
-				: 'transparent';
+			return 'transparent';
 		}
 	},
 	mounted() {
@@ -122,14 +121,6 @@ export default Vue.extend({
 	},
 	methods: {
 		onThumbnailLoaded() {
-			if (this.file.properties.avgColor && this.file.properties.avgColor.length == 3) {
-				anime({
-					targets: this.$refs.thumbnail,
-					backgroundColor: `rgba(${this.file.properties.avgColor.join(',')}, 0)`,
-					duration: 100,
-					easing: 'linear'
-				});
-			}
 		},
 		volumechange() {
 			const audioTag = this.$refs.volumectrl as HTMLAudioElement;

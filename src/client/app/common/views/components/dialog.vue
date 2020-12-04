@@ -7,12 +7,19 @@
 		</template>
 		<template v-else>
 			<div class="icon" v-if="!input && !select && !user" :class="type"><fa :icon="icon"/></div>
-			<header v-if="title" v-html="title"></header>
-			<div class="body" v-if="text" v-html="text"></div>
+			<header v-if="title">{{ title }}</header>
+			<div class="body" v-if="text">{{ text }}</div>
 			<ui-input v-if="input" v-model="inputValue" autofocus :type="input.type || 'text'" :placeholder="input.placeholder" @keydown="onInputKeydown"></ui-input>
 			<ui-input v-if="user" v-model="userInputValue" autofocus @keydown="onInputKeydown"><template #prefix>@</template></ui-input>
 			<ui-select v-if="select" v-model="selectedValue" autofocus>
-				<option v-for="item in select.items" :value="item.value">{{ item.text }}</option>
+				<template v-if="select.items">
+					<option v-for="(item, i) in select.items" :value="item.value" :key="i">{{ item.text }}</option>
+				</template>
+				<template v-else>
+					<optgroup v-for="(groupedItem, i) in select.groupedItems" :label="groupedItem.label" :key="i">
+						<option v-for="(item, i) in groupedItem.items" :value="item.value" :key="i">{{ item.text }}</option>
+					</optgroup>
+				</template>
 			</ui-select>
 			<ui-horizon-group no-grow class="buttons fit-bottom" v-if="!splash">
 				<ui-button @click="ok" primary :autofocus="!input && !select && !user">{{ (showCancelButton || input || select || user) ? $t('@.ok') : $t('@.got-it') }}</ui-button>
@@ -69,7 +76,7 @@ export default Vue.extend({
 		return {
 			inputValue: this.input && this.input.default ? this.input.default : null,
 			userInputValue: null,
-			selectedValue: null
+			selectedValue: this.select ? this.select.default ? this.select.default : this.select.items ? this.select.items[0].value : this.select.groupedItems[0].items[0].value : null,
 		};
 	},
 
@@ -207,7 +214,7 @@ export default Vue.extend({
 		max-width 480px
 		width calc(100% - 32px)
 		text-align center
-		background var(--face)
+		background var(--secondary)
 		border-radius 8px
 		color var(--faceText)
 		opacity 0

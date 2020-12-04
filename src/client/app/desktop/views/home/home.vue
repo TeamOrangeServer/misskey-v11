@@ -14,17 +14,16 @@
 						<option value="activity">{{ $t('@.widgets.activity') }}</option>
 						<option value="rss">{{ $t('@.widgets.rss') }}</option>
 						<option value="trends">{{ $t('@.widgets.trends') }}</option>
-						<option value="photo-stream">{{ $t('@.widgets.photo-stream') }}</option>
 						<option value="slideshow">{{ $t('@.widgets.slideshow') }}</option>
 						<option value="version">{{ $t('@.widgets.version') }}</option>
 						<option value="broadcast">{{ $t('@.widgets.broadcast') }}</option>
 						<option value="notifications">{{ $t('@.widgets.notifications') }}</option>
-						<option value="users">{{ $t('@.widgets.users') }}</option>
 						<option value="polls">{{ $t('@.widgets.polls') }}</option>
 						<option value="post-form">{{ $t('@.widgets.post-form') }}</option>
 						<option value="messaging">{{ $t('@.messaging') }}</option>
 						<option value="memo">{{ $t('@.widgets.memo') }}</option>
 						<option value="hashtags">{{ $t('@.widgets.hashtags') }}</option>
+						<option value="words">{{ $t('@.widgets.words') }}</option>
 						<option value="posts-monitor">{{ $t('@.widgets.posts-monitor') }}</option>
 						<option value="server">{{ $t('@.widgets.server') }}</option>
 						<option value="queue">{{ $t('@.widgets.queue') }}</option>
@@ -32,6 +31,7 @@
 						<option value="tips">{{ $t('@.widgets.tips') }}</option>
 					</select>
 					<button @click="addWidget">{{ $t('add') }}</button>
+					<button @click="restoreDefault">{{ $t('restore-default') }}</button>
 				</div>
 				<div class="trash">
 					<x-draggable v-model="trash" :options="{ group: 'x' }" @add="onTrash"></x-draggable>
@@ -77,8 +77,8 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import * as XDraggable from 'vuedraggable';
-import * as uuid from 'uuid';
+import XDraggable from 'vuedraggable';
+import { v4 as uuid } from 'uuid';
 import XWelcome from '../pages/welcome.vue';
 
 export default Vue.extend({
@@ -138,23 +138,40 @@ export default Vue.extend({
 
 	created() {
 		if (this.$store.getters.isSignedIn) {
+			if (this.$store.state.settings.home == null) {
+				const _defaultDesktopHomeWidgets = this.generateDefault();
+				this.$root.api('i/update_home', {
+					home: _defaultDesktopHomeWidgets
+				}).then(() => {
+					this.$store.commit('settings/setHome', _defaultDesktopHomeWidgets);
+				});
+			}
+		}
+	},
+
+	mounted() {
+		this.connection = this.$root.stream.useSharedConnection('main');
+	},
+
+	beforeDestroy() {
+		this.connection.dispose();
+	},
+
+	methods: {
+		generateDefault() {
 			const defaultDesktopHomeWidgets = {
 				left: [
 					'profile',
 					'calendar',
-					'activity',
-					'rss',
 					'hashtags',
-					'photo-stream',
+					'words',
 					'version'
 				],
 				right: [
 					'customize',
 					'broadcast',
 					'notifications',
-					'users',
 					'polls',
-					'server',
 					'nav',
 					'tips'
 				]
@@ -182,25 +199,8 @@ export default Vue.extend({
 			}
 			//#endregion
 
-			if (this.$store.state.settings.home == null) {
-				this.$root.api('i/update_home', {
-					home: _defaultDesktopHomeWidgets
-				}).then(() => {
-					this.$store.commit('settings/setHome', _defaultDesktopHomeWidgets);
-				});
-			}
-		}
-	},
-
-	mounted() {
-		this.connection = this.$root.stream.useSharedConnection('main');
-	},
-
-	beforeDestroy() {
-		this.connection.dispose();
-	},
-
-	methods: {
+			return _defaultDesktopHomeWidgets;
+		},
 		hint() {
 			this.$root.dialog({
 				title: this.$t('@.customization-tips.title'),
@@ -226,12 +226,34 @@ export default Vue.extend({
 		},
 
 		addWidget() {
+			if (this.widgetAdderSelected == null) return;
 			this.$store.dispatch('settings/addHomeWidget', {
 				name: this.widgetAdderSelected,
 				id: uuid(),
 				place: 'left',
 				data: {}
 			});
+		},
+
+		async restoreDefault() {
+			if (!await this.getConfirmed(this.$t('restore-default-confirm'))) return;
+			const _defaultDesktopHomeWidgets = this.generateDefault();
+			this.$root.api('i/update_home', {
+				home: _defaultDesktopHomeWidgets
+			}).then(() => {
+				this.$store.commit('settings/setHome', _defaultDesktopHomeWidgets);
+			});
+		},
+
+		async getConfirmed(text: string): Promise<Boolean> {
+			const confirm = await this.$root.dialog({
+				type: 'warning',
+				showCancelButton: true,
+				title: 'confirm',
+				text,
+			});
+
+			return !confirm.canceled;
 		},
 
 		saveHome() {

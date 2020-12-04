@@ -1,38 +1,52 @@
 import autobind from 'autobind-decorator';
-import Xev from 'xev';
 import Channel from '../channel';
-
-const ev = new Xev();
 
 export default class extends Channel {
 	public readonly chName = 'notesStats';
 	public static shouldShare = true;
 	public static requireCredential = false;
 
+	private stats = {
+		all: 0,
+		local: 0,
+	};
+
+	private timerId: any;
+
 	@autobind
 	public async init(params: any) {
-		ev.addListener('notesStats', this.onStats);
+		this.subscriber.on('notesStream', this.onNote);
+		this.timerId = setInterval(this.onStats, 3000);
 	}
 
 	@autobind
-	private onStats(stats: any) {
-		this.send('stats', stats);
+	private onNote(note: any) {
+		this.stats.all++;
+		if (note.user.host == null) this.stats.local++;
+	}
+
+	@autobind
+	private onStats() {
+		this.send('stats', this.stats);
+
+		this.stats = {
+			all: 0,
+			local: 0,
+		};
 	}
 
 	@autobind
 	public onMessage(type: string, body: any) {
 		switch (type) {
 			case 'requestLog':
-				ev.once(`notesStatsLog:${body.id}`, statsLog => {
-					this.send('statsLog', statsLog);
-				});
-				ev.emit('requestNotesStatsLog', body.id);
+				this.send('statsLog', []);
 				break;
 		}
 	}
 
 	@autobind
 	public dispose() {
-		ev.removeListener('notesStats', this.onStats);
+		if (this.timerId) clearInterval(this.timerId);
+		this.subscriber.off('notesStream', this.onNote);
 	}
 }

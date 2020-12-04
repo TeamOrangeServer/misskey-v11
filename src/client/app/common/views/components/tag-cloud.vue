@@ -1,7 +1,7 @@
 <template>
 <div class="jtivnzhfwquxpsfidertopbmwmchmnmo">
 	<p class="fetching" v-if="fetching"><fa icon="spinner" pulse fixed-width/>{{ $t('@.loading') }}<mk-ellipsis/></p>
-	<p class="empty" v-else-if="tags.length == 0"><fa icon="exclamation-circle"/>{{ $t('empty') }}</p>
+	<p class="empty" v-else-if="tags.length == 0"><fa icon="exclamation-circle"/>{{ $t('@.empty') }}</p>
 	<div v-else>
 		<vue-word-cloud
 				:words="tags.slice(0, 20).map(x => [x.name, x.count])"
@@ -31,19 +31,14 @@ export default Vue.extend({
 		return {
 			tags: [],
 			fetching: true,
-			clock: null
 		};
 	},
 	mounted() {
 		this.fetch();
-		this.clock = setInterval(this.fetch, 1000 * 60);
-	},
-	beforeDestroy() {
-		clearInterval(this.clock);
 	},
 	methods: {
 		fetch() {
-			this.$root.api('aggregation/hashtags').then(tags => {
+			this.$root.api('aggregation/hashtags', {}, false, true).then(tags => {
 				this.tags = tags;
 				this.fetching = false;
 			});
@@ -68,6 +63,7 @@ export default Vue.extend({
 .jtivnzhfwquxpsfidertopbmwmchmnmo
 	height 100%
 	width 100%
+	overflow hidden
 
 	> .fetching
 	> .empty

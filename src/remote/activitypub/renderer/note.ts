@@ -3,17 +3,13 @@ import renderHashtag from './hashtag';
 import renderMention from './mention';
 import renderEmoji from './emoji';
 import config from '../../../config';
-import DriveFile, { IDriveFile } from '../../../models/drive-file';
+import DriveFile from '../../../models/drive-file';
 import Note, { INote } from '../../../models/note';
 import User from '../../../models/user';
 import toHtml from '../misc/get-note-html';
 import Emoji, { IEmoji } from '../../../models/emoji';
 
-export default async function renderNote(note: INote, dive = true): Promise<any> {
-	const promisedFiles: Promise<IDriveFile[]> = note.fileIds
-		? DriveFile.find({ _id: { $in: note.fileIds } })
-		: Promise.resolve([]);
-
+export default async function renderNote(note: INote, dive = true, isTalk = false): Promise<any> {
 	let inReplyTo;
 	let inReplyToNote: INote;
 
@@ -68,7 +64,10 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 	let to: string[] = [];
 	let cc: string[] = [];
 
-	if (note.visibility == 'public') {
+	if (note.copyOnce) {
+		to = [`${attributedTo}/followers`];
+		cc = mentions;
+	} else if (note.visibility == 'public') {
 		to = ['https://www.w3.org/ns/activitystreams#Public'];
 		cc = [`${attributedTo}/followers`].concat(mentions);
 	} else if (note.visibility == 'home') {
@@ -90,31 +89,12 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 	const hashtagTags = (note.tags || []).map(tag => renderHashtag(tag));
 	const mentionTags = mentionedUsers.map(u => renderMention(u));
 
-	const files = await promisedFiles;
+	const files = (await Promise.all((note.fileIds || []).map(x => DriveFile.findOne(x)))).filter(x => x != null);
 
-	let text = note.text;
-
-	let question: string;
-	if (note.poll != null) {
-		if (text == null) text = '';
-		const url = `${config.url}/notes/${note._id}`;
-		// TODO: i18n
-		text += `\n[リモートで結果を表示](${url})`;
-
-		question = `${config.url}/questions/${note._id}`;
-	}
+	const text = note.text;
 
 	let apText = text;
 	if (apText == null) apText = '';
-
-	// Provides choices as text for AP
-	if (note.poll != null) {
-		const cs = note.poll.choices.map(c => `${c.id}: ${c.text}`);
-		apText += '\n----------------------------------------\n';
-		apText += cs.join('\n');
-		apText += '\n----------------------------------------\n';
-		apText += '番号を返信して投票';
-	}
 
 	if (quote) {
 		apText += `\n\nRE: ${quote}`;
@@ -146,7 +126,6 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 		content: toHtml(Object.assign({}, note, {
 			text: text
 		})),
-		_misskey_fallback_content: content,
 		[expiresAt && expiresAt < new Date() ? 'closed' : 'endTime']: expiresAt,
 		[multiple ? 'anyOf' : 'oneOf']: choices.map(({ text, votes }) => ({
 			type: 'Note',
@@ -158,6 +137,10 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 		}))
 	} : {};
 
+	const asTalk = isTalk ? {
+		_misskey_talk: true
+	} : {};
+
 	return {
 		id: `${config.url}/notes/${note._id}`,
 		type: 'Note',
@@ -166,27 +149,42 @@ export default async function renderNote(note: INote, dive = true): Promise<any>
 		content,
 		_misskey_content: text,
 		_misskey_quote: quote,
-		_misskey_question: question,
+		quoteUrl: quote,
 		published: note.createdAt.toISOString(),
 		to,
 		cc,
 		inReplyTo,
 		attachment: files.map(renderDocument),
-		sensitive: files.some(file => file.metadata.isSensitive),
+		sensitive: note.cw != null || files.some(file => file.metadata.isSensitive),
 		tag,
-		...asPoll
+		...asPoll,
+		...asTalk
 	};
 }
 
 export async function getEmojis(names: string[]): Promise<IEmoji[]> {
 	if (names == null || names.length < 1) return [];
 
+	const nameToEmoji = async (name: string) => {
+		if (name == null) return null;
+
+		const m = name.match(/^(\w+)(?:@([\w.-]+))?$/);
+		if (!m) return null;
+
+		// TODO: リモートが対応していないのでリモート分は除外する
+		if (m[2] != null) return null;
+
+		const emoji = await Emoji.findOne({
+			name: m[1],
+			host: m[2] || null
+		});
+
+		return emoji;
+	};
+
 	const emojis = await Promise.all(
-		names.map(name => Emoji.findOne({
-			name,
-			host: null
-		}))
+		names.map(name => nameToEmoji(name))
 	);
 
-	return emojis.filter(emoji => emoji != null);
+	return emojis.filter((emoji): emoji is IEmoji => emoji != null);
 }

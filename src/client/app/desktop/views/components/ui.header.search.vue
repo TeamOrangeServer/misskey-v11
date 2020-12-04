@@ -1,7 +1,7 @@
 <template>
 <form class="wlvfdpkp" @submit.prevent="onSubmit">
 	<i><fa icon="search"/></i>
-	<input v-model="q" type="search" :placeholder="$t('placeholder')" v-autocomplete="{ model: 'q' }"/>
+	<input v-model="q" type="search" :placeholder="$t('placeholder')" v-autocomplete="{ model: 'q', noEmoji: true }"/>
 	<div class="result"></div>
 </form>
 </template>
@@ -65,6 +65,7 @@ export default Vue.extend({
 		line-height 48px
 		color var(--desktopHeaderFg)
 		pointer-events none
+		z-index 100
 
 		> *
 			vertical-align middle
@@ -81,7 +82,7 @@ export default Vue.extend({
 		outline none
 		border none
 		border-radius 16px
-		transition color 0.5s ease, border 0.5s ease
+		transition color 0.5s ease, border 0.5s ease, width 0.5s ease, background 0.5s ease
 		color var(--desktopHeaderSearchFg)
 
 		@media (max-width 1000px)
@@ -95,5 +96,7 @@ export default Vue.extend({
 
 		&:focus
 			box-shadow 0 0 0 2px var(--primaryAlpha05) !important
+			background var(--bg)
+			width 28em
 
 </style>

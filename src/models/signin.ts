@@ -20,15 +20,14 @@ export interface ISignin {
  * @param {any} record
  * @return {Promise<any>}
  */
-export const pack = (
+export const pack = async (
 	record: any
-) => new Promise<any>(async (resolve, reject) => {
-
+) => {
 	const _record = deepcopy(record);
 
 	// Rename _id to id
 	_record.id = _record._id;
 	delete _record._id;
 
-	resolve(_record);
-});
+	return _record;
+};

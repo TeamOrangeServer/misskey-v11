@@ -1,8 +1,9 @@
 import { parse } from '../../../../mfm/parse';
 import { sum, unique } from '../../../../prelude/array';
-import shouldMuteNote from './should-mute-note';
+import { shouldMuteNote } from './should-mute-note';
 import MkNoteMenu from '../views/components/note-menu.vue';
 import MkReactionPicker from '../views/components/reaction-picker.vue';
+import i18n from '../../i18n';
 
 function focus(el, fn) {
 	const target = fn(el);
@@ -20,10 +21,13 @@ type Opts = {
 };
 
 export default (opts: Opts = {}) => ({
+	i18n: i18n(),
+
 	data() {
 		return {
-			showContent: false,
-			hideThisNote: false
+			showContent: this.$store.state.device.alwaysOpenCw,
+			hideThisNote: false,
+			openingMenu: false
 		};
 	},
 
@@ -35,22 +39,21 @@ export default (opts: Opts = {}) => ({
 				'q': () => this.renote(true),
 				'f|b': this.favorite,
 				'delete|ctrl+d': this.del,
-				'ctrl+q': this.renoteDirectly,
 				'up|k|shift+tab': this.focusBefore,
 				'down|j|tab': this.focusAfter,
-				'esc': this.blur,
+				//'esc': this.blur,
 				'm|o': () => this.menu(true),
 				's': this.toggleShowContent,
-				'1': () => this.reactDirectly('like'),
-				'2': () => this.reactDirectly('love'),
-				'3': () => this.reactDirectly('laugh'),
-				'4': () => this.reactDirectly('hmm'),
-				'5': () => this.reactDirectly('surprise'),
-				'6': () => this.reactDirectly('congrats'),
-				'7': () => this.reactDirectly('angry'),
-				'8': () => this.reactDirectly('confused'),
-				'9': () => this.reactDirectly('rip'),
-				'0': () => this.reactDirectly('pudding'),
+				'1': () => this.reactDirectly(this.$store.state.settings.reactions[0]),
+				'2': () => this.reactDirectly(this.$store.state.settings.reactions[1]),
+				'3': () => this.reactDirectly(this.$store.state.settings.reactions[2]),
+				'4': () => this.reactDirectly(this.$store.state.settings.reactions[3]),
+				'5': () => this.reactDirectly(this.$store.state.settings.reactions[4]),
+				'6': () => this.reactDirectly(this.$store.state.settings.reactions[5]),
+				'7': () => this.reactDirectly(this.$store.state.settings.reactions[6]),
+				'8': () => this.reactDirectly(this.$store.state.settings.reactions[7]),
+				'9': () => this.reactDirectly(this.$store.state.settings.reactions[8]),
+				'0': () => this.reactDirectly(this.$store.state.settings.reactions[9]),
 			};
 		},
 
@@ -83,9 +86,19 @@ export default (opts: Opts = {}) => ({
 			if (this.appearNote.text) {
 				const ast = parse(this.appearNote.text);
 				// TODO: 再帰的にURL要素がないか調べる
-				return unique(ast
+				const urls = unique(ast
 					.filter(t => ((t.node.type == 'url' || t.node.type == 'link') && t.node.props.url && !t.node.props.silent))
 					.map(t => t.node.props.url));
+
+				// unique without hash
+				// [ http://a/#1, http://a/#2, http://b/#3 ] => [ http://a/#1, http://b/#3 ]
+				const removeHash = x => x.replace(/#[^#]*$/, '');
+
+				return urls.reduce((array, url) => {
+					const removed = removeHash(url);
+					if (!array.map(x => removeHash(x)).includes(removed)) array.push(url);
+					return array;
+				}, []);
 			} else {
 				return null;
 			}
@@ -117,24 +130,33 @@ export default (opts: Opts = {}) => ({
 			});
 		},
 
-		renoteDirectly() {
-			(this as any).api('notes/create', {
-				renoteId: this.appearNote.id
+		undoRenote() {
+			this.$root.api('notes/delete', {
+				noteId: this.appearNote.myRenoteId
 			});
 		},
 
 		react(viaKeyboard = false) {
 			this.blur();
-			this.$root.new(MkReactionPicker, {
+			const w = this.$root.new(MkReactionPicker, {
 				source: this.$refs.reactButton,
-				note: this.appearNote,
 				showFocus: viaKeyboard,
 				animation: !viaKeyboard
-			}).$once('closed', this.focus);
+			});
+			w.$once('chosen', (reaction, disliked)  => {
+				this.$root.api('notes/reactions/create', {
+					noteId: this.appearNote.id,
+					reaction: reaction,
+					dislike: disliked,
+				}).then(() => {
+					w.close();
+				});
+			});
+			w.$once('closed', this.focus);
 		},
 
 		reactDirectly(reaction) {
-			(this.$root.api('notes/reactions/create', {
+			this.$root.api('notes/reactions/create', {
 				noteId: this.appearNote.id,
 				reaction: reaction
 			});
@@ -152,25 +174,38 @@ export default (opts: Opts = {}) => ({
 			this.$root.api('notes/favorites/create', {
 				noteId: this.appearNote.id
 			}).then(() => {
-				this.$root.dialog({
-					type: 'success',
-					splash: true
-				});
+				this.$notify(this.$t('@.favorited'));
 			});
 		},
 
 		del() {
-			this.$root.api('notes/delete', {
-				noteId: this.appearNote.id
+			this.$root.dialog({
+				type: 'warning',
+				text: this.$t('@.delete-confirm'),
+				showCancelButton: true
+			}).then(({ canceled }) => {
+				if (canceled) return;
+
+				this.$root.api('notes/delete', {
+					noteId: this.appearNote.id
+				});
 			});
 		},
 
 		menu(viaKeyboard = false) {
-			this.$root.new(MkNoteMenu, {
+			if (this.openingMenu) return;
+			this.openingMenu = true;
+			const w = this.$root.new(MkNoteMenu, {
 				source: this.$refs.menuButton,
 				note: this.appearNote,
 				animation: !viaKeyboard
-			}).$once('closed', this.focus);
+			}).$once('closed', () => {
+				this.openingMenu = false;
+				this.focus();
+			});
+			this.$once('hook:beforeDestroy', () => {
+				w.destroyDom();
+			});
 		},
 
 		toggleShowContent() {

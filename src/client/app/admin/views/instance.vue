@@ -6,7 +6,6 @@
 			<ui-input :value="host" readonly>{{ $t('host') }}</ui-input>
 			<ui-input v-model="name">{{ $t('instance-name') }}</ui-input>
 			<ui-textarea v-model="description">{{ $t('instance-description') }}</ui-textarea>
-			<ui-input v-model="iconUrl"><template #icon><fa icon="link"/></template>{{ $t('icon-url') }}</ui-input>
 			<ui-input v-model="mascotImageUrl"><template #icon><fa icon="link"/></template>{{ $t('logo-url') }}</ui-input>
 			<ui-input v-model="bannerUrl"><template #icon><fa icon="link"/></template>{{ $t('banner-url') }}</ui-input>
 			<ui-input v-model="errorImageUrl"><template #icon><fa icon="link"/></template>{{ $t('error-image-url') }}</ui-input>
@@ -24,9 +23,7 @@
 			<ui-switch v-model="disableRegistration">{{ $t('disable-registration') }}</ui-switch>
 			<ui-switch v-model="disableLocalTimeline">{{ $t('disable-local-timeline') }}</ui-switch>
 			<ui-switch v-model="disableGlobalTimeline">{{ $t('disable-global-timeline') }}</ui-switch>
-			<ui-info>{{ $t('disabling-timelines-info') }}</ui-info>
-			<ui-switch v-model="enableEmojiReaction">{{ $t('enable-emoji-reaction') }}</ui-switch>
-			<ui-switch v-model="useStarForReactionFallback">{{ $t('use-star-for-reaction-fallback') }}</ui-switch>
+			<ui-switch v-model="showReplayInPublicTimeline">{{ $t('showReplayInPublicTimeline') }}</ui-switch>
 		</section>
 		<section class="fit-bottom">
 			<header><fa icon="cloud"/> {{ $t('drive-config') }}</header>
@@ -63,11 +60,12 @@
 				<ui-input v-model="smtpPass" type="password" :withPasswordToggle="true" :disabled="!enableEmail || !smtpAuth">{{ $t('smtp-pass') }}</ui-input>
 			</ui-horizon-group>
 			<ui-switch v-model="smtpSecure" :disabled="!enableEmail">{{ $t('smtp-secure') }}<template #desc>{{ $t('smtp-secure-info') }}</template></ui-switch>
+			<ui-button @click="testEmail()">{{ $t('test-mail') }}</ui-button>
 		</section>
 		<section>
 			<header><fa :icon="faBolt"/> {{ $t('serviceworker-config') }}</header>
 			<ui-switch v-model="enableServiceWorker">{{ $t('enable-serviceworker') }}<template #desc>{{ $t('serviceworker-info') }}</template></ui-switch>
-			<ui-info>{{ $t('vapid-info') }}<br><code>npm i web-push -g<br>web-push generate-vapid-keys</code></ui-info>
+			<ui-info>{{ $t('vapid-info') }}<br><code>npx web-push generate-vapid-keys<br>OR<br>docker-compose run --rm web npx web-push generate-vapid-keys # Docker</code></ui-info>
 			<ui-horizon-group inputs class="fit-bottom">
 				<ui-input v-model="swPublicKey" :disabled="!enableServiceWorker"><template #icon><fa icon="key"/></template>{{ $t('vapid-publickey') }}</ui-input>
 				<ui-input v-model="swPrivateKey" :disabled="!enableServiceWorker"><template #icon><fa icon="key"/></template>{{ $t('vapid-privatekey') }}</ui-input>
@@ -76,12 +74,6 @@
 		<section>
 			<header>summaly Proxy</header>
 			<ui-input v-model="summalyProxy">URL</ui-input>
-		</section>
-		<section>
-			<header><fa :icon="faUserPlus"/> {{ $t('user-recommendation-config') }}</header>
-			<ui-switch v-model="enableExternalUserRecommendation">{{ $t('enable-external-user-recommendation') }}</ui-switch>
-			<ui-input v-model="externalUserRecommendationEngine" :disabled="!enableExternalUserRecommendation">{{ $t('external-user-recommendation-engine') }}<template #desc>{{ $t('external-user-recommendation-engine-desc') }}</template></ui-input>
-			<ui-input v-model="externalUserRecommendationTimeout" type="number" :disabled="!enableExternalUserRecommendation">{{ $t('external-user-recommendation-timeout') }}<template #suffix>ms</template><template #desc>{{ $t('external-user-recommendation-timeout-desc') }}</template></ui-input>
 		</section>
 		<section>
 			<ui-button @click="updateMeta">{{ $t('save') }}</ui-button>
@@ -157,12 +149,10 @@ export default Vue.extend({
 			disableRegistration: false,
 			disableLocalTimeline: false,
 			disableGlobalTimeline: false,
-			enableEmojiReaction: true,
-			useStarForReactionFallback: false,
+			showReplayInPublicTimeline: false,
 			mascotImageUrl: null,
 			bannerUrl: null,
 			errorImageUrl: null,
-			iconUrl: null,
 			name: null,
 			description: null,
 			languages: null,
@@ -184,9 +174,6 @@ export default Vue.extend({
 			discordClientSecret: null,
 			proxyAccount: null,
 			inviteCode: null,
-			enableExternalUserRecommendation: false,
-			externalUserRecommendationEngine: null,
-			externalUserRecommendationTimeout: null,
 			summalyProxy: null,
 			enableEmail: false,
 			email: null,
@@ -204,18 +191,16 @@ export default Vue.extend({
 	},
 
 	created() {
-		this.$root.getMeta().then(meta => {
+		this.$root.api('admin/meta').then((meta: any) => {
 			this.maintainerName = meta.maintainer.name;
 			this.maintainerEmail = meta.maintainer.email;
 			this.disableRegistration = meta.disableRegistration;
 			this.disableLocalTimeline = meta.disableLocalTimeline;
 			this.disableGlobalTimeline = meta.disableGlobalTimeline;
-			this.enableEmojiReaction = meta.enableEmojiReaction;
-			this.useStarForReactionFallback = meta.useStarForReactionFallback;
+			this.showReplayInPublicTimeline = meta.showReplayInPublicTimeline;
 			this.mascotImageUrl = meta.mascotImageUrl;
 			this.bannerUrl = meta.bannerUrl;
 			this.errorImageUrl = meta.errorImageUrl;
-			this.iconUrl = meta.iconUrl;
 			this.name = meta.name;
 			this.description = meta.description;
 			this.languages = meta.langs.join(' ');
@@ -236,9 +221,6 @@ export default Vue.extend({
 			this.enableDiscordIntegration = meta.enableDiscordIntegration;
 			this.discordClientId = meta.discordClientId;
 			this.discordClientSecret = meta.discordClientSecret;
-			this.enableExternalUserRecommendation = meta.enableExternalUserRecommendation;
-			this.externalUserRecommendationEngine = meta.externalUserRecommendationEngine;
-			this.externalUserRecommendationTimeout = meta.externalUserRecommendationTimeout;
 			this.summalyProxy = meta.summalyProxy;
 			this.enableEmail = meta.enableEmail;
 			this.email = meta.email;
@@ -266,6 +248,24 @@ export default Vue.extend({
 			});
 		},
 
+		async testEmail() {
+			this.$root.api('admin/send-email', {
+				to: this.maintainerEmail,
+				subject: 'Test email',
+				text: 'Na'
+			}).then(x => {
+				this.$root.dialog({
+					type: 'success',
+					splash: true
+				});
+			}).catch(e => {
+				this.$root.dialog({
+					type: 'error',
+					text: e
+				});
+			});
+		},
+
 		updateMeta() {
 			this.$root.api('admin/update-meta', {
 				maintainerName: this.maintainerName,
@@ -273,15 +273,13 @@ export default Vue.extend({
 				disableRegistration: this.disableRegistration,
 				disableLocalTimeline: this.disableLocalTimeline,
 				disableGlobalTimeline: this.disableGlobalTimeline,
-				enableEmojiReaction: this.enableEmojiReaction,
-				useStarForReactionFallback: this.useStarForReactionFallback,
+				showReplayInPublicTimeline: this.showReplayInPublicTimeline,
 				mascotImageUrl: this.mascotImageUrl,
 				bannerUrl: this.bannerUrl,
 				errorImageUrl: this.errorImageUrl,
-				iconUrl: this.iconUrl,
 				name: this.name,
 				description: this.description,
-				langs: this.languages.split(' '),
+				langs: this.languages ? this.languages.split(' ') : [],
 				cacheRemoteFiles: this.cacheRemoteFiles,
 				localDriveCapacityMb: parseInt(this.localDriveCapacityMb, 10),
 				remoteDriveCapacityMb: parseInt(this.remoteDriveCapacityMb, 10),
@@ -299,9 +297,6 @@ export default Vue.extend({
 				enableDiscordIntegration: this.enableDiscordIntegration,
 				discordClientId: this.discordClientId,
 				discordClientSecret: this.discordClientSecret,
-				enableExternalUserRecommendation: this.enableExternalUserRecommendation,
-				externalUserRecommendationEngine: this.externalUserRecommendationEngine,
-				externalUserRecommendationTimeout: parseInt(this.externalUserRecommendationTimeout, 10),
 				summalyProxy: this.summalyProxy,
 				enableEmail: this.enableEmail,
 				email: this.email,

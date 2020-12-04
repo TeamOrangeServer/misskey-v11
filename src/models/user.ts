@@ -11,8 +11,15 @@ import { getFriendIds } from '../server/api/common/get-friends';
 import config from '../config';
 import FollowRequest from './follow-request';
 import fetchMeta from '../misc/fetch-meta';
-import Emoji from './emoji';
+import { packEmojis } from '../misc/pack-emojis';
 import { dbLogger } from '../db/logger';
+import DriveFile from './drive-file';
+import getDriveFileUrl from '../misc/get-drive-file-url';
+import UserFilter from './user-filter';
+import { transform } from '../misc/cafy-id';
+import Usertag from './usertag';
+import { registerOrFetchInstanceDoc } from '../services/register-or-fetch-instance-doc';
+import { toApHost } from '../misc/convert-host';
 
 const User = db.get<IUser>('users');
 
@@ -52,10 +59,14 @@ type IUserBase = {
 	wallpaperUrl?: string;
 	data: any;
 	description: string;
-	lang?: string;
 	pinnedNoteIds: mongo.ObjectID[];
 	emojis?: string[];
 	tags?: string[];
+	profile?: {
+		location?: string;
+		birthday?: string; // 'YYYY-MM-DD'
+		tags?: string[];
+	};
 
 	isDeleted: boolean;
 
@@ -79,10 +90,23 @@ type IUserBase = {
 	 */
 	isBot: boolean;
 
+	isOrganization?: boolean;
+	isGroup?: boolean;
+
 	/**
 	 * Botからのフォローを承認制にするか
 	 */
 	carefulBot: boolean;
+
+	/**
+	 * リモートからのフォローを承認制にするか
+	 */
+	carefulRemote: boolean;
+
+	/**
+	 * 大量フォローユーザーのフォローを承認制にするか
+	 */
+	carefulMassive?: boolean;
 
 	/**
 	 * フォローしているユーザーからのフォローリクエストを自動承認するか
@@ -90,11 +114,29 @@ type IUserBase = {
 	autoAcceptFollowed: boolean;
 
 	/**
+	 * 検索エンジンのインデックスを拒否するか
+	 */
+	avoidSearchIndex?: boolean;
+
+	/**
+	 * フォローフォロー一覧を隠すか
+	 */
+	hideFollows?: '' | 'follower' | 'always';
+
+	/**
+	 * 連合を無効にするか
+	 */
+	noFederation?: boolean;
+
+	/**
 	 * このアカウントに届いているフォローリクエストの数
 	 */
 	pendingReceivedFollowRequestsCount: number;
 
-	host: string;
+	movedToUserId?: mongo.ObjectID;
+	alsoKnownAsUserIds?: mongo.ObjectID[];
+
+	host: string | null;
 };
 
 export interface ILocalUser extends IUserBase {
@@ -124,11 +166,6 @@ export interface ILocalUser extends IUserBase {
 		username: string;
 		discriminator: string;
 	};
-	profile: {
-		location: string;
-		birthday: string; // 'YYYY-MM-DD'
-		tags: string[];
-	};
 	fields?: {
 		name: string;
 		value: string;
@@ -137,21 +174,32 @@ export interface ILocalUser extends IUserBase {
 	isAdmin?: boolean;
 	isModerator?: boolean;
 	isVerified?: boolean;
+	refuseFollow?: boolean;
 	twoFactorSecret: string;
 	twoFactorEnabled: boolean;
 	twoFactorTempSecret?: string;
 	clientSettings: any;
-	settings: {
+	settings?: {
 		autoWatch: boolean;
 		alwaysMarkNsfw?: boolean;
+		pushNotifications?: Record<string, boolean | undefined>;
 	};
 	hasUnreadNotification: boolean;
 	hasUnreadMessagingMessage: boolean;
 }
 
+export function getPushNotificationsValue(pushNotifications: Record<string, boolean | undefined> | undefined, key: string) {
+	if (pushNotifications == null) return true;
+	const value = pushNotifications[key];
+	if (value == null) return true;
+	return value;
+}
+
 export interface IRemoteUser extends IUserBase {
+	host: string;
 	inbox: string;
 	sharedInbox?: string;
+	outbox?: string;
 	featured?: string;
 	endpoints: string[];
 	uri: string;
@@ -175,7 +223,7 @@ export const isRemoteUser = (user: any): user is IRemoteUser =>
 
 //#region Validators
 export function validateUsername(username: string, remote = false): boolean {
-	return typeof username == 'string' && (remote ? /^\w([\w-]*\w)?$/ : /^\w{1,20}$/).test(username);
+	return typeof username == 'string' && (remote ? /^\w([\w.-]*\w)?$/ : /^\w{1,20}$/).test(username);
 }
 
 export function validatePassword(password: string): boolean {
@@ -195,51 +243,64 @@ export function isValidLocation(location: string): boolean {
 }
 
 export function isValidBirthday(birthday: string): boolean {
+	// eslint-disable-next-line no-useless-escape
 	return typeof birthday == 'string' && /^([0-9]{4})\-([0-9]{2})-([0-9]{2})$/.test(birthday);
 }
 //#endregion
 
+export async function getMute(muterId: mongo.ObjectId | string, muteeId: mongo.ObjectId | string) {
+	return await Mute.findOne({
+		muterId: transform(muterId),
+		muteeId: transform(muteeId)
+	});
+}
+
 export async function getRelation(me: mongo.ObjectId, target: mongo.ObjectId) {
-	const [following1, following2, followReq1, followReq2, toBlocking, fromBlocked, mute] = await Promise.all([
-		Following.findOne({
+	const [following, followed, followReqFromYou, followReqToYou, blocking, blocked, muted, filter] = await Promise.all([
+		Following.count({
 			followerId: me,
 			followeeId: target
 		}),
-		Following.findOne({
+		Following.count({
 			followerId: target,
 			followeeId: me
 		}),
-		FollowRequest.findOne({
+		FollowRequest.count({
 			followerId: me,
 			followeeId: target
 		}),
-		FollowRequest.findOne({
+		FollowRequest.count({
 			followerId: target,
 			followeeId: me
 		}),
-		Blocking.findOne({
+		Blocking.count({
 			blockerId: me,
 			blockeeId: target
 		}),
-		Blocking.findOne({
+		Blocking.count({
 			blockerId: target,
 			blockeeId: me
 		}),
-		Mute.findOne({
+		Mute.count({
 			muterId: me,
 			muteeId: target
+		}),
+		UserFilter.findOne({
+			ownerId: me,
+			targetId: target
 		})
 	]);
 
 	return {
 		id: target,
-		isFollowing: following1 !== null,
-		hasPendingFollowRequestFromYou: followReq1 !== null,
-		hasPendingFollowRequestToYou: followReq2 !== null,
-		isFollowed: following2 !== null,
-		isBlocking: toBlocking !== null,
-		isBlocked: fromBlocked !== null,
-		isMuted: mute !== null
+		isFollowing: following > 0,
+		isFollowed: followed > 0,
+		hasPendingFollowRequestFromYou: followReqFromYou > 0,
+		hasPendingFollowRequestToYou: followReqToYou > 0,
+		isBlocking: blocking > 0,
+		isBlocked: blocked > 0,
+		isMuted: muted > 0,
+		isHideRenoting: !!(filter?.hideRenote),
 	};
 }
 
@@ -251,7 +312,7 @@ export async function getRelation(me: mongo.ObjectId, target: mongo.ObjectId) {
  * @param options? serialize options
  * @return Packed user
  */
-export const pack = (
+export const pack = async (
 	user: string | mongo.ObjectID | IUser,
 	me?: string | mongo.ObjectID | IUser,
 	options?: {
@@ -259,7 +320,7 @@ export const pack = (
 		includeSecrets?: boolean,
 		includeHasUnreadNotes?: boolean
 	}
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	const opts = Object.assign({
 		detail: false,
 		includeSecrets: false
@@ -272,10 +333,15 @@ export const pack = (
 		username: true,
 		host: true,
 		avatarColor: true,
-		avatarUrl: true,
+		avatarId: true,
+		bannerId: true,
 		emojis: true,
+		avoidSearchIndex: true,
+		hideFollows: true,
 		isCat: true,
 		isBot: true,
+		isOrganization: true,
+		isGroup: true,
 		isAdmin: true,
 		isVerified: true
 	};
@@ -296,7 +362,7 @@ export const pack = (
 	// (データベースの欠損などで)ユーザーがデータベース上に見つからなかったとき
 	if (_user == null) {
 		dbLogger.warn(`user not found on database: ${user}`);
-		return resolve(null);
+		return null;
 	}
 
 	// Me
@@ -312,8 +378,12 @@ export const pack = (
 	_user.id = _user._id;
 	delete _user._id;
 
+	_user.movedToUser = _user.movedToUserId ? pack(_user.movedToUserId) : null;
+
 	delete _user.usernameLower;
 	delete _user.emailVerifyCode;
+
+	delete _user.lang;	// 廃止のため
 
 	if (_user.host == null) {
 		// Remove private properties
@@ -351,9 +421,13 @@ export const pack = (
 		delete _user.publicKey;
 	}
 
-	if (_user.avatarUrl == null) {
-		_user.avatarUrl = `${config.driveUrl}/default-avatar.jpg`;
-	}
+	_user.avatarUrl = _user.avatarId ? DriveFile.findOne({
+		_id: _user.avatarId
+	}).then(file => getDriveFileUrl(file, true) || `${config.driveUrl}/default-avatar.jpg`) : `${config.driveUrl}/default-avatar.jpg`;
+
+	_user.bannerUrl = _user.bannerUrl ? DriveFile.findOne({
+		_id: _user.bannerId
+	}).then(file => getDriveFileUrl(file, false) || undefined) : undefined;
 
 	if (!meId || !meId.equals(_user.id) || !opts.detail) {
 		delete _user.avatarId;
@@ -372,14 +446,25 @@ export const pack = (
 		_user.isBlocking = relation.isBlocking;
 		_user.isBlocked = relation.isBlocked;
 		_user.isMuted = relation.isMuted;
+		_user.isHideRenoting = relation.isHideRenoting;
 	}
 
 	if (opts.detail) {
 		if (_user.pinnedNoteIds) {
 			// Populate pinned notes
 			_user.pinnedNotes = packNoteMany(_user.pinnedNoteIds, meId, {
+				removeError: true,
 				detail: true
 			});
+		}
+
+		if (meId) {
+			const usertag = await Usertag.findOne({
+				ownerId: meId,
+				targetId: _user.id
+			});
+
+			_user.usertags = usertag?.tags || [];
 		}
 
 		if (meId && !meId.equals(_user.id)) {
@@ -404,21 +489,43 @@ export const pack = (
 		delete _user.hasUnreadMentions;
 	}
 
+	const fetchInstance = async () => {
+		if (_user.host == null) return null;
+
+		const info = {
+			host: null as unknown,
+			name: null as unknown,
+			softwareName: null as unknown,
+			softwareVersion: null as unknown,
+			iconUrl: null as unknown,
+			themeColor: null as unknown,
+		};
+
+		const instance = await registerOrFetchInstanceDoc(_user.host);
+		info.host = toApHost(_user.host);
+		info.name = instance?.name || null;
+		info.softwareName = instance?.softwareName || null;
+		info.softwareVersion = instance?.softwareVersion || null;
+		info.iconUrl = instance?.iconUrl || null;
+		info.themeColor = instance?.themeColor || null;
+		return info;
+	};
+
+	_user.instance = fetchInstance();
+
 	// カスタム絵文字添付
 	if (_user.emojis) {
-		_user.emojis = Emoji.find({
-			name: { $in: _user.emojis },
-			host: _user.host
-		}, {
-			fields: { _id: false }
+		_user.emojis = packEmojis(_user.emojis, _user.host).catch(e => {
+			console.warn(e);
+			return [];
 		});
 	}
 
 	// resolve promises in _user object
 	_user = await rap(_user);
 
-	resolve(_user);
-});
+	return _user;
+};
 
 /*
 function img(url) {

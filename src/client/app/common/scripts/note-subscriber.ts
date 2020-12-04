@@ -87,6 +87,14 @@ export default prop => ({
 				case 'reacted': {
 					const reaction = body.reaction;
 
+					if (body.emoji) {
+						const emojis = this.$_ns_target.emojis || [];
+						if (!emojis.includes(body.emoji)) {
+							emojis.push(body.emoji);
+							Vue.set(this.$_ns_target, 'emojis', emojis);
+						}
+					}
+
 					if (this.$_ns_target.reactionCounts == null) {
 						Vue.set(this.$_ns_target, 'reactionCounts', {});
 					}
@@ -101,6 +109,7 @@ export default prop => ({
 					if (body.userId == this.$store.state.i.id) {
 						Vue.set(this.$_ns_target, 'myReaction', reaction);
 					}
+
 					break;
 				}
 
@@ -121,6 +130,26 @@ export default prop => ({
 					if (body.userId == this.$store.state.i.id) {
 						Vue.set(this.$_ns_target, 'myReaction', null);
 					}
+					break;
+				}
+
+				case 'renoted': {
+					Vue.set(this.$_ns_target, 'renoteCount', body.renoteCount);
+
+					if (body.renoteeId == this.$store.state.i.id) {
+						Vue.set(this.$_ns_target, 'myRenoteId', body.noteId);
+					}
+
+					break;
+				}
+
+				case 'unrenoted': {
+					this.$_ns_target.renoteCount--;
+
+					if (body.renoteeId == this.$store.state.i.id) {
+						Vue.set(this.$_ns_target, 'myRenoteId', null);
+					}
+
 					break;
 				}
 

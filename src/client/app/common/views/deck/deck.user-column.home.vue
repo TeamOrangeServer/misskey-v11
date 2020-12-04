@@ -30,7 +30,10 @@
 	<ui-container>
 		<template #header><fa :icon="['far', 'comment-alt']"/> {{ $t('timeline') }}</template>
 		<div>
-			<x-notes ref="timeline" :make-promise="makePromise" @inited="() => $emit('loaded')"/>
+			<div class="command">
+				<ui-button @click="fetchOutbox()">{{ $t('fetch-posts') }}</ui-button>
+			</div>
+			<x-notes id="user_timeline_53" ref="timeline" :make-promise="makePromise" @inited="() => $emit('loaded')"/>
 		</div>
 	</ui-container>
 </div>
@@ -106,19 +109,24 @@ export default Vue.extend({
 			});
 		},
 
+		fetchOutbox() {
+			this.$root.api('ap/fetch-outbox', {
+				userId: this.user.id,
+				sync: true
+			}).then(() => {
+				(this.$refs.timeline as any).reload();
+			});
+		},
+
 		fetch() {
-			const image = [
-				'image/jpeg',
-				'image/png',
-				'image/gif'
-			];
+			const image = ['image/jpeg','image/png','image/apng','image/gif','image/webp'];
 
 			this.$root.api('users/notes', {
 				userId: this.user.id,
 				fileType: image,
 				excludeNsfw: !this.$store.state.device.alwaysShowNsfw,
 				limit: 9,
-				untilDate: new Date().getTime() + 1000 * 86400 * 365
+				untilDate: new Date().getTime() + 1000 * 86400 * 30
 			}).then(notes => {
 				for (const note of notes) {
 					for (const file of note.files) {
@@ -228,4 +236,6 @@ export default Vue.extend({
 		background-clip content-box
 		border-radius 4px
 
+.command
+	margin 8px 16px
 </style>

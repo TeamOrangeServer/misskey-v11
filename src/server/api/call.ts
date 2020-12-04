@@ -5,6 +5,7 @@ import { IApp } from '../../models/app';
 import endpoints from './endpoints';
 import { ApiError } from './error';
 import { apiLogger } from './logger';
+import { toArray } from '../../prelude/array';
 
 const accessDenied = {
 	message: 'Access denied.',
@@ -12,7 +13,7 @@ const accessDenied = {
 	id: '56f35758-7dd5-468b-8439-5d6fb8ec9b8e'
 };
 
-export default async (endpoint: string, user: IUser, app: IApp, data: any, file?: any) => {
+export default async (endpoint: string, user: IUser, app: IApp, data: any, file?: any, ip?: string) => {
 	const isSecure = user != null && app == null;
 
 	const ep = endpoints.find(e => e.name === endpoint);
@@ -51,7 +52,7 @@ export default async (endpoint: string, user: IUser, app: IApp, data: any, file?
 		throw new ApiError(accessDenied, { reason: 'You are not a moderator.' });
 	}
 
-	if (app && ep.meta.kind && !app.permission.some(p => p === ep.meta.kind)) {
+	if (app && ep.meta.kind && !app.permission.some(p => toArray(ep.meta.kind).includes(p))) {
 		throw new ApiError({
 			message: 'Your app does not have the necessary permissions to use this endpoint.',
 			code: 'PERMISSION_DENIED',
@@ -59,9 +60,9 @@ export default async (endpoint: string, user: IUser, app: IApp, data: any, file?
 		});
 	}
 
-	if (ep.meta.requireCredential && ep.meta.limit) {
+	if (ep.meta.limit) {
 		// Rate limit
-		await limiter(ep, user).catch(e => {
+		await limiter(ep, user, ip).catch(e => {
 			throw new ApiError({
 				message: 'Rate limit exceeded. Please try again later.',
 				code: 'RATE_LIMIT_EXCEEDED',
@@ -77,16 +78,21 @@ export default async (endpoint: string, user: IUser, app: IApp, data: any, file?
 		if (e instanceof ApiError) {
 			throw e;
 		} else {
+			console.error(e);
 			apiLogger.error(`Internal error occurred in ${ep.name}`, {
 				ep: ep.name,
 				ps: data,
-				e: e
+				e: {
+					message: e?.message,
+					code: e?.name,
+					stack: e?.stack
+				}
 			});
 			throw new ApiError(null, {
 				e: {
-					message: e.message,
-					code: e.name,
-					stack: e.stack
+					message: e?.message,
+					code: e?.name,
+					stack: e?.stack
 				}
 			});
 		}
@@ -94,7 +100,7 @@ export default async (endpoint: string, user: IUser, app: IApp, data: any, file?
 		const after = performance.now();
 		const time = after - before;
 		if (time > 1000) {
-			apiLogger.warn(`SLOW API CALL DETECTED: ${ep.name} (${time}ms)`);
+			apiLogger.warn(`SLOW API CALL DETECTED: ${ep.name} user=${user?.username} (${time}ms)`);
 		}
 	});
 };

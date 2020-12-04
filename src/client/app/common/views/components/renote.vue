@@ -10,12 +10,6 @@
 	<div class="info">
 		<span class="mobile" v-if="note.viaMobile"><fa icon="mobile-alt"/></span>
 		<mk-time :time="note.createdAt"/>
-		<span class="visibility" v-if="note.visibility != 'public'">
-			<fa v-if="note.visibility == 'home'" icon="home"/>
-			<fa v-if="note.visibility == 'followers'" icon="unlock"/>
-			<fa v-if="note.visibility == 'specified'" icon="envelope"/>
-		</span>
-		<span class="localOnly" v-if="note.localOnly == true"><fa icon="heart"/></span>
 	</div>
 </div>
 </template>
@@ -23,9 +17,13 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
+import XVisibilityIcon from '../../../common/views/components/visibility-icon.vue';
 
 export default Vue.extend({
 	i18n: i18n(),
+	components: {
+		XVisibilityIcon,
+	},
 	props: {
 		note: {
 			type: Object,
@@ -44,20 +42,11 @@ export default Vue.extend({
 .puqkfets
 	display flex
 	align-items center
-	padding 8px 16px
+	padding 0.3em 1em
 	line-height 28px
 	white-space pre
 	color var(--renoteText)
 	background linear-gradient(to bottom, var(--renoteGradient) 0%, var(--face) 100%)
-
-	&:not(.mini)
-		padding 8px 16px
-
-		@media (min-width 500px)
-			padding 8px 16px
-
-		@media (min-width 600px)
-			padding 16px 32px 8px 32px
 
 	> .avatar
 		flex-shrink 0
@@ -91,14 +80,7 @@ export default Vue.extend({
 
 		> .visibility
 			margin-left 8px
+			display inline-block
 
-			[data-icon]
-				margin-right 0
-
-		> .localOnly
-			margin-left 4px
-
-			[data-icon]
-				margin-right 0
 
 </style>

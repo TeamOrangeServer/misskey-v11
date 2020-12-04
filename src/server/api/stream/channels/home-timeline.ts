@@ -1,27 +1,93 @@
 import autobind from 'autobind-decorator';
-import Mute from '../../../../models/mute';
 import { pack } from '../../../../models/note';
 import shouldMuteThisNote from '../../../../misc/should-mute-this-note';
 import Channel from '../channel';
+import { concat } from '../../../../prelude/array';
+import UserList from '../../../../models/user-list';
+import { isSelfHost } from '../../../../misc/convert-host';
+import Following from '../../../../models/following';
+import { oidEquals, oidIncludes } from '../../../../prelude/oid';
+import UserFilter from '../../../../models/user-filter';
 
 export default class extends Channel {
 	public readonly chName = 'homeTimeline';
-	public static shouldShare = true;
 	public static requireCredential = true;
 
-	private mutedUserIds: string[] = [];
+	private hideFromUsers: string[] = [];
+	private hideFromHosts: (string | null)[] = [];
+	private hideRenoteUsers: string[] = [];
+	private followingIds: string[] = [];
+	private excludeForeignReply = false;
 
 	@autobind
 	public async init(params: any) {
-		// Subscribe events
-		this.subscriber.on(`homeTimeline:${this.user._id}`, this.onNote);
+		await this.updateFollowing();
+		await this.updateFilter();
 
-		const mute = await Mute.find({ muterId: this.user._id });
-		this.mutedUserIds = mute.map(m => m.muteeId.toString());
+		this.excludeForeignReply = !!params?.excludeForeignReply;
+
+		// Subscribe events
+		this.subscriber.on('notesStream', this.onNote);
+		this.subscriber.on(`serverEvent:${this.user!._id}`, this.onServerEvent);
+	}
+
+	@autobind
+	private async updateFollowing() {
+		const followings = await Following.find({
+			followerId: this.user!._id
+		});
+
+		this.followingIds = followings.map(x => `${x.followeeId}`);
+	}
+
+	@autobind
+	private async updateFilter() {
+		// Homeから隠すリストユーザー
+		const lists = await UserList.find({
+			userId: this.user!._id,
+			hideFromHome: true,
+		});
+
+		this.hideFromUsers = concat(lists.map(list => list.userIds)).map(x => x.toString());
+		this.hideFromHosts = concat(lists.map(list => list.hosts || [])).map(x => isSelfHost(x) ? null : x);
+
+		const hideRenotes = await UserFilter.find({
+			ownerId: this.user!._id,
+			hideRenote: true
+		});
+
+		this.hideRenoteUsers = hideRenotes.map(hideRenote => hideRenote.targetId).map(x => x.toString());
+	}
+
+	@autobind
+	private async onServerEvent(data: any) {
+		if (data.type === 'followingChanged') {
+			this.updateFollowing();
+		}
+
+		if (data.type === 'filterChanged') {
+			this.updateFilter();
+		}
 	}
 
 	@autobind
 	private async onNote(note: any) {
+		if (!(
+			oidEquals(note.userId, this.user!._id) ||	// myself
+			oidIncludes(this.followingIds, note.userId)	// from followers
+		)) return;
+
+		// フォロワー限定以下なら現在のユーザー情報で再度除外
+		if (['followers', 'specified'].includes(note.visibility)) {
+			note = await pack(note.id, this.user, {
+				detail: true
+			});
+
+			if (note.isHidden) {
+				return;
+			}
+		}
+
 		// リプライなら再pack
 		if (note.replyId != null) {
 			note.reply = await pack(note.replyId, this.user, {
@@ -36,7 +102,20 @@ export default class extends Channel {
 		}
 
 		// 流れてきたNoteがミュートしているユーザーが関わるものだったら無視する
-		if (shouldMuteThisNote(note, this.mutedUserIds)) return;
+		if (shouldMuteThisNote(note, this.mutedUserIds, this.hideFromUsers, this.hideFromHosts)) return;
+
+		// Renoteを隠すユーザー
+		if (note.renoteId && !note.text && !note.fileIds?.length && !note.poll) {	// pure renote
+			if (oidIncludes(this.hideRenoteUsers, note.userId)) return;
+		}
+
+		if (this.excludeForeignReply && note.replyId) {
+			if (!(
+				oidIncludes(this.followingIds, note.reply.userId)
+				|| oidEquals(this.user!._id, note.reply.userId)
+				|| oidEquals(this.user!._id, note.userId)
+			)) return;
+		}
 
 		this.send('note', note);
 	}
@@ -44,6 +123,7 @@ export default class extends Channel {
 	@autobind
 	public dispose() {
 		// Unsubscribe events
-		this.subscriber.off(`homeTimeline:${this.user._id}`, this.onNote);
+		this.subscriber.off('notesStream', this.onNote);
+		this.subscriber.off(`serverEvent:${this.user!._id}`, this.onServerEvent);
 	}
 }

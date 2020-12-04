@@ -1,24 +1,53 @@
 import { IDriveFile } from '../models/drive-file';
 import config from '../config';
 
-export default function(file: IDriveFile, thumbnail = false): string {
+export default function(file: IDriveFile, thumbnail = false): string | null | undefined {
 	if (file == null) return null;
 
-	const isImage = file.contentType && file.contentType.startsWith('image/');
+	const isImage = file.contentType && ['image/png', 'image/apng', 'image/gif', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.contentType);
 
-	if (file.metadata.withoutChunks) {
+	if (file.metadata?.withoutChunks && file.metadata.isRemote && config.proxyRemoteFiles) {	// リモートの未格納ファイル => /files/ 下でProxy
+		if (thumbnail) {
+			return `${config.driveUrl}/${file._id}/${generateFilename(file, true)}?thumbnail`;
+		} else {
+			return `${config.driveUrl}/${file._id}/${generateFilename(file)}?web`;
+		}
+	} else if (file.metadata?.withoutChunks) {	// オブジェクトストレージ格納分 => そのURL
 		if (thumbnail) {
 			return file.metadata.thumbnailUrl || file.metadata.webpublicUrl || (isImage ? file.metadata.url : null);
 		} else {
 			return file.metadata.webpublicUrl || file.metadata.url;
 		}
-	} else {
+	} else {	// DB/File格納分 => /files/ 下で送出
 		if (thumbnail) {
-			return `${config.driveUrl}/${file._id}?thumbnail`;
+			return `${config.driveUrl}/${file._id}/${generateFilename(file, true)}?thumbnail`;
 		} else {
-			return `${config.driveUrl}/${file._id}?web`;
+			return `${config.driveUrl}/${file._id}/${generateFilename(file)}?web`;
 		}
 	}
+}
+
+/**
+ * 拡張子付きのファイル名を生成する
+ */
+function generateFilename(file: IDriveFile, thumbnail = false) {
+	let ext = '';
+
+	if (thumbnail && file.contentType !== 'image/png') {
+		ext = '.jpg';
+	} else {
+		if (file.filename) {
+			[ext] = (file.filename.match(/\.(\w+)$/) || ['']);
+		}
+
+		if (ext === '' && file.contentType) {
+			if (file.contentType === 'image/jpeg') ext = '.jpg';
+			if (file.contentType === 'image/png') ext = '.png';
+			if (file.contentType === 'image/webp') ext = '.webp';
+		}
+	}
+
+	return `${file._id}${ext}`;
 }
 
 export function getOriginalUrl(file: IDriveFile) {

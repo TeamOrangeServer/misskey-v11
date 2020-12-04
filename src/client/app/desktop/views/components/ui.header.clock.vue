@@ -7,7 +7,7 @@
 			<span class="hhnn">{{ hh }}<span :style="{ visibility: now.getSeconds() % 2 == 0 ? 'visible' : 'hidden' }">:</span>{{ nn }}</span>
 		</time>
 	</div>
-	<div class="content">
+	<div class="content" :class="navbar">
 		<mk-analog-clock :dark="true"/>
 	</div>
 </div>
@@ -24,6 +24,10 @@ export default Vue.extend({
 		};
 	},
 	computed: {
+		navbar(): string {
+			return this.$store.state.device.navbar;
+		},
+
 		yyyy(): number {
 			return this.now.getFullYear();
 		},
@@ -95,10 +99,15 @@ export default Vue.extend({
 				opacity 0.7
 
 	> .content
+		&.top
+			top auto
+
+		&.bottom
+			bottom 48px
+
 		visibility hidden
 		display block
 		position absolute
-		top auto
 		right 0
 		z-index 3
 		margin 0

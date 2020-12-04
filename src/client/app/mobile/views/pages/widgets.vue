@@ -13,9 +13,9 @@
 					<option value="calendar">{{ $t('@.widgets.calendar') }}</option>
 					<option value="activity">{{ $t('@.widgets.activity') }}</option>
 					<option value="rss">{{ $t('@.widgets.rss') }}</option>
-					<option value="photo-stream">{{ $t('@.widgets.photo-stream') }}</option>
 					<option value="slideshow">{{ $t('@.widgets.slideshow') }}</option>
 					<option value="hashtags">{{ $t('@.widgets.hashtags') }}</option>
+					<option value="words">{{ $t('@.widgets.words') }}</option>
 					<option value="posts-monitor">{{ $t('@.widgets.posts-monitor') }}</option>
 					<option value="version">{{ $t('@.widgets.version') }}</option>
 					<option value="server">{{ $t('@.widgets.server') }}</option>
@@ -52,8 +52,8 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import * as XDraggable from 'vuedraggable';
-import * as uuid from 'uuid';
+import XDraggable from 'vuedraggable';
+import { v4 as uuid } from 'uuid';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/pages/widgets.vue'),
@@ -87,9 +87,6 @@ export default Vue.extend({
 				name: 'rss',
 				id: 'c', data: {}
 			}, {
-				name: 'photo-stream',
-				id: 'd', data: {}
-			}, {
 				name: 'nav',
 				id: 'f', data: {}
 			}, {
@@ -119,6 +116,7 @@ export default Vue.extend({
 		},
 
 		addWidget() {
+			if (this.widgetAdderSelected == null) return;
 			this.$store.dispatch('settings/addMobileHomeWidget', {
 				name: this.widgetAdderSelected,
 				id: uuid(),

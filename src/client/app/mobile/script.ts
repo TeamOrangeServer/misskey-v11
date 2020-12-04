@@ -22,6 +22,7 @@ import MkReceivedFollowRequests from './views/pages/received-follow-requests.vue
 import MkNote from './views/pages/note.vue';
 import MkSearch from './views/pages/search.vue';
 import MkFavorites from './views/pages/favorites.vue';
+import MkReactions from './views/pages/reactions.vue';
 import MkUserLists from './views/pages/user-lists.vue';
 import MkUserList from './views/pages/user-list.vue';
 import MkReversi from './views/pages/games/reversi.vue';
@@ -34,6 +35,7 @@ import PostForm from './views/components/post-form-dialog.vue';
 import FileChooser from './views/components/drive-file-chooser.vue';
 import FolderChooser from './views/components/drive-folder-chooser.vue';
 
+import UI from './views/pages/ui.vue';
 /**
  * init
  */
@@ -57,8 +59,12 @@ init((launch, os) => {
 
 				const vm = this.$root.new(PostForm, {
 					reply: o.reply,
+					airReply: o.airReply,
 					mention: o.mention,
-					renote: o.renote
+					renote: o.renote,
+					initialText: o.initialText,
+					instant: o.instant,
+					initialNote: o.initialNote,
 				});
 
 				vm.$once('cancel', recover);
@@ -127,14 +133,20 @@ init((launch, os) => {
 					{ path: '/featured', name: 'featured', component: () => import('../common/views/deck/deck.featured-column.vue').then(m => m.default) },
 					{ path: '/explore', name: 'explore', component: () => import('../common/views/deck/deck.explore-column.vue').then(m => m.default) },
 					{ path: '/explore/tags/:tag', name: 'explore-tag', props: true, component: () => import('../common/views/deck/deck.explore-column.vue').then(m => m.default) },
-					{ path: '/i/favorites', component: () => import('../common/views/deck/deck.favorites-column.vue').then(m => m.default) }
+					{ path: '/i/favorites', component: () => import('../common/views/deck/deck.favorites-column.vue').then(m => m.default) },
+					{ path: '/i/reactions', component: () => import('../common/views/deck/deck.reactions-column.vue').then(m => m.default) },
+					{ path: '/i/pages', name: 'pages', component: () => import('../common/views/pages/pages.vue').then(m => m.default) },
+					{ path: '/@:username/pages/:pageName', name: 'page', props: true, component: () => import('../common/views/deck/deck.page-column.vue').then(m => m.default) },
 				]}]
 			: [
 				{ path: '/', name: 'index', component: MkIndex },
 		]),
 			{ path: '/signup', name: 'signup', component: MkSignup },
 			{ path: '/i/settings', name: 'settings', component: () => import('./views/pages/settings.vue').then(m => m.default) },
+			{ path: '/i/settings/:page', redirect: '/i/settings' },
 			{ path: '/i/favorites', name: 'favorites', component: MkFavorites },
+			{ path: '/i/reactions', name: 'reactions', component: MkReactions },
+			{ path: '/i/pages', name: 'pages', component: UI, props: route => ({ component: () => import('../common/views/pages/pages.vue').then(m => m.default) }) },
 			{ path: '/i/lists', name: 'user-lists', component: MkUserLists },
 			{ path: '/i/lists/:list', name: 'user-list', component: MkUserList },
 			{ path: '/i/received-follow-requests', name: 'received-follow-requests', component: MkReceivedFollowRequests },
@@ -144,7 +156,9 @@ init((launch, os) => {
 			{ path: '/i/drive', name: 'drive', component: MkDrive },
 			{ path: '/i/drive/folder/:folder', component: MkDrive },
 			{ path: '/i/drive/file/:file', component: MkDrive },
-			{ path: '/selectdrive', component: MkSelectDrive },
+			{ path: '/i/pages/new', component: UI, props: route => ({ component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default) }) },
+			{ path: '/i/pages/edit/:pageId', component: UI, props: route => ({ component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default), initPageId: route.params.pageId }) },
+	{ path: '/selectdrive', component: MkSelectDrive },
 			{ path: '/search', component: MkSearch },
 			{ path: '/tags/:tag', component: MkTag },
 			{ path: '/featured', name: 'featured', component: () => import('./views/pages/featured.vue').then(m => m.default) },
@@ -156,8 +170,12 @@ init((launch, os) => {
 				{ path: 'following', component: () => import('../common/views/pages/following.vue').then(m => m.default) },
 				{ path: 'followers', component: () => import('../common/views/pages/followers.vue').then(m => m.default) },
 			]},
+			{ path: '/@:user/pages/:page', component: UI, props: route => ({ component: () => import('../common/views/pages/page.vue').then(m => m.default), pageName: route.params.page, username: route.params.user }) },
+			{ path: '/@:user/pages/:pageName/view-source', component: UI, props: route => ({ component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default), initUser: route.params.user, initPageName: route.params.pageName }) },
+			{ path: '/@:acct/room', props: true, component: () => import('../common/views/pages/room/room.vue').then(m => m.default) },
 			{ path: '/notes/:note', component: MkNote },
 			{ path: '/authorize-follow', component: MkFollow },
+			{ path: '/mfm-cheat-sheet', component: () => import('../common/views/pages/mfm-cheat-sheet.vue').then(m => m.default) },
 			{ path: '*', component: MkNotFound }
 		]
 	});

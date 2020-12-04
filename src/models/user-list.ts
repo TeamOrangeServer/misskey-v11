@@ -12,11 +12,14 @@ export interface IUserList {
 	title: string;
 	userId: mongo.ObjectID;
 	userIds: mongo.ObjectID[];
+	hosts?: string[];
+	hideFromHome?: boolean;
+	mediaOnly?: boolean;
 }
 
-export const pack = (
+export const pack = async (
 	userList: string | mongo.ObjectID | IUserList
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _userList: any;
 
 	if (isObjectId(userList)) {
@@ -37,5 +40,10 @@ export const pack = (
 	_userList.id = _userList._id;
 	delete _userList._id;
 
-	resolve(_userList);
-});
+	_userList.hosts = _userList.hosts || [];
+
+	_userList.hideFromHome = !!_userList.hideFromHome;
+	_userList.mediaOnly = !!_userList.mediaOnly;
+
+	return _userList;
+};

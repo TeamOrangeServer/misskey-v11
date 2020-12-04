@@ -9,7 +9,7 @@
 				<mk-cw-button v-model="showContent" :note="note"/>
 			</p>
 			<div class="content" v-show="note.cw == null || showContent">
-				<mk-sub-note-content class="text" :note="note"/>
+				<mk-sub-note-content class="text" :class="{ scroll : true }" :note="note"/>
 			</div>
 		</div>
 	</div>
@@ -52,7 +52,7 @@ export default Vue.extend({
 	display flex
 	padding 16px 32px
 	font-size 0.9em
-	background var(--subNoteBg)
+	background linear-gradient(to bottom, var(--face), var(--subNoteBg) 10%, var(--subNoteBg) 90%, var(--face) 100%)
 
 	&.mini
 		padding 16px
@@ -75,9 +75,6 @@ export default Vue.extend({
 		flex 1
 		min-width 0
 
-		> .header
-			margin-bottom 2px
-
 		> .body
 
 			> .cw
@@ -97,8 +94,12 @@ export default Vue.extend({
 					margin 0
 					padding 0
 					color var(--subNoteText)
-					font-size calc(1em + var(--fontSize))
+					font-size 1em
 
+					&.scroll
+						max-height 180px
+						overflow hidden auto
+						padding-left 0.2em
 					pre
 						max-height 120px
 						font-size 80%

@@ -4,9 +4,13 @@ import Note from '../../../../models/note';
 import { packMany } from '../../../../models/note';
 import UserList from '../../../../models/user-list';
 import define from '../../define';
-import { getFriends } from '../../common/get-friends';
+import { getFriendIds } from '../../common/get-friends';
 import { getHideUserIds } from '../../common/get-hide-users';
 import { ApiError } from '../../error';
+import { isSelfHost } from '../../../../misc/convert-host';
+import { getHideRenoteUserIds } from '../../common/get-hide-renote-users';
+import { intersection } from 'lodash';
+import { concat } from '../../../../prelude/array';
 
 export const meta = {
 	desc: {
@@ -89,10 +93,41 @@ export const meta = {
 			}
 		},
 
+		excludeForeignReply: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'フォロー外リプライを含めない'
+			}
+		},
+
 		withFiles: {
 			validator: $.optional.bool,
 			desc: {
 				'ja-JP': 'true にすると、ファイルが添付された投稿だけ取得します'
+			}
+		},
+
+		fileType: {
+			validator: $.optional.arr($.str),
+			desc: {
+				'ja-JP': '指定された種類のファイルが添付された投稿のみを取得します'
+			}
+		},
+
+		excludeNsfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されたファイルを除外します(fileTypeが指定されている場合のみ有効)'
+			}
+		},
+
+		excludeSfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されてないファイルを除外します(fileTypeが指定されている場合のみ有効)'
 			}
 		},
 
@@ -122,7 +157,7 @@ export const meta = {
 };
 
 export default define(meta, async (ps, user) => {
-	const [list, followings, hideUserIds] = await Promise.all([
+	const [list, followingIds, hideUserIds, hideRenoteUserIds] = await Promise.all([
 		// リストを取得
 		// Fetch the list
 		UserList.findOne({
@@ -132,18 +167,26 @@ export default define(meta, async (ps, user) => {
 
 		// フォローを取得
 		// Fetch following
-		getFriends(user._id, true, false),
+		getFriendIds(user._id, true),
 
 		// 隠すユーザーを取得
-		getHideUserIds(user)
+		getHideUserIds(user, false),
+
+		// リノートを隠すユーザーを取得
+		getHideRenoteUserIds(user),
 	]);
 
 	if (list == null) {
 		throw new ApiError(meta.errors.noSuchList);
 	}
 
-	if (list.userIds.length == 0) {
-		return [];
+	if (list.mediaOnly) {
+		const medias = ['image/jpeg', 'image/png', 'image/apng', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'];
+		if (ps.fileType?.length) {
+			ps.fileType = intersection(ps.fileType, medias);
+		} else {
+			ps.fileType = medias;
+		}
 	}
 
 	//#region Construct query
@@ -151,7 +194,7 @@ export default define(meta, async (ps, user) => {
 		_id: -1
 	};
 
-	const listQuery = list.userIds.map(u => ({
+	let listQuery = list.userIds.map(u => ({
 		userId: u,
 
 		/*// リプライは含めない(ただし投稿者自身の投稿へのリプライ、自分の投稿へのリプライ、自分のリプライは含める)
@@ -170,7 +213,21 @@ export default define(meta, async (ps, user) => {
 			// 自分(フォロワー)が送信したリプライ
 			userId: user._id
 		}]*/
-	}));
+	})) as {}[];
+
+	if (list.hosts && list.hosts.length > 0) {
+		if (list.hosts.some(x => x === '*')) {
+			listQuery = [ {} ];
+		} else {
+			listQuery.push({
+				'_user.host': { $in: list.hosts.map(x => isSelfHost(x) ? null : x) }
+			});
+		}
+	}
+
+	if (listQuery.length == 0) {
+		return [];
+	}
 
 	const visibleQuery = [{
 		visibility: { $in: ['public', 'home'] }
@@ -182,7 +239,7 @@ export default define(meta, async (ps, user) => {
 		visibleUserIds: { $in: [user._id] }
 	}, {
 		visibility: 'followers',
-		userId: { $in: followings.map(f => f.id) }
+		userId: { $in: followingIds }
 	}];
 
 	const query = {
@@ -213,6 +270,33 @@ export default define(meta, async (ps, user) => {
 	// MongoDBではトップレベルで否定ができないため、De Morganの法則を利用してクエリします。
 	// つまり、「『自分の投稿かつRenote』ではない」を「『自分の投稿ではない』または『Renoteではない』」と表現します。
 	// for details: https://en.wikipedia.org/wiki/De_Morgan%27s_laws
+	if (ps.excludeForeignReply) {
+		query.$and.push({
+			$or: [{
+				'_reply.userId': null
+			}, {
+				'_reply.userId': { $in : concat([followingIds, [user._id]]) }
+			}, {
+				userId: user._id
+			}]
+		});
+	}
+
+	if (hideRenoteUserIds.length > 0) {
+		query.$and.push({
+			$or: [{
+				userId: { $nin: hideRenoteUserIds }
+			}, {
+				renoteId: null
+			}, {
+				text: { $ne: null }
+			}, {
+				fileIds: { $ne: [] }
+			}, {
+				poll: { $ne: null }
+			}]
+		});
+	}
 
 	if (ps.includeMyRenotes === false) {
 		query.$and.push({
@@ -268,6 +352,25 @@ export default define(meta, async (ps, user) => {
 		query.$and.push({
 			fileIds: { $exists: true, $ne: [] }
 		});
+	}
+
+	if (ps.fileType) {
+		query.fileIds = { $exists: true, $ne: [] };
+
+		query['_files.contentType'] = {
+			$in: ps.fileType
+		};
+
+		if (ps.excludeNsfw) {
+			query['_files.metadata.isSensitive'] = {
+				$ne: true
+			};
+			query['cw'] = null;
+		}
+
+		if (ps.excludeSfw) {
+			query['_files.metadata.isSensitive'] = true;
+		}
 	}
 
 	if (ps.sinceId) {

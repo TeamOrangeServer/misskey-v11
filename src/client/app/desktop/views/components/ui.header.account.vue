@@ -1,59 +1,82 @@
 <template>
 <div class="account" v-hotkey.global="keymap">
 	<button class="header" :data-active="isOpen" @click="toggle">
-		<span class="username">{{ $store.state.i.username }}<template v-if="!isOpen"><fa icon="angle-down"/></template><template v-if="isOpen"><fa icon="angle-up"/></template></span>
+		<span class="username">{{ $store.state.i.username }}
+			<fa :icon="xor(isOpen, navbar === 'bottom') ? 'angle-up' : 'angle-down'"/>
+		</span>
 		<mk-avatar class="avatar" :user="$store.state.i"/>
 	</button>
-	<transition name="zoom-in-top">
-		<div class="menu" v-if="isOpen">
+	<transition :name="navbar === 'top' ? 'zoom-in-top' : 'zoom-in-bottom'">
+		<div class="menu" :class="navbar" v-if="isOpen">
 			<ul>
-				<li>
+				<li @click="closeMenu">
 					<router-link :to="`/@${ $store.state.i.username }`">
-						<i><fa icon="user"/></i>
+						<i><fa icon="user" fixed-width/></i>
 						<span>{{ $t('profile') }}</span>
 						<i><fa icon="angle-right"/></i>
 					</router-link>
 				</li>
 				<li @click="drive">
 					<p>
-						<i><fa icon="cloud"/></i>
+						<i><fa icon="cloud" fixed-width/></i>
 						<span>{{ $t('@.drive') }}</span>
 						<i><fa icon="angle-right"/></i>
 					</p>
 				</li>
-				<li>
+				<li @click="closeMenu">
 					<router-link to="/i/favorites">
-						<i><fa icon="star"/></i>
+						<i><fa icon="star" fixed-width/></i>
 						<span>{{ $t('@.favorites') }}</span>
+						<i><fa icon="angle-right"/></i>
+					</router-link>
+				</li>
+				<li @click="closeMenu">
+					<router-link to="/i/reactions">
+						<i><fa :icon="faThumbsUp" fixed-width/></i>
+						<span>{{ $t('@.noteReactions') }}</span>
 						<i><fa icon="angle-right"/></i>
 					</router-link>
 				</li>
 				<li @click="list">
 					<p>
-						<i><fa icon="list"/></i>
+						<i><fa icon="list" fixed-width/></i>
 						<span>{{ $t('lists') }}</span>
 						<i><fa icon="angle-right"/></i>
 					</p>
 				</li>
-				<li @click="followRequests" v-if="($store.state.i.isLocked || $store.state.i.carefulBot)">
+				<li @click="closeMenu">
+					<router-link to="/i/pages">
+						<i><fa :icon="faStickyNote" fixed-width/></i>
+						<span>{{ $t('@.pages') }}</span>
+						<i><fa icon="angle-right"/></i>
+					</router-link>
+				</li>
+				<li @click="followRequests">
 					<p>
-						<i><fa :icon="['far', 'envelope']"/></i>
+						<i><fa :icon="['far', 'envelope']" fixed-width/></i>
 						<span>{{ $t('follow-requests') }}<i v-if="$store.state.i.pendingReceivedFollowRequestsCount">{{ $store.state.i.pendingReceivedFollowRequestsCount }}</i></span>
 						<i><fa icon="angle-right"/></i>
 					</p>
+				</li>
+				<li>
+					<a :href="`/@${ $store.state.i.username }/room`">
+						<i><fa :icon="faDoorOpen" fixed-width/></i>
+						<span>{{ $t('room') }}</span>
+						<i><fa icon="angle-right"/></i>
+					</a>
 				</li>
 			</ul>
 			<ul>
 				<li>
 					<router-link to="/i/settings">
-						<i><fa icon="cog"/></i>
+						<i><fa icon="cog" fixed-width/></i>
 						<span>{{ $t('@.settings') }}</span>
 						<i><fa icon="angle-right"/></i>
 					</router-link>
 				</li>
 				<li v-if="$store.state.i.isAdmin || $store.state.i.isModerator">
 					<a href="/admin">
-						<i><fa icon="terminal"/></i>
+						<i><fa icon="terminal" fixed-width/></i>
 						<span>{{ $t('admin') }}</span>
 						<i><fa icon="angle-right"/></i>
 					</a>
@@ -62,8 +85,14 @@
 			<ul>
 				<li @click="toggleDeckMode">
 					<p>
-						<template v-if="$store.state.device.inDeckMode"><span>{{ $t('@.home') }}</span><i><fa :icon="faHome"/></i></template>
+						<template v-if="$store.state.device.inDeckMode"><span>{{ $t('@.undeck') }}</span><i><fa :icon="faHome"/></i></template>
 						<template v-else><span>{{ $t('@.deck') }}</span><i><fa :icon="faColumns"/></i></template>
+					</p>
+				</li>
+				<li @click="toggleAppType">
+					<p>
+						<template v-if="$root.isMobile"><span>{{ $t('@.desktop-mode') }}</span><i><fa :icon="faDesktop"/></i></template>
+						<template v-else><span>{{ $t('@.mobile-mode') }}</span><i><fa :icon="faMobileAlt" style="margin-right: 3px"/></i></template>
 					</p>
 				</li>
 				<li @click="dark">
@@ -76,7 +105,7 @@
 			<ul>
 				<li @click="signout">
 					<p class="signout">
-						<i><fa icon="power-off"/></i>
+						<i><fa icon="power-off" fixed-width/></i>
 						<span>{{ $t('@.signout') }}</span>
 					</p>
 				</li>
@@ -90,23 +119,24 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import MkUserListsWindow from './user-lists-window.vue';
-import MkUserListWindow from './user-list-window.vue';
 import MkFollowRequestsWindow from './received-follow-requests-window.vue';
-import MkSettingsWindow from './settings-window.vue';
 import MkDriveWindow from './drive-window.vue';
 import contains from '../../../common/scripts/contains';
-import { faHome, faColumns } from '@fortawesome/free-solid-svg-icons';
-import { faMoon, faSun } from '@fortawesome/free-regular-svg-icons';
+import { faHome, faColumns, faUsers, faDoorOpen, faDesktop, faMobileAlt, faThumbsUp } from '@fortawesome/free-solid-svg-icons';
+import { faMoon, faSun, faStickyNote } from '@fortawesome/free-regular-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('desktop/views/components/ui.header.account.vue'),
 	data() {
 		return {
 			isOpen: false,
-			faHome, faColumns, faMoon, faSun
+			faHome, faColumns, faMoon, faSun, faStickyNote, faUsers, faDoorOpen, faDesktop, faMobileAlt, faThumbsUp
 		};
 	},
 	computed: {
+		navbar(): string {
+			return this.$store.state.device.navbar;
+		},
 		keymap(): any {
 			return {
 				'a|m': this.toggle
@@ -137,18 +167,16 @@ export default Vue.extend({
 			if (!contains(this.$el, e.target) && this.$el != e.target) this.close();
 			return false;
 		},
+		closeMenu() {
+			this.close();
+		},
 		drive() {
 			this.close();
 			this.$root.new(MkDriveWindow);
 		},
 		list() {
 			this.close();
-			const w = this.$root.new(MkUserListsWindow);
-			w.$once('choosen', list => {
-				this.$root.new(MkUserListWindow, {
-					list
-				});
-			});
+			this.$root.new(MkUserListsWindow);
 		},
 		followRequests() {
 			this.close();
@@ -163,9 +191,16 @@ export default Vue.extend({
 				value: !this.$store.state.device.darkmode
 			});
 		},
+		toggleAppType() {
+			this.$store.commit('device/set', { key: 'appType', value: this.$root.isMobile ? 'desktop' : 'mobile' });
+			location.replace('/');
+		},
 		toggleDeckMode() {
 			this.$store.commit('device/set', { key: 'deckMode', value: !this.$store.state.device.inDeckMode });
 			location.replace('/');
+		},
+		xor(a: boolean, b: boolean): boolean {
+			return (a || b) && !(a && b);
 		},
 	}
 });
@@ -199,7 +234,6 @@ export default Vue.extend({
 			max-width 16em
 			line-height 48px
 			font-weight bold
-			font-family Meiryo, sans-serif
 			text-decoration none
 
 			@media (max-width 1100px)
@@ -223,10 +257,9 @@ export default Vue.extend({
 				margin-left 8px
 
 	> .menu
-		$bgcolor = var(--face)
+		$bgcolor = var(--secondary)
 		display block
 		position absolute
-		top 56px
 		right -2px
 		width 230px
 		font-size 0.8em
@@ -234,16 +267,38 @@ export default Vue.extend({
 		border-radius 4px
 		box-shadow 0 var(--lineWidth) 4px rgba(#000, 0.25)
 
+		&.top
+			top 56px
+
+			&:before
+				border-bottom solid 14px rgba(#000, 0.1)
+				top -28px
+
+			&:after
+				border-bottom solid 14px $bgcolor
+				top -27px
+
+		&.bottom
+			bottom 56px
+
+			&:before
+				border-top solid 14px rgba(#000, 0.1)
+				bottom -27px
+
+
+			&:after
+				border-top solid 14px $bgcolor
+				bottom -27px
+
 		&:before
 			content ""
 			pointer-events none
 			display block
 			position absolute
-			top -28px
 			right 12px
 			border-top solid 14px transparent
 			border-right solid 14px transparent
-			border-bottom solid 14px rgba(#000, 0.1)
+			border-bottom solid 14px transparent
 			border-left solid 14px transparent
 
 		&:after
@@ -251,11 +306,10 @@ export default Vue.extend({
 			pointer-events none
 			display block
 			position absolute
-			top -27px
 			right 12px
 			border-top solid 14px transparent
 			border-right solid 14px transparent
-			border-bottom solid 14px $bgcolor
+			border-bottom solid 14px transparent
 			border-left solid 14px transparent
 
 		ul

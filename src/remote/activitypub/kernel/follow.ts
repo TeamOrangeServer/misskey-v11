@@ -1,27 +1,20 @@
-import * as mongo from 'mongodb';
-import User, { IRemoteUser } from '../../../models/user';
-import config from '../../../config';
+import { IRemoteUser, isLocalUser } from '../../../models/user';
 import follow from '../../../services/following/create';
 import { IFollow } from '../type';
+import DbResolver from '../db-resolver';
 
-export default async (actor: IRemoteUser, activity: IFollow): Promise<void> => {
-	const id = typeof activity.object == 'string' ? activity.object : activity.object.id;
+export default async (actor: IRemoteUser, activity: IFollow): Promise<string> => {
+	const dbResolver = new DbResolver();
+	const followee = await dbResolver.getUserFromApId(activity.object);
 
-	if (!id.startsWith(config.url + '/')) {
-		return null;
+	if (followee == null) {
+		return `skip: followee not found`;
 	}
 
-	const followee = await User.findOne({
-		_id: new mongo.ObjectID(id.split('/').pop())
-	});
-
-	if (followee === null) {
-		throw new Error('followee not found');
-	}
-
-	if (followee.host != null) {
-		throw new Error('フォローしようとしているユーザーはローカルユーザーではありません');
+	if (!isLocalUser(followee)) {
+		return `skip: フォローしようとしているユーザーはローカルユーザーではありません`;
 	}
 
 	await follow(actor, followee, activity.id);
+	return `ok`;
 };

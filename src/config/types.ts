@@ -27,29 +27,92 @@ export type Source = {
 		port: number;
 		pass: string;
 	};
-	drive?: {
-		storage: string;
-		bucket?: string;
-		prefix?: string;
-		baseUrl?: string;
-		config?: any;
-	};
+	drive?: DriveConfig;
+	remoteDrive?: DriveConfig;
+	proxyRemoteFiles?: boolean;
 
 	autoAdmin?: boolean;
 
+	disableFederation?: boolean;
+	ignoreApForwarded?: boolean;
+	disableUrlPreview?: boolean;
+	disablePosts?: boolean;
+
+	signToActivityPubGet?: boolean;
+
 	proxy?: string;
+	proxySmtp?: string;
+
+	proxyProxy?: string;
+
+	maxFileSize?: number;
 
 	accesslog?: string;
 
-	clusterLimit?: number;
+	workerStrategies?: {
+		serverWorkerCount?: number;
+		queueWorkerCount?: number;
+		workerWorkerCount?: number;
+	};
 
 	outgoingAddressFamily?: 'ipv4' | 'ipv6' | 'dual';
+
+	deliverJobConcurrency?: number;
+	inboxJobConcurrency?: number;
+	deliverJobPerSec?: number;
+	inboxJobPerSec?: number;
+	deliverJobMaxAttempts?: number;
+	inboxJobMaxAttempts?: number;
+
+	mecabSearch?: {
+		mecabBin?: string;
+		mecabDic?: string;
+		mecabServer?: string;
+	};
+
+	icons?: Icons
+	themeColor?: string;
+};
+
+export type DriveConfig = {
+	storage: string;
+	bucket?: string;
+	prefix?: string;
+	baseUrl?: string;
+	config?: {
+		endPoint: string;
+		port?: number;
+		useSSL?: boolean;
+		accessKey: string;
+		secretKey: string;
+		region?: string;
+		transport?: string;
+		sessionToken?: string;
+		partSize?: number;
+	};
+};
+
+export type Icons = {
+	favicon?: {
+		url?: string;
+		type?: string;
+	};
+	appleTouchIcon?: {
+		url?: string;
+	};
+	manifest192?: {
+		url?: string;
+	};
+	manifest512?: {
+		url?: string;
+	};
 };
 
 /**
  * Misskeyが自動的に(ユーザーが設定した情報から推論して)設定する情報
  */
 export type Mixin = {
+	version: string;
 	host: string;
 	hostname: string;
 	scheme: string;

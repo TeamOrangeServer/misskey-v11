@@ -9,18 +9,13 @@
 	<span class="is-cat" v-if="note.user.isCat">cat</span>
 	<span class="username"><mk-acct :user="note.user"/></span>
 	<span class="is-verified" v-if="note.user.isVerified" :title="$t('@.verified-user')"><fa icon="star"/></span>
-	<div class="info">
-		<span class="app" v-if="note.app && !mini && $store.state.settings.showVia">via <b>{{ note.app.name }}</b></span>
+	<div class="info" v-if="!noInfo">
 		<span class="mobile" v-if="note.viaMobile"><fa icon="mobile-alt"/></span>
 		<router-link class="created-at" :to="note | notePage">
 			<mk-time :time="note.createdAt"/>
 		</router-link>
-		<span class="visibility" v-if="note.visibility != 'public'">
-			<fa v-if="note.visibility == 'home'" icon="home"/>
-			<fa v-if="note.visibility == 'followers'" icon="unlock"/>
-			<fa v-if="note.visibility == 'specified'" icon="envelope"/>
-		</span>
-		<span class="localOnly" v-if="note.localOnly == true"><fa icon="heart"/></span>
+		<x-visibility-icon class="visibility" :v="note.visibility" :localOnly="note.localOnly" :copyOnce="note.copyOnce"/>
+		<span class="remote" title="Remote post" v-if="note.user.host != null"><fa :icon="faGlobeAmericas"/></span>
 	</div>
 </header>
 </template>
@@ -28,13 +23,28 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
+import { faGlobeAmericas } from '@fortawesome/free-solid-svg-icons';
+import XVisibilityIcon from '../../../common/views/components/visibility-icon.vue';
 
 export default Vue.extend({
 	i18n: i18n(),
+	components: {
+		XVisibilityIcon,
+	},
+	data() {
+		return {
+			faGlobeAmericas
+		}
+	},
 	props: {
 		note: {
 			type: Object,
 			required: true
+		},
+		noInfo: {
+			type: Boolean,
+			required: false,
+			default: false
 		},
 		mini: {
 			type: Boolean,
@@ -109,15 +119,12 @@ export default Vue.extend({
 		> .mobile
 			margin-right 8px
 
-		> .app
-			margin-right 8px
-			padding-right 8px
-			border-right solid 1px var(--faceDivider)
-
 		> .visibility
-			margin-left 8px
+			margin-left 0.5em
+			display inline-block
 
-		> .localOnly
+		> .remote
 			margin-left 4px
+			color #4dabf7
 
 </style>

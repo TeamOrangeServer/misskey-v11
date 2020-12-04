@@ -1,11 +1,11 @@
 import Note, { INote } from '../../models/note';
-import { IUser, isLocalUser, isRemoteUser } from '../../models/user';
+import User, { IUser, isLocalUser, isRemoteUser, IRemoteUser } from '../../models/user';
 import { publishNoteStream } from '../stream';
 import renderDelete from '../../remote/activitypub/renderer/delete';
+import renderUndo from '../../remote/activitypub/renderer/undo';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import { deliver } from '../../queue';
-import Following from '../../models/following';
 import renderTombstone from '../../remote/activitypub/renderer/tombstone';
+import renderAnnounce from '../../remote/activitypub/renderer/announce';
 import notesChart from '../../services/chart/notes';
 import perUserNotesChart from '../../services/chart/per-user-notes';
 import config from '../../config';
@@ -16,6 +16,9 @@ import { registerOrFetchInstanceDoc } from '../register-or-fetch-instance-doc';
 import Instance from '../../models/instance';
 import instanceChart from '../../services/chart/instance';
 import Favorite from '../../models/favorite';
+import DeliverManager, { deliverToFollowers } from '../../remote/activitypub/deliver-manager';
+import { deliverToRelays } from '../relay';
+import Notification from '../../models/notification';
 
 /**
  * 投稿を削除します。
@@ -32,6 +35,8 @@ export default async function(user: IUser, note: INote, quiet = false) {
 		$set: {
 			deletedAt: deletedAt,
 			text: null,
+			mecabWords: [],
+			trendWords: [],
 			tags: [],
 			fileIds: [],
 			renoteId: null,
@@ -45,7 +50,7 @@ export default async function(user: IUser, note: INote, quiet = false) {
 		Note.update({ _id: note.renoteId }, {
 			$inc: {
 				renoteCount: -1,
-				score: -1
+				score: user.isBot ? 0 : -1
 			},
 			$pull: {
 				_quoteIds: note._id
@@ -67,6 +72,10 @@ export default async function(user: IUser, note: INote, quiet = false) {
 		noteId: note._id
 	});
 
+	Notification.remove({
+		noteId: note._id
+	});
+
 	// ファイルが添付されていた場合ドライブのファイルの「このファイルが添付された投稿一覧」プロパティからこの投稿を削除
 	if (note.fileIds) {
 		for (const fileId of note.fileIds) {
@@ -83,18 +92,53 @@ export default async function(user: IUser, note: INote, quiet = false) {
 			deletedAt: deletedAt
 		});
 
+		// renote解除の場合は、renote解除されたnoteに向けてunrenoted
+		if (note.renoteId) {
+			publishNoteStream(note.renoteId, 'unrenoted', {
+				renoteeId: user._id	// renote解除した人
+			});
+		}
+
 		//#region ローカルの投稿なら削除アクティビティを配送
 		if (isLocalUser(user)) {
-			const content = renderActivity(renderDelete(renderTombstone(`${config.url}/notes/${note._id}`), user));
+			(async () => {
+				let renote: INote | undefined;
 
-			const followings = await Following.find({
-				followeeId: user._id,
-				'_follower.host': { $ne: null }
-			});
+				if (note.renoteId && note.text == null && note.poll == null && (note.fileIds == null || note.fileIds.length == 0)) {
+					renote = await Note.findOne({
+						_id: note.renoteId
+					});
+				}
 
-			for (const following of followings) {
-				deliver(user, content, following._follower.inbox);
-			}
+				const content = renderActivity(renote
+					? renderUndo(renderAnnounce(renote.uri || `${config.url}/notes/${renote._id}`, note), user)
+					: renderDelete(renderTombstone(`${config.url}/notes/${note._id}`), user, `${config.url}/notes/${note._id}/delete`));
+
+				deliverToFollowers(user, content);
+				deliverToRelays(user, content);
+
+				const dm = new DeliverManager(user, content);
+
+				// メンションされたリモートユーザーに配送 (Replay, DM 含む)
+				for (const u of note.mentionedRemoteUsers || []) {
+					const user = await User.findOne({
+						uri: u.uri
+					});
+
+					if (user) dm.addDirectRecipe(user as IRemoteUser);
+				}
+
+				// 投稿がRenote/QuoteかつRenote元の投稿の投稿者がリモートユーザーなら配送
+				if (note.renoteId && note._renote?.userId) {
+					const user = await User.findOne({
+						_id: note._renote.userId
+					});
+
+					if (user) dm.addDirectRecipe(user as IRemoteUser);
+				}
+
+				dm.execute();
+			})();
 		}
 		//#endregion
 

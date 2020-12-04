@@ -1,16 +1,18 @@
 <template>
 <div class="pwbzawku">
-	<mk-post-form class="form" :class="{ shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }" v-if="$store.state.settings.showPostFormOnTopOfTl"/>
+	<mk-post-form class="form" v-if="$store.state.settings.showPostFormOnTopOfTl"/>
 	<div class="main">
 		<component :is="src == 'list' ? 'mk-user-list-timeline' : 'x-core'" ref="tl" v-bind="options">
 			<header class="zahtxcqi">
-				<span :data-active="src == 'home'" @click="src = 'home'"><fa icon="home"/> {{ $t('home') }}</span>
-				<span :data-active="src == 'local'" @click="src = 'local'" v-if="enableLocalTimeline"><fa :icon="['far', 'comments']"/> {{ $t('local') }}</span>
-				<span :data-active="src == 'hybrid'" @click="src = 'hybrid'" v-if="enableLocalTimeline"><fa icon="share-alt"/> {{ $t('hybrid') }}</span>
-				<span :data-active="src == 'global'" @click="src = 'global'" v-if="enableGlobalTimeline"><fa icon="globe"/> {{ $t('global') }}</span>
-				<span :data-active="src == 'tag'" @click="src = 'tag'" v-if="tagTl"><fa icon="hashtag"/> {{ tagTl.title }}</span>
-				<span :data-active="src == 'list'" @click="src = 'list'" v-if="list"><fa icon="list"/> {{ list.title }}</span>
+				<div :data-active="src == 'home'" @click="src = 'home'"><fa icon="home"/> {{ $t('home') }}</div>
+				<div :data-active="src == 'local'" @click="src = 'local'" v-if="enableLocalTimeline"><fa :icon="['far', 'comments']"/> {{ $t('local') }}</div>
+				<div :data-active="src == 'hybrid'" @click="src = 'hybrid'" v-if="enableLocalTimeline" :title="$t('hybrid-desc')"><fa icon="share-alt"/> {{ $t('hybrid') }}</div>
+				<div :data-active="src == 'global'" @click="src = 'global'" v-if="enableGlobalTimeline"><fa icon="globe"/> {{ $t('global') }}</div>
+				<div :data-active="src == 'tag'" @click="src = 'tag'" v-if="tagTl"><fa icon="hashtag"/> {{ tagTl.title }}</div>
+				<div :data-active="src == 'list'" @click="src = 'list'" v-if="list"><fa icon="list"/> {{ list.title }}</div>
 				<div class="buttons">
+					<button :data-active="src == 'hot'" @click="src = 'hot'" :title="$t('reacted')"><fa :icon="faThumbsUp"/></button>
+					<button :data-active="src == 'locao'" @click="src = 'locao'" :title="$t('locao')" v-if="enableLocalTimeline"><fa icon="heart"/></button>
 					<button :data-active="src == 'mentions'" @click="src = 'mentions'" :title="$t('mentions')"><fa icon="at"/><i class="indicator" v-if="$store.state.i.hasUnreadMentions"><fa icon="circle"/></i></button>
 					<button :data-active="src == 'messages'" @click="src = 'messages'" :title="$t('messages')"><fa :icon="['far', 'envelope']"/><i class="indicator" v-if="$store.state.i.hasUnreadSpecifiedNotes"><fa icon="circle"/></i></button>
 					<button @click="chooseTag" :title="$t('hashtag')" ref="tagButton"><fa icon="hashtag"/></button>
@@ -27,7 +29,7 @@ import Vue from 'vue';
 import i18n from '../../../i18n';
 import XCore from './timeline.core.vue';
 import Menu from '../../../common/views/components/menu.vue';
-import MkSettingsWindow from '../components/settings-window.vue';
+import { faThumbsUp } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('desktop/views/components/timeline.vue'),
@@ -42,6 +44,7 @@ export default Vue.extend({
 			tagTl: null,
 			enableLocalTimeline: false,
 			enableGlobalTimeline: false,
+			faThumbsUp
 		};
 	},
 
@@ -74,10 +77,10 @@ export default Vue.extend({
 	created() {
 		this.$root.getMeta().then((meta: Record<string, any>) => {
 			if (!(
-				this.enableGlobalTimeline = !meta.disableGlobalTimeline || this.$store.state.i.isModerator || this.$store.state.i.isAdmin
+				this.enableGlobalTimeline = !meta.disableGlobalTimeline
 			) && this.src === 'global') this.src = 'local';
 			if (!(
-				this.enableLocalTimeline = !meta.disableLocalTimeline || this.$store.state.i.isModerator || this.$store.state.i.isAdmin
+				this.enableLocalTimeline = !meta.disableLocalTimeline
 			) && ['local', 'hybrid'].includes(this.src)) this.src = 'home';
 		});
 
@@ -94,6 +97,8 @@ export default Vue.extend({
 	},
 
 	mounted() {
+		document.title = this.$root.instanceName;
+
 		(this.$refs.tl as any).$once('loaded', () => {
 			this.$emit('loaded');
 		});
@@ -161,9 +166,7 @@ export default Vue.extend({
 				icon: 'plus',
 				text: this.$t('add-tag-timeline'),
 				action: () => {
-					this.$root.new(MkSettingsWindow, {
-						initialPage: 'hashtags'
-					});
+					this.$router.push(`/i/settings/hashtags`);
 				}
 			}];
 
@@ -193,25 +196,21 @@ export default Vue.extend({
 .pwbzawku
 	> .form
 		margin-bottom 16px
-
-		&.round
-			border-radius 6px
-
-		&.shadow
-			box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
+		border-radius 6px
+		box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
 
 	.zahtxcqi
+		display flex
+		flex-wrap wrap
 		padding 0 8px
 		z-index 10
 		background var(--faceHeader)
-		box-shadow 0 var(--lineWidth) var(--desktopTimelineHeaderShadow)
+
+		> *
+			flex-shrink 0
 
 		> .buttons
-			position absolute
-			z-index 2
-			top 0
-			right 0
-			padding-right 8px
+			margin-left auto
 
 			> button
 				padding 0 8px
@@ -244,8 +243,7 @@ export default Vue.extend({
 						height 2px
 						background var(--primary)
 
-		> span
-			display inline-block
+		> div:not(.buttons)
 			padding 0 10px
 			line-height 42px
 			font-size 12px

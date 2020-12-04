@@ -16,7 +16,7 @@ block og
 	meta(property='og:title'       content= title)
 	meta(property='og:description' content= summary)
 	meta(property='og:url'         content= url)
-	meta(property='og:image'       content= user.avatarUrl)
+	meta(property='og:image'       content= imageUrl)
 
 block meta
 	meta(name='misskey:user-username' content=user.username)
@@ -25,7 +25,7 @@ block meta
 
 	meta(name='twitter:card' content='summary')
 
-	if user.host
+	if user.host || user.avoidSearchIndex
 		meta(name='robots' content='noindex')
 
 	if user.twitter

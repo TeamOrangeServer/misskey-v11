@@ -13,8 +13,8 @@
 					@click="navigate(user)"
 					tabindex="-1"
 				>
-					<mk-avatar class="avatar" :user="user"/>
-					<span class="name"><mk-user-name :user="user"/></span>
+					<mk-avatar class="avatar" :user="user" :key="user.id"/>
+					<span class="name"><mk-user-name :user="user" :key="user.id"/></span>
 					<span class="username">@{{ user | acct }}</span>
 				</li>
 			</ol>
@@ -115,7 +115,7 @@ export default Vue.extend({
 			}
 			this.$root.api('users/search', {
 				query: this.q,
-				localOnly: true,
+				localOnly: false,
 				limit: 10,
 				detail: false
 			}).then(users => {

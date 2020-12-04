@@ -5,17 +5,20 @@ import config from '../config';
 import { createPerson, updatePerson } from './activitypub/models/person';
 import { URL } from 'url';
 import { remoteLogger } from './logger';
-import chalk from 'chalk';
+import * as chalk from 'chalk';
 
 const logger = remoteLogger.createSubLogger('resolve-user');
 
-export default async (username: string, _host: string, option?: any, resync = false): Promise<IUser> => {
+export default async (username: string, _host: string | null, option?: any, resync = false): Promise<IUser | undefined | null> => {
 	const usernameLower = username.toLowerCase();
 
 	if (_host == null) {
 		logger.info(`return local user: ${usernameLower}`);
 		return await User.findOne({ usernameLower, host: null });
 	}
+
+	// disableFederationならリモート解決しない
+	if (config.disableFederation) return null;
 
 	const configHostAscii = toASCII(config.host).toLowerCase();
 	const configHost = toUnicode(configHostAscii);
@@ -48,36 +51,40 @@ export default async (username: string, _host: string, option?: any, resync = fa
 			},
 		});
 
-		logger.info(`try resync: ${acctLower}`);
-		const self = await resolveSelf(acctLower);
+		try {
+			logger.info(`try resync: ${acctLower}`);
+			const self = await resolveSelf(acctLower);
 
-		if (user.uri !== self.href) {
-			// if uri mismatch, Fix (user@host <=> AP's Person id(IRemoteUser.uri)) mapping.
-			logger.info(`uri missmatch: ${acctLower}`);
-			logger.info(`recovery missmatch uri for (username=${username}, host=${host}) from ${user.uri} to ${self.href}`);
+			if (user.uri !== self.href) {
+				// if uri mismatch, Fix (user@host <=> AP's Person id(IRemoteUser.uri)) mapping.
+				logger.info(`uri missmatch: ${acctLower}`);
+				logger.info(`recovery missmatch uri for (username=${username}, host=${host}) from ${user.uri} to ${self.href}`);
 
-			// validate uri
-			const uri = new URL(self.href);
-			if (uri.hostname !== hostAscii) {
-				throw new Error(`Invalied uri`);
+				// validate uri
+				const uri = new URL(self.href);
+				if (uri.hostname !== hostAscii) {
+					throw new Error(`Invalid uri`);
+				}
+
+				await User.update({
+					usernameLower,
+					host: host
+				}, {
+					$set: {
+						uri: self.href
+					}
+				});
+			} else {
+				logger.info(`uri is fine: ${acctLower}`);
 			}
 
-			await User.update({
-				usernameLower,
-				host: host
-			}, {
-				$set: {
-					uri: self.href
-				}
-			});
-		} else {
-			logger.info(`uri is fine: ${acctLower}`);
+			await updatePerson(self.href);
+
+			logger.info(`return resynced remote user: ${acctLower}`);
+			return await User.findOne({ uri: self.href });
+		} catch (e) {
+			logger.warn(`resync failed: ${e.message || e}`);
 		}
-
-		await updatePerson(self.href);
-
-		logger.info(`return resynced remote user: ${acctLower}`);
-		return await User.findOne({ uri: self.href });
 	}
 
 	logger.info(`return existing remote user: ${acctLower}`);

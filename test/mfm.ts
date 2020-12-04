@@ -11,7 +11,6 @@
 import * as assert from 'assert';
 
 import { parse, parsePlain } from '../src/mfm/parse';
-import { toHtml } from '../src/mfm/toHtml';
 import { createTree as tree, createLeaf as leaf, MfmTree } from '../src/mfm/prelude';
 import { removeOrphanedBrackets } from '../src/mfm/language';
 
@@ -254,9 +253,40 @@ describe('MFM', () => {
 			]);
 		});
 
+		it('vflip', () => {
+			const tokens = parse('<vflip>foo</vflip>');
+			assert.deepStrictEqual(tokens, [
+				tree('vflip', [
+					text('foo')
+				], {}),
+			]);
+		});
+
+		it('rotate', () => {
+			const tokens = parse('<rotate 90>foo</rotate>');
+			assert.deepStrictEqual(tokens, [
+				tree('rotate', [
+					text('foo')
+				], {
+					attr: '90'
+				}),
+			]);
+		});
+
 		describe('spin', () => {
 			it('text', () => {
 				const tokens = parse('<spin>foo</spin>');
+				assert.deepStrictEqual(tokens, [
+					tree('spin', [
+						text('foo')
+					], {
+						attr: null
+					}),
+				]);
+			});
+
+			it('かっこ', () => {
+				const tokens = parse('[[[foo]]]');
 				assert.deepStrictEqual(tokens, [
 					tree('spin', [
 						text('foo')
@@ -326,6 +356,15 @@ describe('MFM', () => {
 			assert.deepStrictEqual(tokens, [
 				tree('jump', [
 					leaf('emoji', { name: 'foo' })
+				], {}),
+			]);
+		});
+
+		it('jump かっこ', () => {
+			const tokens = parse('{{{foo}}}');
+			assert.deepStrictEqual(tokens, [
+				tree('jump', [
+					text('foo')
 				], {}),
 			]);
 		});
@@ -627,6 +666,20 @@ describe('MFM', () => {
 					text('/bar'),
 				]);
 			});
+
+			it('ignore Keycap Number Sign (U+0023 + U+20E3)', () => {
+				const tokens = parse('#⃣');
+				assert.deepStrictEqual(tokens, [
+					leaf('emoji', { emoji: '#⃣' })
+				]);
+			});
+
+			it('ignore Keycap Number Sign (U+0023 + U+FE0F + U+20E3)', () => {
+				const tokens = parse('#️⃣');
+				assert.deepStrictEqual(tokens, [
+					leaf('emoji', { emoji: '#️⃣' })
+				]);
+			});
 		});
 
 		describe('quote', () => {
@@ -792,6 +845,14 @@ describe('MFM', () => {
 				]);
 			});
 
+			it('ignore trailing periods', () => {
+				const tokens = parse('https://example.com...');
+				assert.deepStrictEqual(tokens, [
+					leaf('url', { url: 'https://example.com' }),
+					text('...')
+				]);
+			});
+
 			it('with comma', () => {
 				const tokens = parse('https://example.com/foo?bar=a,b');
 				assert.deepStrictEqual(tokens, [
@@ -820,6 +881,15 @@ describe('MFM', () => {
 					text('('),
 					leaf('url', { url: 'https://example.com/foo' }),
 					text(')')
+				]);
+			});
+
+			it('ignore parent []', () => {
+				const tokens = parse('foo [https://example.com/foo] bar');
+				assert.deepStrictEqual(tokens, [
+					text('foo ['),
+					leaf('url', { url: 'https://example.com/foo' }),
+					text('] bar')
 				]);
 			});
 
@@ -1104,6 +1174,14 @@ describe('MFM', () => {
 					], {}),
 				]);
 			});
+
+			// https://misskey.io/notes/7u1kv5dmia
+			it('ignore internal tilde', () => {
+				const tokens = parse('~~~~~');
+				assert.deepStrictEqual(tokens, [
+					text('~~~~~')
+				]);
+			});
 		});
 
 		describe('italic', () => {
@@ -1161,6 +1239,24 @@ describe('MFM', () => {
 					text('foo_bar_baz'),
 				]);
 			});
+
+			it('require spaces', () => {
+				const tokens = parse('４日目_L38b a_b');
+				assert.deepStrictEqual(tokens, [
+					text('４日目_L38b a_b'),
+				]);
+			});
+
+			it('newline sandwich', () => {
+				const tokens = parse('foo\n_bar_\nbaz');
+				assert.deepStrictEqual(tokens, [
+					text('foo\n'),
+					tree('italic', [
+						text('bar')
+					], {}),
+					text('\nbaz'),
+				]);
+			});
 		});
 	});
 
@@ -1193,20 +1289,6 @@ describe('MFM', () => {
 			assert.deepStrictEqual(tokens, [
 				text('foo **bar** baz'),
 			]);
-		});
-	});
-
-	describe('toHtml', () => {
-		it('br', () => {
-			const input = 'foo\nbar\nbaz';
-			const output = '<p><span>foo<br>bar<br>baz</span></p>';
-			assert.equal(toHtml(parse(input)), output);
-		});
-
-		it('br alt', () => {
-			const input = 'foo\r\nbar\rbaz';
-			const output = '<p><span>foo<br>bar<br>baz</span></p>';
-			assert.equal(toHtml(parse(input)), output);
 		});
 	});
 

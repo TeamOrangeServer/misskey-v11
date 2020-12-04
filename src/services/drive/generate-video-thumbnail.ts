@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as tmp from 'tmp';
-import { IImage, ConvertToJpeg } from './image-processor';
-const ThumbnailGenerator = require('video-thumbnail-generator').default;
+import { IImage, convertToJpeg } from './image-processor';
+import * as FFmpeg from 'fluent-ffmpeg';
 
-export async function GenerateVideoThumbnail(path: string): Promise<IImage> {
+export async function generateVideoThumbnail(path: string): Promise<IImage> {
 	const [outDir, cleanup] = await new Promise<[string, any]>((res, rej) => {
 		tmp.dir((e, path, cleanup) => {
 			if (e) return rej(e);
@@ -11,23 +11,29 @@ export async function GenerateVideoThumbnail(path: string): Promise<IImage> {
 		});
 	});
 
-	const tg = new ThumbnailGenerator({
-		sourcePath: path,
-		thumbnailPath: outDir,
-	});
+	try {
+		await new Promise((res, rej) => {
+			FFmpeg({
+				source: path
+			})
+			.on('end', res)
+			.on('error', rej)
+			.screenshot({
+				folder: outDir,
+				filename: 'output.png',
+				count: 1,
+				timestamps: ['5%']
+			});
+		});
 
-	await tg.generateOneByPercent(5, {
-		size: '100%',
-		filename: 'output.png',
-	});
+		const outPath = `${outDir}/output.png`;
 
-	const outPath = `${outDir}/output.png`;
+		const thumbnail = await convertToJpeg(outPath, 530, 255);
 
-	const thumbnail = await ConvertToJpeg(outPath, 498, 280);
-
-	// cleanup
-	fs.unlinkSync(outPath);
-	cleanup();
-
-	return thumbnail;
+		// cleanup
+		await fs.promises.unlink(outPath);
+		return thumbnail;
+	} finally {
+		cleanup();
+	}
 }

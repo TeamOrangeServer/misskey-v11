@@ -2,10 +2,12 @@
 <div class="mk-ui" v-hotkey.global="keymap">
 	<div class="bg" v-if="$store.getters.isSignedIn && $store.state.i.wallpaperUrl" :style="style"></div>
 	<x-header class="header" v-if="navbar == 'top'" v-show="!zenMode" ref="header"/>
-	<x-sidebar class="sidebar" v-if="navbar != 'top'" v-show="!zenMode" ref="sidebar"/>
-	<div class="content" :class="[{ sidebar: navbar != 'top', zen: zenMode }, navbar]">
+	<x-sidebar class="sidebar" v-if="navbar == 'left'" v-show="!zenMode" ref="sidebar"/>
+	<x-sidebar class="sidebar" v-if="navbar == 'right'" v-show="!zenMode" ref="sidebar"/>
+	<div class="content" :class="[{ sidebar: (navbar != 'top' && navbar != 'bottom'), zen: zenMode }, navbar]">
 		<slot></slot>
 	</div>
+	<x-header class="header" v-if="navbar == 'bottom'" v-show="!zenMode" ref="header"/>
 	<mk-stream-indicator v-if="$store.getters.isSignedIn"/>
 </div>
 </template>
@@ -44,40 +46,48 @@ export default Vue.extend({
 			return {
 				'p': this.post,
 				'n': this.post,
-				'z': this.toggleZenMode
 			};
 		}
 	},
 
 	watch: {
 		'$store.state.uiHeaderHeight'() {
-			this.$el.style.paddingTop = this.$store.state.uiHeaderHeight + 'px';
+			if (this.navbar == 'bottom') {
+				this.$el.style.paddingTop = '0px';
+				this.$el.style.paddingBottom = this.$store.state.uiHeaderHeight + 'px';
+			}else if(this.navbar == 'top'){
+				this.$el.style.paddingTop = this.$store.state.uiHeaderHeight + 'px';
+				this.$el.style.paddingBottom = '0px';
+			}else{
+				this.$el.style.paddingTop = this.$store.state.uiHeaderHeight + 'px';
+				this.$el.style.paddingBottom = this.$store.state.uiHeaderHeight + 'px';
+			}
 		},
 
 		navbar() {
-			if (this.navbar != 'top') {
+			if (this.navbar != 'top' && this.navbar != 'bottom') {
 				this.$store.commit('setUiHeaderHeight', 0);
 			}
 		}
 	},
 
 	mounted() {
-		this.$el.style.paddingTop = this.$store.state.uiHeaderHeight + 'px';
+		if (this.navbar == 'bottom') {
+			this.$el.style.paddingTop = '0px';
+			this.$el.style.paddingBottom = this.$store.state.uiHeaderHeight + 'px';
+		}else if(this.navbar == 'top'){
+			this.$el.style.paddingTop = this.$store.state.uiHeaderHeight + 'px';
+			this.$el.style.paddingBottom = '0px';
+		}else{
+			this.$el.style.paddingTop = this.$store.state.uiHeaderHeight + 'px';
+			this.$el.style.paddingBottom = this.$store.state.uiHeaderHeight + 'px';
+		}
 	},
 
 	methods: {
 		post() {
 			this.$post();
 		},
-
-		toggleZenMode() {
-			this.zenMode = !this.zenMode;
-			this.$nextTick(() => {
-				if (this.$refs.header) {
-					this.$store.commit('setUiHeaderHeight', this.$refs.header.$el.offsetHeight);
-				}
-			});
-		}
 	}
 });
 </script>

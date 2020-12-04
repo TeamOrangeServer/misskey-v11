@@ -52,7 +52,7 @@ export interface IEndpointMeta {
 	/**
 	 * エンドポイントのリミテーションに関するやつ
 	 * 省略した場合はリミテーションは無いものとして解釈されます。
-	 * また、withCredential が false の場合はリミテーションを行うことはできません。
+	 * また、withCredential が false の場合はIPアドレスベースになります。
 	 */
 	limit?: {
 
@@ -86,6 +86,16 @@ export interface IEndpointMeta {
 	requireFile?: boolean;
 
 	/**
+	 * GETでのリクエストを許容するか否か
+	 */
+	allowGet?: boolean;
+
+	/**
+	 * 正常応答をキャッシュ (Cache-Control: public) する秒数
+	 */
+	cacheSec?: number;
+
+	/**
 	 * サードパーティアプリからはリクエストすることができないか否か
 	 * 省略した場合は false として解釈されます。
 	 */
@@ -95,7 +105,7 @@ export interface IEndpointMeta {
 	 * エンドポイントの種類
 	 * パーミッションの実現に利用されます。
 	 */
-	kind?: string;
+	kind?: string | string[];
 }
 
 export interface IEndpoint {

@@ -22,14 +22,14 @@ export default Vue.extend({
 		};
 	},
 	created() {
-		this.$root.getMeta().then(meta => {
+		this.$root.api('admin/meta').then((meta: any) => {
 			this.hidedTags = meta.hidedTags.join('\n');
 		});
 	},
 	methods: {
 		save() {
 			this.$root.api('admin/update-meta', {
-				hidedTags: this.hidedTags.split('\n')
+				hidedTags: this.hidedTags ? this.hidedTags.split('\n') : [],
 			}).then(() => {
 				//this.$root.os.apis.dialog({ text: `Saved` });
 			}).catch(e => {

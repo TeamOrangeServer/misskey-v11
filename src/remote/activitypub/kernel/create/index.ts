@@ -1,16 +1,32 @@
 import Resolver from '../../resolver';
 import { IRemoteUser } from '../../../../models/user';
-import createImage from './image';
 import createNote from './note';
-import { ICreate } from '../../type';
+import { ICreate, getApId, isPost } from '../../type';
 import { apLogger } from '../../logger';
+import { toArray, concat, unique } from '../../../../prelude/array';
 
 const logger = apLogger;
 
-export default async (actor: IRemoteUser, activity: ICreate): Promise<void> => {
-	const uri = activity.id || activity;
+export default async (actor: IRemoteUser, activity: ICreate): Promise<string> => {
+	const uri = getApId(activity);
 
 	logger.info(`Create: ${uri}`);
+
+	// copy audiences between activity <=> object.
+	if (typeof activity.object === 'object') {
+		const to = unique(concat([toArray(activity.to), toArray(activity.object.to)]));
+		const cc = unique(concat([toArray(activity.cc), toArray(activity.object.cc)]));
+
+		activity.to = to;
+		activity.cc = cc;
+		activity.object.to = to;
+		activity.object.cc = cc;
+	}
+
+	// If there is no attributedTo, use Activity actor.
+	if (typeof activity.object === 'object' && !activity.object.attributedTo) {
+		activity.object.attributedTo = activity.actor;
+	}
 
 	const resolver = new Resolver();
 
@@ -23,19 +39,9 @@ export default async (actor: IRemoteUser, activity: ICreate): Promise<void> => {
 		throw e;
 	}
 
-	switch (object.type) {
-	case 'Image':
-		createImage(actor, object);
-		break;
-
-	case 'Note':
-	case 'Question':
-	case 'Article':
-		createNote(resolver, actor, object);
-		break;
-
-	default:
-		logger.warn(`Unknown type: ${object.type}`);
-		break;
+	if (isPost(object)) {
+		return await createNote(resolver, actor, object, false, activity);
+	} else {
+		return `Unknown type: ${object.type}`;
 	}
 };

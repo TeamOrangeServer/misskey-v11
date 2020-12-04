@@ -30,6 +30,29 @@ export const meta = {
 			}
 		},
 
+		fileType: {
+			validator: $.optional.arr($.str),
+			desc: {
+				'ja-JP': '指定された種類のファイルが添付された投稿のみを取得します'
+			}
+		},
+
+		excludeNsfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されたファイルを除外します(fileTypeが指定されている場合のみ有効)'
+			}
+		},
+
+		excludeSfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されてないファイルを除外します(fileTypeが指定されている場合のみ有効)'
+			}
+		},
+
 		limit: {
 			validator: $.optional.num.range(1, 100),
 			default: 10
@@ -73,9 +96,7 @@ export const meta = {
 export default define(meta, async (ps, user) => {
 	const m = await fetchMeta();
 	if (m.disableGlobalTimeline) {
-		if (user == null || (!user.isAdmin && !user.isModerator)) {
-			throw new ApiError(meta.errors.gtlDisabled);
-		}
+		throw new ApiError(meta.errors.gtlDisabled);
 	}
 
 	// 隠すユーザーを取得
@@ -91,9 +112,11 @@ export default define(meta, async (ps, user) => {
 
 		// public only
 		visibility: 'public',
-
-		replyId: null
 	} as any;
+
+	if (!m.showReplayInPublicTimeline) {
+		query.replyId = null;
+	}
 
 	if (hideUserIds && hideUserIds.length > 0) {
 		query.userId = {
@@ -113,6 +136,25 @@ export default define(meta, async (ps, user) => {
 
 	if (withFiles) {
 		query.fileIds = { $exists: true, $ne: [] };
+	}
+
+	if (ps.fileType) {
+		query.fileIds = { $exists: true, $ne: [] };
+
+		query['_files.contentType'] = {
+			$in: ps.fileType
+		};
+
+		if (ps.excludeNsfw) {
+			query['_files.metadata.isSensitive'] = {
+				$ne: true
+			};
+			query['cw'] = null;
+		}
+
+		if (ps.excludeSfw) {
+			query['_files.metadata.isSensitive'] = true;
+		}
 	}
 
 	if (ps.sinceId) {

@@ -1,4 +1,4 @@
-import * as Koa from 'koa';
+import * as Router from '@koa/router';
 import * as bcrypt from 'bcryptjs';
 import * as speakeasy from 'speakeasy';
 import User, { ILocalUser } from '../../../models/user';
@@ -6,12 +6,29 @@ import Signin, { pack } from '../../../models/signin';
 import { publishMainStream } from '../../../services/stream';
 import signin from '../common/signin';
 import config from '../../../config';
+import limiter from '../limiter';
+import { IEndpoint } from '../endpoints';
 
-export default async (ctx: Koa.BaseContext) => {
+export default async (ctx: Router.RouterContext) => {
 	ctx.set('Access-Control-Allow-Origin', config.url);
 	ctx.set('Access-Control-Allow-Credentials', 'true');
 
-	const body = ctx.request.body as any;
+	const ep = {
+		name: 'signin',
+		exec: null,
+		meta: {
+			limit: {
+				duration: 300 * 1000,
+				max: 10,
+			}
+		}
+	} as IEndpoint;
+
+	await limiter(ep, undefined, ctx.ip).catch(e => {
+		ctx.throw(429);
+	});
+
+	const body = ctx.request.body;
 	const username = body['username'];
 	const password = body['password'];
 	const token = body['token'];

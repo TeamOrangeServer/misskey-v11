@@ -10,37 +10,39 @@
 		<!-- トランジションを有効にするとなぜかメモリリークする -->
 		<component :is="!$store.state.device.reduceMotion ? 'transition-group' : 'div'" name="mk-notifications" class="transition" tag="div">
 			<template v-for="(notification, i) in _notifications">
-				<div class="notification" :class="notification.type" :key="notification.id">
-					<mk-time :time="notification.createdAt"/>
+				<div v-if="notification" class="notification" :class="notification.type" :key="notification.id">
 
 					<template v-if="notification.type == 'reaction'">
 						<mk-avatar class="avatar" :user="notification.user"/>
 						<div class="text">
-							<p>
-								<mk-reaction-icon :reaction="notification.reaction"/>
-								<router-link :to="notification.user | userPage" v-user-preview="notification.user.id">
+							<header>
+								<mk-reaction-icon :reaction="notification.reaction" :custom-emojis="notification.note.emojis" class="icon"/>
+								<router-link :to="notification.user | userPage" v-user-preview="notification.user.id" class="name">
 									<mk-user-name :user="notification.user"/>
 								</router-link>
-							</p>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 							<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
 								<fa icon="quote-left"/>
-									<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+									<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.emojis"/>
 								<fa icon="quote-right"/>
 							</router-link>
 						</div>
 					</template>
 
-					<template v-if="notification.type == 'renote'">
+					<template v-if="notification.type == 'renote' && notification.note">
 						<mk-avatar class="avatar" :user="notification.note.user"/>
 						<div class="text">
-							<p><fa icon="retweet"/>
-								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId">
+							<header>
+								<fa icon="retweet" class="icon"/>
+								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId" class="name">
 									<mk-user-name :user="notification.note.user"/>
 								</router-link>
-							</p>
-							<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note.renote)">
-								<fa icon="quote-left"/>
-									<mfm :text="getNoteSummary(notification.note.renote)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.renote.emojis"/>
+								<mk-time :time="notification.createdAt"/>
+							</header>
+							<router-link v-if="notification.note.renote" class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note.renote)">
+								<fa icon="quote-left" class="icon"/>
+									<mfm :text="getNoteSummary(notification.note.renote)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.renote.emojis"/>
 								<fa icon="quote-right"/>
 							</router-link>
 						</div>
@@ -49,13 +51,15 @@
 					<template v-if="notification.type == 'quote'">
 						<mk-avatar class="avatar" :user="notification.note.user"/>
 						<div class="text">
-							<p><fa icon="quote-left"/>
-								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId">
+							<header>
+								<fa icon="quote-left" class="icon"/>
+								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId" class="name">
 									<mk-user-name :user="notification.note.user"/>
 								</router-link>
-							</p>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 							<router-link class="note-preview" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
-								<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+								<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :custom-emojis="notification.note.emojis"/>
 							</router-link>
 						</div>
 					</template>
@@ -63,35 +67,41 @@
 					<template v-if="notification.type == 'follow'">
 						<mk-avatar class="avatar" :user="notification.user"/>
 						<div class="text">
-							<p><fa icon="user-plus"/>
-								<router-link :to="notification.user | userPage" v-user-preview="notification.user.id">
+							<header>
+								<fa icon="user-plus" class="icon"/>
+								<router-link :to="notification.user | userPage" v-user-preview="notification.user.id" class="name">
 									<mk-user-name :user="notification.user"/>
 								</router-link>
-							</p>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 						</div>
 					</template>
 
 					<template v-if="notification.type == 'receiveFollowRequest'">
 						<mk-avatar class="avatar" :user="notification.user"/>
 						<div class="text">
-							<p><fa icon="user-clock"/>
-								<router-link :to="notification.user | userPage" v-user-preview="notification.user.id">
+							<header>
+								<fa icon="user-clock" class="icon"/>
+								<router-link :to="notification.user | userPage" v-user-preview="notification.user.id" class="name">
 									<mk-user-name :user="notification.user"/>
 								</router-link>
-							</p>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 						</div>
 					</template>
 
 					<template v-if="notification.type == 'reply'">
 						<mk-avatar class="avatar" :user="notification.note.user"/>
 						<div class="text">
-							<p><fa icon="reply"/>
-								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId">
+							<header>
+								<fa icon="reply" class="icon"/>
+								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId" class="name">
 									<mk-user-name :user="notification.note.user"/>
 								</router-link>
-							</p>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 							<router-link class="note-preview" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
-								<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+								<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :custom-emojis="notification.note.emojis"/>
 							</router-link>
 						</div>
 					</template>
@@ -99,13 +109,15 @@
 					<template v-if="notification.type == 'mention'">
 						<mk-avatar class="avatar" :user="notification.note.user"/>
 						<div class="text">
-							<p><fa icon="at"/>
-								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId">
+							<header>
+								<fa icon="at" class="icon"/>
+								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId" class="name">
 									<mk-user-name :user="notification.note.user"/>
 								</router-link>
-							</p>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 							<a class="note-preview" :href="notification.note | notePage" :title="getNoteSummary(notification.note)">
-								<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+								<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :custom-emojis="notification.note.emojis"/>
 							</a>
 						</div>
 					</template>
@@ -113,19 +125,55 @@
 					<template v-if="notification.type == 'poll_vote'">
 						<mk-avatar class="avatar" :user="notification.user"/>
 						<div class="text">
-							<p><fa icon="chart-pie"/><a :href="notification.user | userPage" v-user-preview="notification.user.id">
-								<mk-user-name :user="notification.user"/>
-							</a></p>
+							<header>
+								<fa icon="chart-pie" class="icon"/>
+								<a :href="notification.user | userPage" v-user-preview="notification.user.id" class="name">
+									<mk-user-name :user="notification.user"/>
+								</a>
+								<mk-time :time="notification.createdAt"/>
+							</header>
 							<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
 								<fa icon="quote-left"/>
-									<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+									<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.emojis"/>
 								<fa icon="quote-right"/>
 							</router-link>
 						</div>
 					</template>
+
+					<template v-if="notification.type == 'poll_finished'">
+						<mk-avatar class="avatar" :user="notification.user"/>
+						<div class="text">
+							<header>
+								<fa icon="chart-pie" class="icon"/>
+								<span>{{ $t('@.poll_finished') }}</span>
+								<mk-time :time="notification.createdAt"/>
+							</header>
+							<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
+								<fa icon="quote-left"/>
+									<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.emojis"/>
+								<fa icon="quote-right"/>
+							</router-link>
+						</div>
+					</template>
+
+					<template v-if="notification.type == 'highlight'">
+						<mk-avatar class="avatar" :user="notification.note.user"/>
+						<div class="text">
+							<header>
+								<fa :icon="faLightbulb" class="icon"/>
+								<router-link :to="notification.note.user | userPage" v-user-preview="notification.note.userId" class="name">
+									<mk-user-name :user="notification.note.user"/>
+								</router-link>
+								<mk-time :time="notification.createdAt"/>
+							</header>
+							<a class="note-preview" :href="notification.note | notePage" :title="getNoteSummary(notification.note)">
+								<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :custom-emojis="notification.note.emojis"/>
+							</a>
+						</div>
+					</template>
 				</div>
 
-				<p class="date" v-if="i != notifications.length - 1 && notification._date != _notifications[i + 1]._date" :key="notification.id + '-time'">
+				<p class="date" v-if="i != notifications.length - 1 && notification && _notifications[i + 1] && notification._date != _notifications[i + 1]._date" :key="notification.id + '-time'">
 					<span><fa icon="angle-up"/>{{ notification._datetext }}</span>
 					<span><fa icon="angle-down"/>{{ _notifications[i + 1]._datetext }}</span>
 				</p>
@@ -135,7 +183,7 @@
 	<button class="more" :class="{ fetching: fetchingMoreNotifications }" v-if="moreNotifications" @click="fetchMoreNotifications" :disabled="fetchingMoreNotifications">
 		<template v-if="fetchingMoreNotifications"><fa icon="spinner" pulse fixed-width/></template>{{ fetchingMoreNotifications ? $t('@.loading') : $t('@.load-more') }}
 	</button>
-	<p class="empty" v-if="notifications.length == 0 && !fetching">{{ $t('empty') }}</p>
+	<p class="empty" v-if="notifications.length == 0 && !fetching">{{ $t('@.empty') }}</p>
 </div>
 </template>
 
@@ -143,23 +191,35 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import getNoteSummary from '../../../../../misc/get-note-summary';
+import * as config from '../../../config';
+import { faLightbulb } from '@fortawesome/free-regular-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n(),
+
+	props: {
+		type: {
+			type: String,
+			required: false
+		}
+	},
+
 	data() {
 		return {
-			fetching: true,
+			fetching: false,
 			fetchingMoreNotifications: false,
 			notifications: [],
 			moreNotifications: false,
 			connection: null,
-			getNoteSummary
+			getNoteSummary,
+			faLightbulb,
 		};
 	},
 
 	computed: {
 		_notifications(): any[] {
 			return (this.notifications as any).map(notification => {
+				if (notification == null) return null;
 				const date = new Date(notification.createdAt).getDate();
 				const month = new Date(notification.createdAt).getMonth() + 1;
 				notification._date = date;
@@ -169,24 +229,18 @@ export default Vue.extend({
 		}
 	},
 
+	watch: {
+		type() {
+			this.reload();
+		}
+	},
+
 	mounted() {
 		this.connection = this.$root.stream.useSharedConnection('main');
 
 		this.connection.on('notification', this.onNotification);
 
-		const max = 10;
-
-		this.$root.api('i/notifications', {
-			limit: max + 1
-		}).then(notifications => {
-			if (notifications.length == max + 1) {
-				this.moreNotifications = true;
-				notifications.pop();
-			}
-
-			this.notifications = notifications;
-			this.fetching = false;
-		});
+		this.reload();
 	},
 
 	beforeDestroy() {
@@ -194,14 +248,36 @@ export default Vue.extend({
 	},
 
 	methods: {
+		reload() {
+			this.fetching = true;
+
+			const max = 10;
+
+			this.$root.api('i/notifications', {
+				includeTypes: this.type ? [this.type] : undefined,
+				limit: max + 1
+			}).then(notifications => {
+				if (notifications.length == max + 1) {
+					this.moreNotifications = true;
+					notifications.pop();
+				}
+
+				this.notifications = notifications;
+				this.fetching = false;
+			});
+		},
+
 		fetchMoreNotifications() {
 			this.fetchingMoreNotifications = true;
 
 			const max = 30;
 
+			const last = this.notifications.filter(x => x).pop();
+
 			this.$root.api('i/notifications', {
+				includeTypes: this.type ? [this.type] : undefined,
 				limit: max + 1,
-				untilId: this.notifications[this.notifications.length - 1].id
+				untilId: last.id
 			}).then(notifications => {
 				if (notifications.length == max + 1) {
 					this.moreNotifications = true;
@@ -221,6 +297,18 @@ export default Vue.extend({
 			});
 
 			this.notifications.unshift(notification);
+
+			// タブが非表示ならタイトルで通知
+			if (document.hidden) {
+				this.$store.commit('pushBehindNotification', notification);
+			}
+
+			// サウンドを再生する
+			if (this.$store.state.device.enableSounds && this.$store.state.device.enableSoundsInNotifications) {
+				const sound = new Audio(`${config.url}/assets/piko.mp3`);
+				sound.volume = this.$store.state.device.soundVolume;
+				sound.play();
+			}
 		}
 	}
 });
@@ -248,19 +336,10 @@ export default Vue.extend({
 				padding 16px
 				overflow-wrap break-word
 				font-size 12px
-				border-bottom solid var(--lineWidth) var(--faceDivider)
+				box-shadow 0 1px 8px rgba(0, 0, 0, 0.2)
 
 				&:last-child
 					border-bottom none
-
-				> .mk-time
-					display inline
-					position absolute
-					top 16px
-					right 12px
-					vertical-align top
-					color var(--noteHeaderInfo)
-					font-size small
 
 				&:after
 					content ""
@@ -282,11 +361,22 @@ export default Vue.extend({
 					width calc(100% - 36px)
 					padding-left 8px
 
-					p
-						margin 0
+					> header
+						display flex
+						align-items baseline
+						white-space nowrap
 
-						[data-icon], .mk-reaction-icon
+						> .icon
 							margin-right 4px
+
+						> .name
+							overflow hidden
+							text-overflow ellipsis
+
+						> .mk-time
+							margin-left auto
+							color var(--noteHeaderInfo)
+							font-size 0.9em
 
 				.note-preview
 					color var(--noteText)
@@ -308,21 +398,42 @@ export default Vue.extend({
 						display inline-block
 						margin-right 3px
 
+				&.reaction
+					.text header
+						align-items normal
+
 				&.renote, &.quote
-					.text p [data-icon]
+					.text header [data-icon]
 						color #77B255
 
 				&.follow
-					.text p [data-icon]
+					.text header [data-icon]
 						color #53c7ce
 
 				&.receiveFollowRequest
-					.text p [data-icon]
+					.text header [data-icon]
 						color #888
 
-				&.reply, &.mention
-					.text p [data-icon]
+				&.reply, &.mention, &.highlight
+					.text header [data-icon]
 						color #555
+
+				&.poll_vote, &.poll_finished
+					.text header
+						color var(--text)
+						align-items center
+
+				&.poll_finished
+					.avatar
+						display none
+
+					.text
+						float none
+						width auto
+						padding 0
+
+				&._missing_
+					display none
 
 			> .date
 				display block
@@ -332,7 +443,6 @@ export default Vue.extend({
 				font-size 0.8em
 				color var(--dateDividerFg)
 				background var(--dateDividerBg)
-				border-bottom solid var(--lineWidth) var(--faceDivider)
 
 				span
 					margin 0 16px
@@ -345,7 +455,6 @@ export default Vue.extend({
 		width 100%
 		padding 16px
 		color var(--text)
-		border-top solid var(--lineWidth) rgba(#000, 0.05)
 
 		&:hover
 			background rgba(#000, 0.025)

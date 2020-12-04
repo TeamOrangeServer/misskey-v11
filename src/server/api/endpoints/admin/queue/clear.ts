@@ -1,3 +1,4 @@
+import $ from 'cafy';
 import define from '../../../define';
 import { destroy } from '../../../../../queue';
 
@@ -7,11 +8,15 @@ export const meta = {
 	requireCredential: true,
 	requireModerator: true,
 
-	params: {}
+	params: {
+		domain: {
+			validator: $.optional.str,
+		},
+	}
 };
 
 export default define(meta, async (ps) => {
-	destroy();
+	destroy(ps.domain);
 
 	return;
 });

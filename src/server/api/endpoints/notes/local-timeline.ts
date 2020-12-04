@@ -46,6 +46,14 @@ export const meta = {
 			}
 		},
 
+		excludeSfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されてないファイルを除外します(fileTypeが指定されている場合のみ有効)'
+			}
+		},
+
 		limit: {
 			validator: $.optional.num.range(1, 100),
 			default: 10
@@ -89,9 +97,7 @@ export const meta = {
 export default define(meta, async (ps, user) => {
 	const m = await fetchMeta();
 	if (m.disableLocalTimeline) {
-		if (user == null || (!user.isAdmin && !user.isModerator)) {
-			throw new ApiError(meta.errors.ltlDisabled);
-		}
+		throw new ApiError(meta.errors.ltlDisabled);
 	}
 
 	// 隠すユーザーを取得
@@ -103,26 +109,32 @@ export default define(meta, async (ps, user) => {
 	};
 
 	const query = {
-		deletedAt: null,
+		// local
+		'_user.host': null,
 
 		// public only
 		visibility: 'public',
 
-		// リプライでない
-		//replyId: null,
+		deletedAt: null,
 
-		// local
-		'_user.host': null
+		$and: [ {} ]
 	} as any;
+
+	if (!m.showReplayInPublicTimeline) {
+		query.replyId = null;
+	}
 
 	if (hideUserIds && hideUserIds.length > 0) {
 		query.userId = {
 			$nin: hideUserIds
 		};
 
-		query['_reply.userId'] = {
-			$nin: hideUserIds
-		};
+		// リプライを表示する設定じゃなければリプライ先のミュートは不要
+		if (m.showReplayInPublicTimeline) {
+			query['_reply.userId'] = {
+				$nin: hideUserIds
+			};
+		}
 
 		query['_renote.userId'] = {
 			$nin: hideUserIds
@@ -146,6 +158,11 @@ export default define(meta, async (ps, user) => {
 			query['_files.metadata.isSensitive'] = {
 				$ne: true
 			};
+			query['cw'] = null;
+		}
+
+		if (ps.excludeSfw) {
+			query['_files.metadata.isSensitive'] = true;
 		}
 	}
 

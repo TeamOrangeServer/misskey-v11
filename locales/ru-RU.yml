@@ -106,8 +106,6 @@ common:
     hashtags: "Хэштеги"
   dev: "Не удалось создать приложение. Пожалуйста, попробуйте ещё раз."
   ai-chan-kawaii: "Ai-chan kawaii!"
-auth/views/form.vue:
-  share-access: "Вы разрешаете <i>{name}</i> получить доступ к вашему аккаунту?"
 common/views/components/games/reversi/reversi.index.vue:
   game-state:
     ended: "Завершено"
@@ -115,7 +113,6 @@ common/views/components/games/reversi/reversi.index.vue:
 common/views/components/games/reversi/reversi.room.vue:
   settings-of-the-game: "Настройки игры"
   random: "Случайно"
-  black-or-white: "Чёрные/Белые"
   black-is: "{} ходит чёрными"
   rules: "Правила"
   settings-of-the-bot: "Настройки бота"

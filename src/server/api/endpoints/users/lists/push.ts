@@ -5,6 +5,8 @@ import define from '../../../define';
 import { ApiError } from '../../../error';
 import { getUser } from '../../../common/getters';
 import { pushUserToUserList } from '../../../../../services/user-list/push';
+import { oidIncludes } from '../../../../../prelude/oid';
+import { publishFilterChanged } from '../../../../../services/create-event';
 
 export const meta = {
 	desc: {
@@ -16,7 +18,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'account-write',
+	kind: ['write:account', 'account-write', 'account/write'],
 
 	params: {
 		listId: {
@@ -72,10 +74,12 @@ export default define(meta, async (ps, me) => {
 		throw e;
 	});
 
-	if (userList.userIds.map(id => id.toHexString()).includes(user._id.toHexString())) {
+	if (oidIncludes(userList.userIds, user._id)) {
 		throw new ApiError(meta.errors.alreadyAdded);
 	}
 
 	// Push the user
 	pushUserToUserList(user, userList);
+
+	publishFilterChanged(me._id);
 });

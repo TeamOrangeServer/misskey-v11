@@ -87,4 +87,19 @@ export interface IInstance {
 	 * このインスタンスが閉鎖済みとしてマークされているか
 	 */
 	isMarkedAsClosed: boolean;
+
+	infoUpdatedAt?: Date;
+	softwareName?: string;
+	softwareVersion?: string;
+	openRegistrations?: boolean;
+	name?: string;
+	description?: string;
+	maintainerName?: string;
+	maintainerEmail?: string;
+	cc?: string;
+	isp?: string;
+	org?: string;
+	as?: string;
+	iconUrl?: string;
+	themeColor?: string;
 }

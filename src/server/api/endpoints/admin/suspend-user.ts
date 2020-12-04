@@ -1,9 +1,9 @@
 import $ from 'cafy';
 import ID, { transform } from '../../../../misc/cafy-id';
 import define from '../../define';
-import User, { IUser } from '../../../../models/user';
-import Following from '../../../../models/following';
-import deleteFollowing from '../../../../services/following/delete';
+import User, { isLocalUser } from '../../../../models/user';
+import { doPostSuspend } from '../../../../services/suspend-user';
+import { publishTerminate } from '../../../../services/create-event';
 
 export const meta = {
 	desc: {
@@ -53,25 +53,9 @@ export default define(meta, async (ps) => {
 		}
 	});
 
-	unFollowAll(user);
-
-	return;
-});
-
-async function unFollowAll(follower: IUser) {
-	const followings = await Following.find({
-		followerId: follower._id
-	});
-
-	for (const following of followings) {
-		const followee = await User.findOne({
-			_id: following.followeeId
-		});
-
-		if (followee == null) {
-			throw `Cant find followee ${following.followeeId}`;
-		}
-
-		await deleteFollowing(follower, followee, true);
+	if (isLocalUser(user)) {
+		publishTerminate(user._id);
 	}
-}
+
+	doPostSuspend(user);
+});

@@ -3,14 +3,14 @@ import { default as User, IUser } from '../../models/user';
 import AccessToken from '../../models/access-token';
 import isNativeToken from './common/is-native-token';
 
-export default async (token: string): Promise<[IUser, IApp]> => {
+export default async (token: string): Promise<[IUser | null | undefined, IApp | null | undefined]> => {
 	if (token == null) {
 		return [null, null];
 	}
 
 	if (isNativeToken(token)) {
 		// Fetch user
-		const user: IUser = await User
+		const user: IUser | null | undefined = await User
 			.findOne({ token });
 
 		if (user === null) {

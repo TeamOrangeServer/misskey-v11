@@ -1,5 +1,8 @@
 <template>
-<div>
+<div id="user_timeline_52">
+	<div class="command">
+		<ui-button @click="fetchOutbox()">{{ $t('fetch-posts') }}</ui-button>
+	</div>
 	<mk-notes ref="timeline" :make-promise="makePromise" @inited="() => $emit('loaded')">
 		<template #header>
 			<header class="oh5y2r7l5lx8j6jj791ykeiwgihheguk">
@@ -33,7 +36,7 @@ export default Vue.extend({
 			makePromise: cursor => this.$root.api('users/notes', {
 				userId: this.user.id,
 				limit: fetchLimit + 1,
-				includeReplies: this.mode == 'with-replies',
+				includeReplies: this.mode == 'with-replies' || this.mode == 'with-media',
 				includeMyRenotes: this.mode != 'my-posts',
 				withFiles: this.mode == 'with-media',
 				untilDate: cursor ? cursor : new Date().getTime() + 1000 * 86400 * 365
@@ -77,6 +80,15 @@ export default Vue.extend({
 			}
 		},
 
+		fetchOutbox() {
+			this.$root.api('ap/fetch-outbox', {
+				userId: this.user.id,
+				sync: true
+			}).then(() => {
+				(this.$refs.timeline as any).reload();
+			});
+		},
+
 		warp(date) {
 			this.date = date;
 			(this.$refs.timeline as any).reload();
@@ -86,11 +98,13 @@ export default Vue.extend({
 </script>
 
 <style lang="stylus" scoped>
+.command
+	margin 16px 0
+
 .oh5y2r7l5lx8j6jj791ykeiwgihheguk
 	padding 0 8px
 	z-index 10
 	background var(--faceHeader)
-	box-shadow 0 1px var(--desktopTimelineHeaderShadow)
 
 	> span
 		display inline-block

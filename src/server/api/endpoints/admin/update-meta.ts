@@ -41,17 +41,10 @@ export const meta = {
 			}
 		},
 
-		enableEmojiReaction: {
+		showReplayInPublicTimeline: {
 			validator: $.optional.nullable.bool,
 			desc: {
-				'ja-JP': '絵文字リアクションを有効にするか否か'
-			}
-		},
-
-		useStarForReactionFallback: {
-			validator: $.optional.nullable.bool,
-			desc: {
-				'ja-JP': '不明なリアクションのフォールバックに star リアクションを使うか'
+				'ja-JP': 'showReplayInPublicTimeline'
 			}
 		},
 
@@ -253,27 +246,6 @@ export const meta = {
 			}
 		},
 
-		enableExternalUserRecommendation: {
-			validator: $.optional.bool,
-			desc: {
-				'ja-JP': '外部ユーザーレコメンデーションを有効にする'
-			}
-		},
-
-		externalUserRecommendationEngine: {
-			validator: $.optional.nullable.str,
-			desc: {
-				'ja-JP': '外部ユーザーレコメンデーションのサードパーティエンジン'
-			}
-		},
-
-		externalUserRecommendationTimeout: {
-			validator: $.optional.nullable.num.min(0),
-			desc: {
-				'ja-JP': '外部ユーザーレコメンデーションのタイムアウト (ミリ秒)'
-			}
-		},
-
 		enableEmail: {
 			validator: $.optional.bool,
 			desc: {
@@ -365,16 +337,12 @@ export default define(meta, async (ps) => {
 		set.disableGlobalTimeline = ps.disableGlobalTimeline;
 	}
 
-	if (typeof ps.enableEmojiReaction === 'boolean') {
-		set.enableEmojiReaction = ps.enableEmojiReaction;
-	}
-
-	if (typeof ps.useStarForReactionFallback === 'boolean') {
-		set.useStarForReactionFallback = ps.useStarForReactionFallback;
+	if (typeof ps.showReplayInPublicTimeline === 'boolean') {
+		set.showReplayInPublicTimeline = ps.showReplayInPublicTimeline;
 	}
 
 	if (Array.isArray(ps.hidedTags)) {
-		set.hidedTags = ps.hidedTags;
+		set.hidedTags = ps.hidedTags.filter(Boolean);
 	}
 
 	if (ps.mascotImageUrl !== undefined) {
@@ -437,8 +405,8 @@ export default define(meta, async (ps) => {
 		set['maintainer.email'] = ps.maintainerEmail;
 	}
 
-	if (ps.langs !== undefined) {
-		set.langs = ps.langs;
+	if (Array.isArray(ps.langs)) {
+		set.langs = ps.langs.filter(Boolean);
 	}
 
 	if (ps.summalyProxy !== undefined) {
@@ -479,18 +447,6 @@ export default define(meta, async (ps) => {
 
 	if (ps.discordClientSecret !== undefined) {
 		set.discordClientSecret = ps.discordClientSecret;
-	}
-
-	if (ps.enableExternalUserRecommendation !== undefined) {
-		set.enableExternalUserRecommendation = ps.enableExternalUserRecommendation;
-	}
-
-	if (ps.externalUserRecommendationEngine !== undefined) {
-		set.externalUserRecommendationEngine = ps.externalUserRecommendationEngine;
-	}
-
-	if (ps.externalUserRecommendationTimeout !== undefined) {
-		set.externalUserRecommendationTimeout = ps.externalUserRecommendationTimeout;
 	}
 
 	if (ps.enableEmail !== undefined) {

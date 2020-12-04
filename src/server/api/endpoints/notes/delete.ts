@@ -3,7 +3,6 @@ import ID, { transform } from '../../../../misc/cafy-id';
 import deleteNote from '../../../../services/note/delete';
 import User from '../../../../models/user';
 import define from '../../define';
-import * as ms from 'ms';
 import { getNote } from '../../common/getters';
 import { ApiError } from '../../error';
 
@@ -19,12 +18,10 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'note-write',
+	kind: ['write:notes', 'note-write'],
 
 	limit: {
-		duration: ms('1hour'),
-		max: 300,
-		minInterval: ms('1sec')
+		minInterval: 500
 	},
 
 	params: {

@@ -1,10 +1,10 @@
 import { ObjectID } from 'mongodb';
-import * as Router from 'koa-router';
+import * as Router from '@koa/router';
 import * as json from 'koa-json-body';
 import * as httpSignature from 'http-signature';
 
 import { renderActivity } from '../remote/activitypub/renderer';
-import Note from '../models/note';
+import Note, { INote } from '../models/note';
 import User, { isLocalUser, ILocalUser, IUser } from '../models/user';
 import Emoji from '../models/emoji';
 import renderNote from '../remote/activitypub/renderer/note';
@@ -15,54 +15,75 @@ import Outbox, { packActivity } from './activitypub/outbox';
 import Followers from './activitypub/followers';
 import Following from './activitypub/following';
 import Featured from './activitypub/featured';
-import renderQuestion from '../remote/activitypub/renderer/question';
 import { inbox as processInbox } from '../queue';
 import { isSelfHost } from '../misc/convert-host';
+import NoteReaction from '../models/note-reaction';
+import { renderLike } from '../remote/activitypub/renderer/like';
+import { inspect } from 'util';
+import config from '../config';
 
 // Init router
 const router = new Router();
 
 //#region Routing
 
-function inbox(ctx: Router.IRouterContext) {
-	let signature;
+function inbox(ctx: Router.RouterContext) {
+	if (config.disableFederation) ctx.throw(404);
 
-	ctx.req.headers.authorization = `Signature ${ctx.req.headers.signature}`;
+	let signature;
 
 	try {
 		signature = httpSignature.parseRequest(ctx.req, { 'headers': [] });
 	} catch (e) {
+		console.log(`signature parse error: ${inspect(e)}`);
 		ctx.status = 401;
 		return;
 	}
 
-	processInbox(ctx.request.body, signature);
+	processInbox(ctx.request.body, signature, {
+		ip: ctx.request.ip
+	});
 
 	ctx.status = 202;
 }
 
-function isActivityPubReq(ctx: Router.IRouterContext) {
+const ACTIVITY_JSON = 'application/activity+json; charset=utf-8';
+const LD_JSON = 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"; charset=utf-8';
+
+function isActivityPubReq(ctx: Router.RouterContext) {
 	ctx.response.vary('Accept');
-	const accepted = ctx.accepts('html', 'application/activity+json', 'application/ld+json');
-	return ['application/activity+json', 'application/ld+json'].includes(accepted as string);
+	const accepted = ctx.accepts('html', ACTIVITY_JSON, LD_JSON);
+	return typeof accepted === 'string' && !accepted.match(/html/);
 }
 
-export function setResponseType(ctx: Router.IRouterContext) {
-	const accpet = ctx.accepts('application/activity+json', 'application/ld+json');
-	if (accpet === 'application/ld+json') {
-		ctx.response.type = 'application/ld+json; profile="https://www.w3.org/ns/activitystreams"; charset=utf-8';
+export function setResponseType(ctx: Router.RouterContext) {
+	const accept = ctx.accepts(ACTIVITY_JSON, LD_JSON);
+	if (accept === LD_JSON) {
+		ctx.response.type = LD_JSON;
 	} else {
-		ctx.response.type = 'application/activity+json; charset=utf-8';
+		ctx.response.type = ACTIVITY_JSON;
 	}
 }
 
 // inbox
-router.post('/inbox', json(), inbox);
-router.post('/users/:user/inbox', json(), inbox);
+router.post('/inbox', json() as any, inbox);
+router.post('/users/:user/inbox', json() as any, inbox);
+
+const isNoteUserAvailable = async (note: INote) => {
+	const user = await User.findOne({
+		_id: note.userId,
+		isDeleted: { $ne: true },
+		isSuspended: { $ne: true },
+		noFederation: { $ne: true },
+	});
+	return user != null;
+};
 
 // note
 router.get('/notes/:note', async (ctx, next) => {
 	if (!isActivityPubReq(ctx)) return await next();
+
+	if (config.disableFederation) ctx.throw(404);
 
 	if (!ObjectID.isValid(ctx.params.note)) {
 		ctx.status = 404;
@@ -71,11 +92,13 @@ router.get('/notes/:note', async (ctx, next) => {
 
 	const note = await Note.findOne({
 		_id: new ObjectID(ctx.params.note),
+		deletedAt: { $exists: false },
 		visibility: { $in: ['public', 'home'] },
-		localOnly: { $ne: true }
+		localOnly: { $ne: true },
+		copyOnce: { $ne: true }
 	});
 
-	if (note === null) {
+	if (note == null || !await isNoteUserAvailable(note)) {
 		ctx.status = 404;
 		return;
 	}
@@ -97,6 +120,8 @@ router.get('/notes/:note', async (ctx, next) => {
 
 // note activity
 router.get('/notes/:note/activity', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	if (!ObjectID.isValid(ctx.params.note)) {
 		ctx.status = 404;
 		return;
@@ -104,49 +129,20 @@ router.get('/notes/:note/activity', async ctx => {
 
 	const note = await Note.findOne({
 		_id: new ObjectID(ctx.params.note),
+		deletedAt: { $exists: false },
 		'_user.host': null,
 		visibility: { $in: ['public', 'home'] },
-		localOnly: { $ne: true }
+		localOnly: { $ne: true },
+		copyOnce: { $ne: true }
 	});
 
-	if (note === null) {
+	if (note == null || !await isNoteUserAvailable(note)) {
 		ctx.status = 404;
 		return;
 	}
 
 	ctx.body = renderActivity(await packActivity(note));
 	ctx.set('Cache-Control', 'public, max-age=180');
-	setResponseType(ctx);
-});
-
-// question
-router.get('/questions/:question', async (ctx, next) => {
-	if (!ObjectID.isValid(ctx.params.question)) {
-		ctx.status = 404;
-		return;
-	}
-
-	const poll = await Note.findOne({
-		_id: new ObjectID(ctx.params.question),
-		'_user.host': null,
-		visibility: { $in: ['public', 'home'] },
-		localOnly: { $ne: true },
-		poll: {
-			$exists: true,
-			$ne: null
-		},
-	});
-
-	if (poll === null) {
-		ctx.status = 404;
-		return;
-	}
-
-	const user = await User.findOne({
-			_id: poll.userId
-	});
-
-	ctx.body = renderActivity(await renderQuestion(user as ILocalUser, poll));
 	setResponseType(ctx);
 });
 
@@ -164,6 +160,8 @@ router.get('/users/:user/collections/featured', Featured);
 
 // publickey
 router.get('/users/:user/publickey', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	if (!ObjectID.isValid(ctx.params.user)) {
 		ctx.status = 404;
 		return;
@@ -173,6 +171,9 @@ router.get('/users/:user/publickey', async ctx => {
 
 	const user = await User.findOne({
 		_id: userId,
+		isDeleted: { $ne: true },
+		isSuspended: { $ne: true },
+		noFederation: { $ne: true },
 		host: null
 	});
 
@@ -191,8 +192,8 @@ router.get('/users/:user/publickey', async ctx => {
 });
 
 // user
-async function userInfo(ctx: Router.IRouterContext, user: IUser) {
-	if (user === null) {
+async function userInfo(ctx: Router.RouterContext, user?: IUser | null) {
+	if (user == null) {
 		ctx.status = 404;
 		return;
 	}
@@ -205,6 +206,8 @@ async function userInfo(ctx: Router.IRouterContext, user: IUser) {
 router.get('/users/:user', async (ctx, next) => {
 	if (!isActivityPubReq(ctx)) return await next();
 
+	if (config.disableFederation) ctx.throw(404);
+
 	if (!ObjectID.isValid(ctx.params.user)) {
 		ctx.status = 404;
 		return;
@@ -214,6 +217,9 @@ router.get('/users/:user', async (ctx, next) => {
 
 	const user = await User.findOne({
 		_id: userId,
+		isDeleted: { $ne: true },
+		isSuspended: { $ne: true },
+		noFederation: { $ne: true },
 		host: null
 	});
 
@@ -223,8 +229,13 @@ router.get('/users/:user', async (ctx, next) => {
 router.get('/@:user', async (ctx, next) => {
 	if (!isActivityPubReq(ctx)) return await next();
 
+	if (config.disableFederation) ctx.throw(404);
+
 	const user = await User.findOne({
 		usernameLower: ctx.params.user.toLowerCase(),
+		isDeleted: { $ne: true },
+		isSuspended: { $ne: true },
+		noFederation: { $ne: true },
 		host: null
 	});
 
@@ -234,17 +245,51 @@ router.get('/@:user', async (ctx, next) => {
 
 // emoji
 router.get('/emojis/:emoji', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	const emoji = await Emoji.findOne({
 		host: null,
 		name: ctx.params.emoji
 	});
 
-	if (emoji === null) {
+	if (emoji == null) {
 		ctx.status = 404;
 		return;
 	}
 
 	ctx.body = renderActivity(await renderEmoji(emoji));
+	ctx.set('Cache-Control', 'public, max-age=180');
+	setResponseType(ctx);
+});
+
+// like
+router.get('/likes/:like', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
+	if (!ObjectID.isValid(ctx.params.like)) {
+		ctx.status = 404;
+		return;
+	}
+
+	const reaction = await NoteReaction.findOne({
+		_id: new ObjectID(ctx.params.like)
+	});
+
+	if (reaction == null) {
+		ctx.status = 404;
+		return;
+	}
+
+	const note = await Note.findOne({
+		_id: reaction.noteId
+	});
+
+	if (note == null) {
+		ctx.status = 404;
+		return;
+	}
+
+	ctx.body = renderActivity(await renderLike(reaction, note));
 	ctx.set('Cache-Control', 'public, max-age=180');
 	setResponseType(ctx);
 });

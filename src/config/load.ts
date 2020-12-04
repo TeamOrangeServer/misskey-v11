@@ -5,8 +5,8 @@
 import * as fs from 'fs';
 import { URL } from 'url';
 import * as yaml from 'js-yaml';
-import { Source, Mixin } from './types';
-import * as pkg from '../../package.json';
+import { Source, Mixin, Icons } from './types';
+import * as meta from '../meta.json';
 
 /**
  * Path of configuration directory
@@ -29,8 +29,31 @@ export default function load() {
 
 	config.url = normalizeUrl(config.url);
 
-	config.port = config.port || parseInt(process.env.PORT, 10);
+	config.port = config.port || parseInt(process.env.PORT || '', 10);
 
+	const icons = {
+		favicon: {
+			url: '/favicon.ico',
+			type: 'image/x-icon'
+		},
+		appleTouchIcon: {
+			url: '/apple-touch-icon.png'
+		},
+		manifest192: {
+			url: '/assets/icons/192.png'
+		},
+		manifest512: {
+			url: '/assets/icons/512.png'
+		}
+	} as Icons;
+
+	if (config.icons) {
+		Object.assign(icons, config.icons);
+	}
+
+	config.icons = icons;
+
+	mixin.version = meta.version;
 	mixin.host = url.host;
 	mixin.hostname = url.hostname;
 	mixin.scheme = url.protocol.replace(/:$/, '');
@@ -39,9 +62,11 @@ export default function load() {
 	mixin.apiUrl = `${mixin.scheme}://${mixin.host}/api`;
 	mixin.authUrl = `${mixin.scheme}://${mixin.host}/auth`;
 	mixin.driveUrl = `${mixin.scheme}://${mixin.host}/files`;
-	mixin.userAgent = `Misskey/${pkg.version} (${config.url})`;
+	mixin.userAgent = `Misskey/${meta.version} (${config.url})`;
 
 	if (config.autoAdmin == null) config.autoAdmin = false;
+
+	if (!config.redis.prefix) config.redis.prefix = mixin.host;
 
 	return Object.assign(config, mixin);
 }

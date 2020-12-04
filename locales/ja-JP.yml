@@ -25,6 +25,8 @@ common:
   application-authorization: "アプリの連携"
   close: "閉じる"
   do-not-copy-paste: "ここにコードを入力したり張り付けたりしないでください。アカウントが不正利用される可能性があります。"
+  newest: "最新"
+  next-page: "次のページ"
   load-more: "もっと読み込む"
   enter-password: "パスワードを入力してください"
   2fa: "二段階認証"
@@ -35,7 +37,22 @@ common:
   signup: "新規登録"
   signout: "ログアウト"
   reload-to-apply-the-setting: "この設定を反映するにはページをリロードする必要があります。今すぐリロードしますか？"
-
+  unfollow-confirm: "{name}さんをフォロー解除しますか？"
+  delete-confirm: "この投稿を削除しますか？"
+  favorited: "お気に入りに追加しました"
+  notification-type: "通知の種類"
+  notification-types:
+    all: "すべて"
+    poll_vote: "投票"
+    poll_finished: "アンケート完了"
+    follow: "フォロー"
+    receiveFollowRequest: "フォローリクエスト"
+    reply: "返信"
+    quote: "引用"
+    renote: "Renote"
+    mention: "メンション"
+    reaction: "リアクション"
+    highlight: "ハイライト"
   got-it: "わかった"
   customization-tips:
     title: "カスタマイズのヒント"
@@ -64,18 +81,93 @@ common:
 
   trash: "ゴミ箱"
   drive: "ドライブ"
+  pages: "ページ"
   messaging: "トーク"
   home: "ホーム"
   deck: "デッキ"
+  undeck: "デッキ解除"
   timeline: "タイムライン"
   explore: "みつける"
+  new-post: "新規投稿"
+  featured: "ハイライト"
+  game: "ゲーム"
+  room: "ルーム"
+  notifications: "通知"
+  follow-requests: "フォロー申請"
   following: "フォロー中"
   followers: "フォロワー"
+  all: すべて
+  only-not-followed: "フォローされてないユーザーのみ"
+  only-not-following: "フォローしてないユーザーのみ"
+  only-moved: "引っ越したユーザーのみ"
+  desktop-mode: 'デスクトップ版'
+  mobile-mode: 'モバイル版'
+  empty: 'ありません！'
+  edit: '編集'
+
   favorites: "お気に入り"
+  noteReactions: "リアクションした投稿"
+  poll_finished: "アンケートが完了しました"
+
+  permissions:
+    "read:account": "アカウントの情報を見る"
+    "write:account": "アカウントの情報を変更する"
+    "read:blocks": "ブロックを見る"
+    "write:blocks": "ブロックを操作する"
+    "read:drive": "ドライブを見る"
+    "write:drive": "ドライブを操作する"
+    "read:favorites": "お気に入りを見る"
+    "write:favorites": "お気に入りを操作する"
+    "read:following": "フォローの情報を見る"
+    "write:following": "フォロー・フォロー解除する"
+    "read:messaging": "チャットを見る"
+    "write:messaging": "チャットを操作する"
+    "read:mutes": "ミュートを見る"
+    "write:mutes": "ミュートを操作する"
+    "write:notes": "ノートを作成・削除する"
+    "read:notifications": "通知を見る"
+    "write:notifications": "通知を操作する"
+    "read:reactions": "リアクションを見る"
+    "write:reactions": "リアクションを操作する"
+    "write:votes": "投票する"
+    "read:pages": "ページを見る"
+    "write:pages": "ページを操作する"
+    "read:page-likes": "ページのいいねを見る"
+    "write:page-likes": "ページのいいねを操作する"
+    "read:user-groups": "ユーザーグループを見る"
+    "write:user-groups": "ユーザーグループを操作する"
+    "account-read": "アカウントの情報を見る"
+    "account-write": "アカウントの情報を変更する"
+    "drive-read": "ドライブを見る"
+    "drive-write": "ドライブを操作する"
+    "favorite-read": "favorite-read (未使用)"
+    "favorite-write": "お気に入りを操作する"
+    "following-read": "フォローの情報を見る"
+    "following-write": "フォロー・フォロー解除する"
+    "messaging-read": "トークを見る"
+    "messaging-write": "トークを操作する"
+    "note-write": "投稿を作成・削除する"
+    "notification-read": "通知を見る"
+    "notification-write": "通知を操作する"
+    "reaction-read": "reaction-read (未使用)"
+    "reaction-write": "リアクションを操作する"
+    "vote-write": "投票する"
+    "favorites-read": "お気に入りの一覧を見る"
+    "account/read": "ミュートを見る"
+    "account/write": "ミュートの操作"
+    "note-read": "note-read (未使用)"
+    "vote-read": "vote-read (未使用)"
+    "_unspecified_": "追加の権限は不要"
+    "_admin_": "管理者権限が必要"
+    "_moderator_": "管理者またはモデレーター権限が必要"
+    "_secure_": "サードパーティーアクセス不可"
 
   empty-timeline-info:
     follow-users-to-make-your-timeline: "ユーザーをフォローすると投稿がタイムラインに表示されます。"
     explore: "ユーザーを探索する"
+
+  post-form:
+    enter-username: "ユーザー名を入力してください"
 
   weekday-short:
     sunday: "日"
@@ -118,6 +210,10 @@ common:
     local-public: "公開 (ローカルのみ)"
     local-home: "ホーム (ローカルのみ)"
     local-followers: "フォロワー (ローカルのみ)"
+    local-only: "ローカルのみ"
+    once-public: "リモートフォロワーとローカル"
+    once-home: "リモートフォロワーとホーム"
+    once-specified: "リモートフォロワーのみ"
 
   note-placeholders:
     a: "今どうしてる？"
@@ -134,6 +230,7 @@ common:
     apps: "アプリ"
     tags: "ハッシュタグ"
     mute-and-block: "ミュート/ブロック"
+    extended-notification: "拡張通知"
     blocking: "ブロック"
     security: "セキュリティ"
     signin: "ログイン履歴"
@@ -141,52 +238,44 @@ common:
     other: "その他"
     appearance: "デザイン"
     behavior: "動作"
+    reactions: "リアクション"
+    reactions-description: "リアクションピッカーに表示する絵文字を入力します。"
     fetch-on-scroll: "スクロールで自動読み込み"
     fetch-on-scroll-desc: "ページを下までスクロールしたときに自動で追加のコンテンツを読み込みます。"
+    disableClientImageResizing: "アップロード前に画像のリサイズを行わない"
+    disableClientImageResizing-desc: "デフォルトでは投稿フォームからJPEG画像を添付した場合、アップロード前に画像のリサイズが行われます。この挙動を無効にします。"
     note-visibility: "投稿の公開範囲"
     default-note-visibility: "デフォルトの公開範囲"
+    secondary-note-visibility: "セカンダリ投稿ボタンの公開範囲"
+    tertiary-note-visibility: "ターシャリ投稿ボタンの公開範囲"
     remember-note-visibility: "投稿の公開範囲を記憶する"
-    web-search-engine: "ウェブ検索エンジン"
-    web-search-engine-desc: "例: https://www.google.com/?#q={{query}}"
-    keep-cw: "CW保持"
-    keep-cw-desc: "投稿にリプライする際、リプライ元の投稿にCWが設定されていたとき、デフォルトで同じCWを設定するようにします。"
     i-like-sushi: "私は(プリンよりむしろ)寿司が好き"
     show-reversi-board-labels: "リバーシのボードの行と列のラベルを表示"
     use-avatar-reversi-stones: "リバーシの石にアバターを使う"
     disable-animated-mfm: "投稿内の動きのあるテキストを無効にする"
     disable-showing-animated-images: "アニメーション画像を再生しない"
+    disableShowingInstanceInfo: "インスタンス情報を表示しない"
     suggest-recent-hashtags: "最近のハッシュタグを投稿フォームに表示する"
     always-show-nsfw: "常に閲覧注意のメディアを表示する"
+    alwaysOpenCw: "最初からCW/閲覧注意のコンテンツを表示する"
     always-mark-nsfw: "常にメディアを閲覧注意として投稿"
     show-full-acct: "ユーザー名のホストを省略しない"
     show-via: "viaを表示する"
     reduce-motion: "UIの動きを減らす"
+    visibilityColoring: "公開範囲の色付け"
+    visibilityColoring-none: "しない"
+    visibilityColoring-bg: "背景"
+    visibilityColoring-left: "左"
+    emojiFlavor: "絵文字フレーバー"
+    emojiFlavor-default: "デフォルト (Twitter)"
+    emojiFlavor-google: "Google"
+    emojiFlavor-apple: "Apple"
     this-setting-is-this-device-only: "このデバイスのみ"
-    use-os-default-emojis: "OS標準の絵文字を使用"
-    line-width: "線の太さ"
-    line-width-thin: "細い"
-    line-width-normal: "普通"
-    line-width-thick: "太い"
-    font-size: "文字の大きさ"
-    font-size-x-small: "小さい"
-    font-size-small: "少し小さい"
-    font-size-medium: "普通"
-    font-size-large: "少し大きい"
-    font-size-x-large: "大きい"
     deck-column-align: "デッキのカラムの配置"
     deck-column-align-center: "中央"
     deck-column-align-left: "左"
     deck-column-align-flexible: "フレキシブル"
-    deck-column-width: "デッキのカラムの幅"
-    deck-column-width-narrow: "狭"
-    deck-column-width-narrower: "やや狭"
-    deck-column-width-normal: "普通"
-    deck-column-width-wider: "やや広"
-    deck-column-width-wide: "広"
-    use-shadow: "UIに影を使用"
-    rounded-corners: "UIの角を丸める"
     circle-icons: "円形のアイコンを使用"
-    contrasted-acct: "ユーザー名にコントラストを付ける"
     wallpaper: "壁紙"
     choose-wallpaper: "壁紙を選択"
     delete-wallpaper: "壁紙を削除"
@@ -197,10 +286,14 @@ common:
     show-my-renotes: "自分の行ったRenoteをタイムラインに表示する"
     show-renoted-my-notes: "自分の投稿のRenoteをタイムラインに表示する"
     show-local-renotes: "ローカルの投稿のRenoteをタイムラインに表示する"
-    remain-deleted-note: "削除された投稿を表示し続ける"
+    excludeForeignReply: "フォロー外へのリプライを隠す"
     sound: "サウンド"
     enable-sounds: "サウンドを有効にする"
     enable-sounds-desc: "投稿やメッセージを送受信したときなどにサウンドを再生します。この設定はブラウザに記憶されます。"
+    Timeline: "タイムライン"
+    Notifications: "通知"
+    enable-speech: "読み上げを有効にする"
+    enable-speech-desc: "投稿が到着したときに読み上げます。この設定はブラウザに記憶されます。"
     volume: "ボリューム"
     test: "テスト"
     update: "Misskey Update"
@@ -216,8 +309,10 @@ common:
     advanced-settings: "高度な設定"
     debug-mode: "デバッグモードを有効にする"
     debug-mode-desc: "この設定はブラウザに記憶されます。"
+    ShowAdvancedSettings: "いらない設定を表示する"
     navbar-position: "ナビゲーションバーの位置"
     navbar-position-top: "上"
+    navbar-position-bottom: "下"
     navbar-position-left: "左"
     navbar-position-right: "右"
     i-am-under-limited-internet: "私は通信を制限されている"
@@ -228,8 +323,33 @@ common:
     notification-position-bottom: "下"
     notification-position-top: "上"
     disable-via-mobile: "「モバイルからの投稿」フラグを付けない"
-    load-raw-images: "添付された画像を高画質で表示する"
     load-remote-media: "リモートサーバーのメディアを表示する"
+    sync: "同期"
+    save: "保存"
+    saved: "保存しました"
+    default: デフォルト
+    random: ランダム
+    preview: "プレビュー"
+    home-profile: "ホームのプロファイル"
+    deck-profile: "デッキのプロファイル"
+    recentReactionsCount: "履歴の数"
+    showDislikeInPicker: "Dislikeを表示する"
+    enableRandomReactionPicker: "ピッカー表示ごとにランダムに設定する"
+    hasDisconnectedAction: "サーバーから切断されていたとき"
+    _hasDisconnectedAction:
+      reload: "自動でリロードする"
+      notify: "通知のみ"
+      nothing: "なにもしない"
+    room: "ルーム"
+    _room:
+      graphicsQuality: "グラフィックの品質"
+      _graphicsQuality:
+        ultra: "最高"
+        high: "高"
+        medium: "中"
+        low: "低"
+        cheep: "最低"
+      useOrthographicCamera: "平行投影カメラを使用"
 
   search: "検索"
   delete: "削除"
@@ -242,9 +362,11 @@ common:
   verified-user: "公式アカウント"
   hide-password: "パスワードを隠す"
   show-password: "パスワードを表示する"
+  reload: "リロード"
 
   do-not-use-in-production: "これは開発ビルドです。本番環境で使用しないでください。"
   user-suspended: "このユーザーは凍結されています。"
+  user-no-federation: "このユーザーは連合していません。"
   is-remote-user: "このユーザー情報は不正確な可能性があります。"
   is-remote-post: "この投稿情報はコピーです。"
   view-on-remote: "正確な情報を見る"
@@ -291,13 +413,18 @@ common:
     nav: "ナビゲーション"
     tips: "ヒント"
     hashtags: "ハッシュタグ"
+    words: "トレンドワード"
+    queue: "キュー"
 
   dev: "アプリの作成に失敗しました。再度お試しください。"
   ai-chan-kawaii: "藍ちゃかわいい"
   you: "あなた"
+  addUsertag: "ユーザータグを追加"
+  addUsertagDetail: "ユーザータグは他のユーザーは見れません, @タグでサジェストすることが出来ます"
+  removeUsertagConfirm: "このユーザータグを削除しますか？"
 
 auth/views/form.vue:
-  share-access: "<i>{name}</i>があなたのアカウントにアクセスすることを許可しますか？"
+  share-access: "以下のアプリがあなたのアカウントにアクセスすることを許可しますか？"
   permission-ask: "このアプリは次の権限を要求しています:"
   account-read: "アカウントの情報を見る。"
   account-write: "アカウントの情報を操作する。"
@@ -324,20 +451,27 @@ auth/views/index.vue:
 
 common/views/pages/explore.vue:
   verified-users: "公式アカウント"
+  recommended-users: "おすすめユーザー"
   popular-users: "人気のユーザー"
   recently-updated-users: "最近投稿したユーザー"
   recently-registered-users: "新規ユーザー"
+  recently-found-users: "新着ユーザー"
   popular-tags: "人気のタグ"
   federated: "連合"
   explore: "{host}を探索"
+  explore-fediverse: "Fediverseを探索"
   users-info: "現在{users}ユーザーが登録されています"
+  searchUser: "ユーザーを検索"
 
 common/views/components/url-preview.vue:
   enable-player: "プレイヤーを開く"
   disable-player: "プレイヤーを閉じる"
+  expandTweet: "ツイートを展開する"
+  collapseTweet: "ツイートを閉じる"
 
 common/views/components/user-list.vue:
   no-users: "ユーザーがいません"
+  follows-you: "あなたをフォローしています"
 
 common/views/components/games/reversi/reversi.vue:
   matching:
@@ -371,7 +505,7 @@ common/views/components/games/reversi/reversi.room.vue:
   settings-of-the-game: "ゲームの設定"
   choose-map: "マップを選択"
   random: "ランダム"
-  black-or-white: "先手/後手"
+  black-or-white: "先手"
   black-is: "{}が黒"
   rules: "ルール"
   is-llotheo: "石の少ない方が勝ち(ロセオ)"
@@ -495,8 +629,12 @@ common/views/components/nav.vue:
   feedback: "フィードバック"
 
 common/views/components/note-menu.vue:
+  air-reply: "空リプ"
   mention: "メンション"
   detail: "詳細"
+  go-timeline: "ローカルTLへ"
+  up-timeline: "ローカルTLへ (逆順)"
+  go-follow-tl: "フォローのTLへ"
   copy-content: "内容をコピー"
   copy-link: "リンクをコピー"
   favorite: "お気に入り"
@@ -507,7 +645,12 @@ common/views/components/note-menu.vue:
   unpin: "ピン留め解除"
   delete: "削除"
   delete-confirm: "この投稿を削除しますか？"
+  edit: "編集"
+  edit-confirm: "この投稿を編集しますか？この投稿へのリアクション、Renote、返信も全て削除されます。"
+  delete-and-edit: "削除して編集"
+  delete-and-edit-confirm: "この投稿を削除してもう一度編集しますか？この投稿へのリアクション、リノート、返信も全て削除されます。"
   remote: "投稿元で見る"
+  pin-limit-exceeded: "これ以上ピン留めできません。"
 
 common/views/components/user-menu.vue:
   mention: "メンション"
@@ -532,7 +675,16 @@ common/views/components/user-menu.vue:
   unsuspend: "凍結解除"
   suspend-confirm: "このユーザーを凍結しますか？"
   unsuspend-confirm: "このユーザーを凍結解除しますか？"
+  hide-renote: "Renoteを隠す"
+  unhide-renote: "Renoteを隠すを解除"
+  hide-renote-confirm: "このユーザーのRenoteを隠しますか？"
+  unhide-renote-confirm: "このユーザーのRenoteを隠してるのを解除しますか？"
 
+common/views/components/list-menu.vue:
+  push-to-list: "リストに追加"
+  pull-from-list: "{} から削除"
+  select-list: "リストを選択してください"
+  pull-list-confirm: "リストから削除しますか？"
 common/views/components/poll.vue:
   vote-to: "「{}」に投票する"
   vote-count: "{}票"
@@ -571,7 +723,14 @@ common/views/components/reaction-picker.vue:
   choose-reaction: "リアクションを選択"
 
 common/views/components/emoji-picker.vue:
+  pinned: "ピッカーを開いたままにする"
+  search: "絵文字を検索"
+  recent-emoji: "最近使った絵文字"
   custom-emoji: "カスタム絵文字"
+  remote-emoji: "リモートカスタム絵文字"
+  load-remote: "読み込む"
+  no-category: "カテゴリなし"
+  face: "顔文字"
   people: "人"
   animals-and-nature: "動物&自然"
   food-and-drink: "食べ物&飲み物"
@@ -624,12 +783,27 @@ common/views/components/stream-indicator.vue:
   connecting: "接続中"
   reconnecting: "再接続中"
   connected: "接続完了"
+  has-disconnected: "サーバーから切断されていました"
+  reload: "リロードする"
+  ignore: "なにもしない"
+  update-available: "新しいバージョンが利用可能です"
 
 common/views/components/notification-settings.vue:
   title: "通知"
+  pushNotifications: "オフラインプッシュ通知の対象"
+  follow: "フォロー"
+  mention: "メンション"
+  reply: "返信"
+  renote: "リノート"
+  quote: "引用"
+  reaction: "リアクション"
+  poll_vote: "投票"
+  poll_finished: "アンケート完了"
+  highlight: "ハイライトワード"
   mark-as-read-all-notifications: "すべての通知を既読にする"
   mark-as-read-all-unread-notes: "すべての投稿を既読にする"
   mark-as-read-all-talk-messages: "すべてのトークを既読にする"
+  UnwatchAll: "すべてのウォッチを解除する"
   auto-watch: "投稿の自動ウォッチ"
   auto-watch-desc: "リアクションしたり返信したりした投稿に関する通知を自動的に受け取るようにします。"
 
@@ -660,16 +834,21 @@ common/views/components/uploader.vue:
 
 common/views/components/visibility-chooser.vue:
   public: "公開"
+  public-desc: "ローカル/グローバルに表示する"
   home: "ホーム"
-  home-desc: "ホームタイムラインにのみ公開"
+  home-desc: "ローカル/グローバルに表示しない"
   followers: "フォロワー"
-  followers-desc: "自分のフォロワーにのみ公開"
+  followers-desc: "フォロワーにのみ公開"
   specified: "ダイレクト"
   specified-desc: "指定したユーザーにのみ公開"
   local-public: "公開 (ローカルのみ)"
   local-public-desc: "リモートへは公開しない"
   local-home: "ホーム (ローカルのみ)"
   local-followers: "フォロワー (ローカルのみ)"
+  once-public: "リモートフォロワーとローカル"
+  once-public-desc: "リモートでの二次拡散を拒否する"
+  once-home: "リモートフォロワーとホーム"
+  once-specified: "リモートフォロワーのみ"
 
 common/views/components/trends.vue:
   count: "{}人が投稿"
@@ -697,14 +876,25 @@ common/views/components/profile-editor.vue:
   is-cat: "このアカウントはCatです"
   is-bot: "このアカウントはBotです"
   is-locked: "フォローを承認制にする"
-  careful-bot: "Botからのフォローだけ承認制にする"
+  refuseFollow: "フォローを許可しない"
+  careful-bot: "Botからのフォローは承認制にする"
+  careful-remote: "リモートからのフォローは承認制にする"
+  careful-massive: "大量フォローユーザーのフォローは承認制にする"
   auto-accept-followed: "フォローしているユーザーからのフォローを自動承認する"
+  avoid-search-index: "検索エンジンによるインデックスを避ける"
+  hideFollows-none: "フォロー/フォロー一覧を隠さない"
+  hideFollows-follower: "フォロー/フォロー一覧はフォロワーにのみ公開する"
+  hideFollows-always: "フォロー/フォロー一覧を常に隠す"
+  no-federation: "連合を無効にする"
   advanced: "その他"
   privacy: "プライバシー"
   save: "保存"
   saved: "プロフィールを保存しました"
   uploading: "アップロード中"
   upload-failed: "アップロードに失敗しました"
+  unable-to-process: "操作を完了できません"
+  avatar-not-an-image: "アイコンとして指定したファイルは画像ではありません"
+  banner-not-an-image: "バナーとして指定したファイルは画像ではありません"
   email: "メール設定"
   email-address: "メールアドレス"
   email-verified: "メールアドレスが確認されました"
@@ -724,6 +914,12 @@ common/views/components/profile-editor.vue:
   danger-zone: "危険な設定"
   delete-account: "アカウントを削除"
   account-deleted: "アカウントが削除されました。データが消えるまで時間がかかる場合があります。"
+  profile-metadata: "プロフィール補足情報"
+  metadata-label: "ラベル"
+  metadata-content: "内容"
+  disable-federation: "連合を無効にする"
+  enable-federation: "連合を有効にする"
+  disable-federation-confirm: "連合を無効にしますか？フォロー関係も解除されます"
 
 common/views/components/user-list-editor.vue:
   users: "ユーザー"
@@ -732,8 +928,20 @@ common/views/components/user-list-editor.vue:
   remove-user: "このリストから削除"
   delete-are-you-sure: "リスト「$1」を削除しますか？"
   deleted: "削除しました"
+  hide-from-home: "これらのユーザーをホームに表示しない"
+  media-only: "メディア投稿のみ"
+  hosts: "ホスト"
+  add-host: "ホストの追加"
+  remove-host: "ホストを削除"
+  add-user: "ユーザーを追加"
+  enter-username: "ユーザー名を入力してください"
+
+common/views/components/user-lists.vue:
+  create-list: "リストを作成"
+  list-name: "リスト名"
 
 common/views/widgets/broadcast.vue:
+  title: "お知らせ"
   fetching: "確認中"
   no-broadcasts: "お知らせはありません"
   have-a-nice-day: "良い一日を！"
@@ -816,6 +1024,7 @@ desktop:
   uploading-avatar: "新しいアバターをアップロードしています"
   avatar-updated: "アバターを更新しました"
   choose-avatar: "アバターにする画像を選択"
+  unable-to-process: "操作を完了できません"
   invalid-filetype: "この形式のファイルはサポートされていません"
 
 desktop/views/components/activity.chart.vue:
@@ -862,6 +1071,8 @@ desktop/views/components/drive.file.vue:
     rename: "名前を変更"
     mark-as-sensitive: "閲覧注意に設定"
     unmark-as-sensitive: "閲覧注意を解除"
+    view: "閲覧"
+    open: "開く"
     copy-url: "URLをコピー"
     download: "ダウンロード"
     else-files: "その他..."
@@ -928,6 +1139,8 @@ desktop/views/components/home.vue:
   done: "完了"
   add-widget: "ウィジェットを追加:"
   add: "追加"
+  restore-default: "デフォルト"
+  restore-default-confirm: "デフォルトに戻しますか？"
 
 desktop/views/input-dialog.vue:
   cancel: "キャンセル"
@@ -962,7 +1175,8 @@ desktop/views/components/post-form.vue:
   attach-location-information: "位置情報を添付する"
   hide-contents: "内容を隠す"
   reply-placeholder: "この投稿への返信..."
-  quote-placeholder: "この投稿を引用..."
+  quote-placeholder: "ここを空のままにするとRenoteになります"
+  preview: "プレビュー"
   submit: "投稿"
   reply: "返信"
   renote: "Renote"
@@ -975,11 +1189,11 @@ desktop/views/components/post-form.vue:
   posting: "投稿中"
   attach-media-from-local: "PCからメディアを添付"
   attach-media-from-drive: "ドライブからメディアを添付"
-  insert-a-kao: "v('ω')v"
+  insert-a-kao: "ﾌｸﾞﾊﾟﾝﾁガチャ"
   create-poll: "アンケートを作成"
+  use-jpeg: "アップロード前にJPEG変換とリサイズを行う"
   text-remain: "残り{}文字"
   recent-tags: "最近"
-  local-only-message: "この投稿はローカルにのみ公開されます"
   click-to-tagging: "クリックでタグ付け"
   visibility: "公開範囲"
   geolocation-alert: "お使いの端末は位置情報に対応していません"
@@ -1006,7 +1220,7 @@ desktop/views/components/renote-form.vue:
   failure: "Renoteに失敗しました"
 
 desktop/views/components/renote-form-window.vue:
-  title: "この投稿をRenoteしますか？"
+  title: "引用して投稿"
 
 desktop/views/pages/user-following-or-followers.vue:
   following: "{user}のフォロー"
@@ -1054,6 +1268,8 @@ common/views/components/api-settings.vue:
 
 desktop/views/components/settings.apps.vue:
   no-apps: "連携しているアプリケーションはありません"
+  revokeTokenConfirm: "このアプリへのアクセス許可を削除しますか？"
+  terminateStreaming: "全てのストリーミング接続を中断する"
 
 common/views/components/drive-settings.vue:
   max: "容量"
@@ -1069,6 +1285,14 @@ common/views/components/mute-and-block.vue:
   word-mute: "ワードミュート"
   muted-words: "ミュートされたキーワード"
   muted-words-description: "スペースで区切るとAND指定になり、改行で区切るとOR指定になります"
+  unmute-confirm: "このユーザーをミュート解除しますか？"
+  unblock-confirm: "このユーザーをブロック解除しますか？"
+  save: "保存"
+
+common/views/components/settings/extended-notification.vue:
+  extended-notification: "拡張通知"
+  highlighted-words: "ハイライトワード"
+  highlighted-words-description: "通知したいワードを1行に1つずつ入力します"
   save: "保存"
 
 common/views/components/password-settings.vue:
@@ -1097,14 +1321,14 @@ desktop/views/components/settings.tags.vue:
   add: "追加"
   save: "保存"
 
-desktop/views/components/taskmanager.vue:
-  title: "タスクマネージャ"
-
 desktop/views/components/timeline.vue:
   home: "ホーム"
   local: "ローカル"
+  locao: "ローカオ"
   hybrid: "ソーシャル"
+  hybrid-desc: "ホーム+ローカル"
   global: "グローバル"
+  reacted: "リアクション"
   mentions: "あなた宛て"
   messages: "ダイレクト投稿"
   list: "リスト"
@@ -1122,18 +1346,22 @@ desktop/views/components/ui.header.account.vue:
   lists: "リスト"
   follow-requests: "フォロー申請"
   admin: "管理"
+  room: "ルーム"
 
 desktop/views/components/ui.header.nav.vue:
   game: "ゲーム"
 
 desktop/views/components/ui.header.notifications.vue:
   title: "通知"
+  mark-all-as-read: "全て既読にする"
 
 desktop/views/components/ui.header.post.vue:
   post: "新規投稿"
 
 desktop/views/components/ui.header.search.vue:
   placeholder: "検索"
+
+desktop/views/components/ui.sidebar.vue:
 
 desktop/views/components/received-follow-requests-window.vue:
   title: "フォロー申請"
@@ -1142,8 +1370,6 @@ desktop/views/components/received-follow-requests-window.vue:
 
 desktop/views/components/user-lists-window.vue:
   title: "リスト"
-  create-list: "リストを作成"
-  list-name: "リスト名"
 
 desktop/views/components/user-preview.vue:
   notes: "投稿"
@@ -1162,6 +1388,19 @@ desktop/views/components/window.vue:
   popout: "ポップアウト"
   close: "閉じる"
 
+desktop/views/home/featured.vue:
+  options: "オプション"
+  include-global: "連合を含める"
+  media-only: "メディア投稿のみ"
+  filter: "フィルター"
+  all: "すべて"
+  excludeNsfw: "閲覧注意を除く"
+  excludeSfw: "閲覧注意のみ"
+  days: "集計期間"
+  hour: "時間"
+  day: "日間"
+  years: "年間"
+
 admin/views/index.vue:
   dashboard: "ダッシュボード"
   instance: "インスタンス"
@@ -1169,6 +1408,7 @@ admin/views/index.vue:
   moderators: "モデレーター"
   users: "ユーザー"
   federation: "連合"
+  relays: "リレー"
   announcements: "お知らせ"
   hashtags: "ハッシュタグ"
   abuse: "スパム報告"
@@ -1187,7 +1427,20 @@ admin/views/dashboard.vue:
 
 admin/views/queue.vue:
   title: "キュー"
+  promoteJobs: "50個再実行"
+  clearJobs: "すべてクリア"
   remove-all-jobs: "すべてのジョブをクリア"
+  jobs: "ジョブ"
+  queue: "キュー"
+  state: "状態"
+  domains:
+    deliver: "Deliver"
+    inbox: "Inbox"
+    db: "DB"
+  states:
+    delayed: "Delayed"
+    active: "Active"
+    waiting: "Waiting"
 
 admin/views/abuse.vue:
   title: "スパム報告"
@@ -1243,9 +1496,7 @@ admin/views/instance.vue:
   disable-registration: "ユーザー登録の受付を停止する"
   disable-local-timeline: "ローカルタイムラインを無効にする"
   disable-global-timeline: "グローバルタイムラインを無効にする"
-  disabling-timelines-info: "これらのタイムラインを無効にしても、管理者およびモデレーターは引き続き利用できます。"
-  enable-emoji-reaction: "リアクションに絵文字を使えるようにする"
-  use-star-for-reaction-fallback: "不明なリアクションのフォールバックに star を使う"
+  showReplayInPublicTimeline: "公開タイムラインにリプライを表示する"
   invite: "招待"
   save: "保存"
   saved: "保存しました"
@@ -1258,7 +1509,7 @@ admin/views/instance.vue:
   email-config: "メールサーバーの設定"
   email-config-info: "メールアドレス確認やパスワードリセットの際に使われます。"
   enable-email: "メール配信を有効にする"
-  email: "メールアドレス"
+  email: "Fromメールアドレス"
   smtp-secure: "SMTP接続に暗黙的なSSL/TLSを使用する"
   smtp-secure-info: "STARTTLS使用時はオフにします。"
   smtp-host: "SMTPホスト"
@@ -1266,6 +1517,7 @@ admin/views/instance.vue:
   smtp-auth: "SMTP認証を行う"
   smtp-user: "SMTPユーザー"
   smtp-pass: "SMTPパスワード"
+  test-mail: "管理者の連絡先にテスト送信"
   serviceworker-config: "ServiceWorker"
   enable-serviceworker: "ServiceWorkerを有効にする"
   serviceworker-info: "プッシュ通知を行うには有効する必要があります。"
@@ -1288,6 +1540,8 @@ admin/views/charts.vue:
     notes: "投稿の増減 (統合)"
     local-notes: "投稿の増減 (ローカル)"
     remote-notes: "投稿の増減 (リモート)"
+    notes-inc: "投稿の増加数"
+    notes-dec: "投稿の減少数"
     notes-total: "投稿の積算"
     users: "ユーザーの増減"
     users-total: "ユーザーの積算"
@@ -1349,6 +1603,10 @@ admin/views/users.vue:
   unverified: "公式アカウントを解除しました"
   update-remote-user: "リモートユーザー情報の更新"
   remote-user-updated: "リモートユーザー情報を更新しました"
+  delete-all-files: "すべてのファイルを削除"
+  delete-all-files-confirm: "すべてのファイルを削除しますか？"
+  username: "ユーザー名"
+  host: "ホスト"
   users:
     title: "ユーザー"
     sort:
@@ -1387,6 +1645,7 @@ admin/views/emoji.vue:
     title: "絵文字の登録"
     name: "絵文字名"
     name-desc: "a~z 0~9 _ の文字が使えます。"
+    category: "カテゴリ"
     aliases: "エイリアス"
     aliases-desc: "スペースで区切って複数設定できます。"
     url: "絵文字画像URL"
@@ -1401,6 +1660,16 @@ admin/views/emoji.vue:
   remove-emoji:
     are-you-sure: "「$1」を削除しますか？"
     removed: "削除しました"
+  remoteEmojis: "リモート絵文字"
+  copy: "コピーする"
+  copied: "コピーしました"
+  name: "絵文字名"
+  host: "ホスト"
+  loadNext: "次のページ"
+  loadFirst: "最初のページ"
+  origin: "対象"
+  all: "全て"
+  newer: "未追加"
 
 admin/views/announcements.vue:
   announcements: "お知らせ"
@@ -1422,6 +1691,8 @@ admin/views/federation.vue:
   host: "ホスト"
   notes: "投稿"
   users: "ユーザー"
+  system: "システム"
+  softwareName: "ソフトウェア"
   following: "フォロー中"
   followers: "フォロワー"
   caught-at: "登録日時"
@@ -1476,6 +1747,17 @@ admin/views/federation.vue:
   chart-spans:
     hour: "1時間ごと"
     day: "1日ごと"
+
+admin/views/relay.vue:
+  add-relay: "リレーの追加"
+  inbox: "inboxのURL"
+  add: "追加"
+  remove: "削除"
+  added-relays: "追加済みのリレー"
+  status:
+    requesting: "承認待ち"
+    accepted: "承認済み"
+    rejected: "拒否済み"
 
 desktop/views/pages/welcome.vue:
   about: "詳しく..."
@@ -1542,6 +1824,7 @@ desktop/views/pages/user/user.timeline.vue:
   with-replies: "投稿と返信"
   with-media: "メディア"
   my-posts: "私の投稿"
+  fetch-posts: 投稿を取得
 
 desktop/views/widgets/notifications.vue:
   title: "通知"
@@ -1576,12 +1859,11 @@ mobile/views/components/drive.vue:
   file-count: "ファイル"
   nothing-in-drive: "ドライブには何もありません"
   folder-is-empty: "このフォルダは空です"
-  prompt: "何をしますか？(数字を入力してください): <1 → ファイルをアップロード | 2 → ファイルをURLでアップロード | 3 → フォルダ作成 | 4 → このフォルダ名を変更 | 5 → このフォルダを移動 | 6 → このフォルダを削除>"
-  deletion-alert: "ごめんなさい！フォルダの削除は未実装です...。"
   folder-name: "フォルダー名"
   here-is-root: "現在いる場所はルートで、フォルダではありません。"
   url-prompt: "アップロードしたいファイルのURL"
   uploading: "アップロードをリクエストしました。アップロードが完了するまで時間がかかる場合があります。"
+  folder-name-cannot-empty: "フォルダ名を空白にすることはできません。"
 
 mobile/views/components/drive-file-chooser.vue:
   select-file: "ファイルを選択"
@@ -1594,6 +1876,7 @@ mobile/views/components/drive.file.vue:
 
 mobile/views/components/drive.file-detail.vue:
   download: "ダウンロード"
+  open: "開く"
   rename: "名前を変更"
   move: "移動"
   hash: "ハッシュ (md5)"
@@ -1640,15 +1923,18 @@ mobile/views/components/notifications.vue:
 
 mobile/views/components/post-form.vue:
   add-visible-user: "ユーザーを追加"
+  preview: "プレビュー"
   submit: "投稿"
   reply: "返信"
   renote: "Renote"
-  quote-placeholder: "この投稿を引用... (オプション)"
+  quote-placeholder: "ここを空のままにするとRenoteになります"
   reply-placeholder: "この投稿への返信..."
   cw-placeholder: "内容への注釈 (オプション)"
   location-alert: "お使いの端末は位置情報に対応していません"
   error: "エラー"
   username-prompt: "ユーザー名を入力してください"
+  quote: "引用する..."
+  annotations: "内容への注釈 (オプション)"
 
 mobile/views/components/sub-note-content.vue:
   private: "この投稿は非公開です"
@@ -1670,13 +1956,38 @@ mobile/views/components/ui.nav.vue:
   game: "ゲーム"
   admin: "管理"
   about: "Misskeyについて"
+  mark-all-as-read: "全て既読にする"
+
+mobile/views/components/user-timeline.vue:
+  fetch-posts: 投稿を取得
+
+mobile/views/pages/drive.vue:
+  contextmenu:
+    upload: "ファイルをアップロード"
+    url-upload: "ファイルをURLでアップロード"
+    create-folder: "フォルダーを作成"
+    rename-folder: "フォルダー名を変更"
+    move-folder: "このフォルダを移動"
+    delete-folder: "このフォルダを削除"
 
 mobile/views/pages/user-lists.vue:
   title: "リスト"
-  enter-list-name: "リスト名を入力してください"
 
 mobile/views/pages/signup.vue:
   lets-start: "📦 始めましょう"
+
+mobile/views/pages/featured.vue:
+  options: "オプション"
+  include-global: "連合を含める"
+  media-only: "メディア投稿のみ"
+  filter: "フィルター"
+  all: "すべて"
+  excludeNsfw: "閲覧注意を除く"
+  excludeSfw: "閲覧注意のみ"
+  days: "集計期間"
+  hour: "時間"
+  day: "日間"
+  years: "年間"
 
 mobile/views/pages/followers.vue:
   followers-of: "{name}のフォロワー"
@@ -1687,8 +1998,10 @@ mobile/views/pages/following.vue:
 mobile/views/pages/home.vue:
   home: "ホーム"
   local: "ローカル"
+  locao: "ローカオ"
   hybrid: "ソーシャル"
   global: "グローバル"
+  reacted: "リアクション"
   mentions: "あなた宛て"
   messages: "ダイレクト投稿"
 
@@ -1757,9 +2070,11 @@ deck:
   widgets: "ウィジェット"
   home: "ホーム"
   local: "ローカル"
+  locao: "ローカオ"
   hybrid: "ソーシャル"
   hashtag: "ハッシュタグ"
   global: "グローバル"
+  reacted: "リアクション"
   mentions: "あなた宛て"
   direct: "ダイレクト投稿"
   notifications: "通知"
@@ -1780,6 +2095,8 @@ deck:
 
 deck/deck.tl-column.vue:
   is-media-only: "メディア投稿のみ"
+  is-sfw-media-only: "SFWメディア投稿のみ"
+  is-nsfw-media-only: "NSFWメディア投稿のみ"
   edit: "オプション"
 
 deck/deck.user-column.vue:
@@ -1791,6 +2108,7 @@ deck/deck.user-column.vue:
   activity: "アクティビティ"
   timeline: "タイムライン"
   pinned-notes: "ピン留めされた投稿"
+  fetch-posts: 投稿を取得
 
 docs:
   edit-this-page-on-github: "間違いや改善点を見つけましたか？"
@@ -1846,3 +2164,357 @@ dev/views/new-app.vue:
   drive-write: "ドライブを操作する。"
   notification-read: "通知を見る。"
   notification-write: "通知を操作する。"
+
+pages:
+  new-page: "ページの作成"
+  edit-page: "ページの編集"
+  read-page: "ソースを表示中"
+  page-created: "ページを作成しました"
+  page-updated: "ページを更新しました"
+  name-already-exists: "指定されたページURLは既に存在しています"
+  title-invalid-name: "不正なページURLです"
+  text-invalid-name: "空白でないか確認してください"
+  are-you-sure-delete: "このページを削除しますか？"
+  page-deleted: "ページを削除しました"
+  edit-this-page: "このページを編集"
+  pin-this-page: "ピン留め"
+  unpin-this-page: "ピン留め解除"
+  view-source: "ソースを表示"
+  view-page: "ページを見る"
+  like: "いいね"
+  unlike: "いいね解除"
+  liked-pages: "いいねしたページ"
+  my-pages: "自分のページ"
+  inspector: "インスペクター"
+  content: "ページブロック"
+  variables: "変数"
+  variables-info: "変数を使うことで動的なページを作成できます。テキスト内で <b>{ 変数名 }</b> と書くとそこに変数の値を埋め込めます。例えば <b>Hello { thing } world!</b> というテキストで、変数(thing)の値が <b>ai</b> だった場合、テキストは <b>Hello ai world!</b> になります。"
+  variables-info2: "変数の評価(値を算出すること)は上から下に行われるので、ある変数の中で自分より下の変数を参照することはできません。例えば上から <b>A、B、C</b> と3つの変数を定義したとき、<b>C</b>の中で<b>A</b>や<b>B</b>を参照することはできますが、<b>A</b>の中で<b>B</b>や<b>C</b>を参照することはできません。"
+  variables-info3: "ユーザーからの入力を受け取るには、ページに「ユーザー入力」ブロックを設置し、「変数名」に入力を格納したい変数名を設定します(変数は自動で作成されます)。その変数を使ってユーザー入力に応じた動作を行えます。"
+  variables-info4: "関数を使うと、値の算出処理を再利用可能な形にまとめることができます。関数を作るには、「関数」タイプの変数を作成します。関数にはスロット(引数)を設定することができ、スロットの値は関数内で変数として利用可能です。また、AiScript標準で関数を引数に取る関数(高階関数と呼ばれます)も存在します。関数は予め定義しておくほかに、このような高階関数のスロットに即席でセットすることもできます。"
+  more-details: "詳しい説明"
+  title: "タイトル"
+  url: "ページURL"
+  summary: "ページの要約"
+  sensitive-page: "不適切なページ"
+  align-center: "中央寄せ"
+  hide-title-when-pinned: "ピン留めされているときにタイトルを非表示"
+  font: "フォント"
+  fontSerif: "セリフ"
+  fontSansSerif: "サンセリフ"
+  set-eye-catching-image: "アイキャッチ画像を設定"
+  remove-eye-catching-image: "アイキャッチ画像を削除"
+  choose-block: "ブロックを追加"
+  select-type: "種類を選択"
+  enter-variable-name: "変数名を決めてください"
+  the-variable-name-is-already-used: "その変数名は既に使われています"
+  content-blocks: "コンテンツ"
+  input-blocks: "入力"
+  special-blocks: "特殊"
+  post-from-post-form: "この内容を投稿"
+  posted-from-post-form: "投稿しました"
+  blocks:
+    text: "テキスト"
+    textarea: "テキストエリア"
+    section: "セクション"
+    image: "画像"
+    button: "ボタン"
+
+    if: "もし"
+    _if:
+      variable: "変数"
+
+    post: "投稿フォーム"
+    _post:
+      text: "内容"
+
+    textInput: "テキスト入力"
+    _textInput:
+      name: "変数名"
+      text: "タイトル"
+      default: "デフォルト値"
+
+    textareaInput: "複数行テキスト入力"
+    _textareaInput:
+      name: "変数名"
+      text: "タイトル"
+      default: "デフォルト値"
+
+    numberInput: "数値入力"
+    _numberInput:
+      name: "変数名"
+      text: "タイトル"
+      default: "デフォルト値"
+
+    switch: "スイッチ"
+    _switch:
+      name: "変数名"
+      text: "タイトル"
+      default: "デフォルト値"
+
+    counter: "カウンター"
+    _counter:
+      name: "変数名"
+      text: "タイトル"
+      inc: "増加値"
+
+    _button:
+      text: "タイトル"
+      colored: "色付き"
+      action: "ボタンを押したときの動作"
+      _action:
+        dialog: "ダイアログを表示する"
+        _dialog:
+          content: "内容"
+        resetRandom: "乱数をリセット"
+        pushEvent: "イベントを送信させる"
+        _pushEvent:
+          event: "イベント名"
+          message: "押したときに表示するメッセージ"
+          variable: "送信する変数"
+          no-variable: "なし"
+
+    radioButton: "選択肢"
+    _radioButton:
+      name: "変数名"
+      title: "タイトル"
+      values: "改行で区切った選択肢"
+      default: "デフォルト値"
+
+  script:
+    categories:
+      flow: "制御"
+      logical: "論理演算"
+      operation: "計算"
+      comparison: "比較"
+      random: "ランダム"
+      value: "値"
+      fn: "関数"
+      text: "テキスト操作"
+      convert: "変換"
+      list: "リスト"
+    blocks:
+      text: "テキスト"
+      multiLineText: "テキスト(複数行)"
+      textList: "テキストのリスト"
+      _textList:
+        info: "ひとつひとつを改行で区切ってください"
+      strLen: "テキストの長さ"
+      _strLen:
+        arg1: "テキスト"
+      strPick: "文字取り出し"
+      _strPick:
+        arg1: "テキスト"
+        arg2: "文字の位置"
+      strReplace: "テキスト置き換え"
+      _strReplace:
+        arg1: "テキスト"
+        arg2: "置き換え前"
+        arg3: "置き換え後"
+      strReverse: "テキストを反転"
+      _strReverse:
+        arg1: "テキスト"
+      join: "テキストを連結"
+      _join:
+        arg1: "リスト"
+        arg2: "区切り"
+      add: "+ 足す"
+      _add:
+        arg1: "A"
+        arg2: "B"
+      subtract: "- 引く"
+      _subtract:
+        arg1: "A"
+        arg2: "B"
+      multiply: "× 掛ける"
+      _multiply:
+        arg1: "A"
+        arg2: "B"
+      divide: "÷ 割る"
+      _divide:
+        arg1: "A"
+        arg2: "B"
+      mod: "÷ 割った余り"
+      _mod:
+        arg1: "A"
+        arg2: "B"
+      round: "小数を丸める"
+      _round:
+        arg1: "数値"
+      eq: "AとBが同じ"
+      _eq:
+        arg1: "A"
+        arg2: "B"
+      notEq: "AとBが異なる"
+      _notEq:
+        arg1: "A"
+        arg2: "B"
+      and: "AかつB"
+      _and:
+        arg1: "A"
+        arg2: "B"
+      or: "AまたはB"
+      _or:
+        arg1: "A"
+        arg2: "B"
+      lt: "< AがBより小さい"
+      _lt:
+        arg1: "A"
+        arg2: "B"
+      gt: "> AがBより大きい"
+      _gt:
+        arg1: "A"
+        arg2: "B"
+      ltEq: "<= AがBと同じか小さい"
+      _ltEq:
+        arg1: "A"
+        arg2: "B"
+      gtEq: ">= AがBと同じか大きい"
+      _gtEq:
+        arg1: "A"
+        arg2: "B"
+      if: "分岐"
+      _if:
+        arg1: "もし"
+        arg2: "なら"
+        arg3: "そうでなければ"
+      not: "否定"
+      _not:
+        arg1: "否定"
+      random: "ランダム"
+      _random:
+        arg1: "確率"
+      rannum: "乱数"
+      _rannum:
+        arg1: "最小"
+        arg2: "最大"
+      randomPick: "リストからランダムに選択"
+      _randomPick:
+        arg1: "リスト"
+      dailyRandom: "ランダム (ユーザーごとに日替わり)"
+      _dailyRandom:
+        arg1: "確率"
+      dailyRannum: "乱数 (ユーザーごとに日替わり)"
+      _dailyRannum:
+        arg1: "最小"
+        arg2: "最大"
+      dailyRandomPick: "リストからランダムに選択 (ユーザーごとに日替わり)"
+      _dailyRandomPick:
+        arg1: "リスト"
+      seedRandom: "ランダム (シード)"
+      _seedRandom:
+        arg1: "シード"
+        arg2: "確率"
+      seedRannum: "乱数 (シード)"
+      _seedRannum:
+        arg1: "シード"
+        arg2: "最小"
+        arg3: "最大"
+      seedRandomPick: "リストからランダムに選択 (シード)"
+      _seedRandomPick:
+        arg1: "シード"
+        arg2: "リスト"
+      DRPWPM: "確率付きリストからランダムに選択 (ユーザーごとに日替わり)"
+      _DRPWPM:
+        arg1: "テキストのリスト"
+      pick: "リストから選択"
+      _pick:
+        arg1: "リスト"
+        arg2: "位置"
+      listLen: "リストの長さを取得"
+      _listLen:
+        arg1: "リスト"
+      number: "数値"
+      stringToNumber: "テキストを数値に"
+      _stringToNumber:
+        arg1: "テキスト"
+      numberToString: "数値をテキストに"
+      _numberToString:
+        arg1: "数値"
+      splitStrByLine: "テキストを行で分割"
+      _splitStrByLine:
+        arg1: "テキスト"
+      ref: "変数"
+      fn: "関数"
+      _fn:
+        slots: "スロット"
+        slots-info: "スロットひとつひとつを改行で区切ってください"
+        arg1: "出力"
+      for: "繰り返し"
+      _for:
+        arg1: "回数"
+        arg2: "処理"
+    typeError: "スロット{slot}は\"{expect}\"を受け付けますが、\"{actual}\"が入れられています！"
+    thereIsEmptySlot: "スロット{slot}が空です！"
+    types:
+      string: "テキスト"
+      number: "数値"
+      boolean: "フラグ"
+      array: "リスト"
+      stringArray: "テキストのリスト"
+    emptySlot: "空のスロット"
+    enviromentVariables: "環境変数"
+    pageVariables: "ページ要素"
+    argVariables: "入力スロット"
+
+room:
+  add-furniture: "家具を置く"
+  translate: "移動"
+  rotate: "回転"
+  exit: "戻る"
+  remove: "しまう"
+  save: "保存"
+  saved: "保存しました"
+  clear: "片付け"
+  clear-confirm: "全ての家具をしまいますか？"
+  leave-confirm: "未保存の変更があります、移動しますか？"
+  chooseImage: "画像を選択"
+  room-type: "部屋のタイプ"
+  carpet-color: "床の色"
+  rooms:
+    default: "デフォルト"
+    washitsu: "和室"
+  furnitures:
+    milk: "牛乳パック"
+    bed: "ベッド"
+    low-table: "ローテーブル"
+    desk: "デスク"
+    chair: "チェア"
+    chair2: "チェア2"
+    fan: "換気扇"
+    pc: "パソコン"
+    plant: "観葉植物"
+    plant2: "観葉植物2"
+    eraser: "消しゴム"
+    pencil: "鉛筆"
+    pudding: "プリン"
+    cardboard-box: "段ボール箱"
+    cardboard-box2: "段ボール箱2"
+    cardboard-box3: "段ボール箱3"
+    book: "本"
+    book2: "本2"
+    piano: "ピアノ"
+    facial-tissue: "ティッシュボックス"
+    server: "サーバー"
+    moon: "月"
+    corkboard: "コルクボード"
+    mousepad: "マウスパッド"
+    monitor: "モニター"
+    keyboard: "キーボード"
+    carpet-stripe: "カーペット(縞)"
+    mat: "マット"
+    color-box: "カラーボックス"
+    wall-clock: "壁掛け時計"
+    photoframe: "額縁"
+    cube: "キューブ"
+    tv: "テレビ"
+    pinguin: "ピンギン"
+    rubik-cube: "ルービックキューブ"
+    poster-h: "ポスター(横長)"
+    poster-v: "ポスター(縦長)"
+    sofa: "ソファ"
+    spiral: "螺旋階段"
+    bin: "ゴミ箱"
+    cup-noodle: "カップ麺"
+    holo-display: "ホログラフィックディスプレイ"
+    energy-drink: "エナジードリンク"

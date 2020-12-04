@@ -1,8 +1,9 @@
-import { Object } from '../type';
+import { isCreate, isDelete, isUpdate, isRead, isFollow, isAccept, isReject, isAdd, isRemove, isAnnounce, isLike, isUndo, isBlock, isFlag, isCollectionOrOrderedCollection, isCollection, IObject } from '../type';
 import { IRemoteUser } from '../../../models/user';
 import create from './create';
 import performDeleteActivity from './delete';
 import performUpdateActivity from './update';
+import { performReadActivity } from './read';
 import follow from './follow';
 import undo from './undo';
 import like from './like';
@@ -12,69 +13,62 @@ import reject from './reject';
 import add from './add';
 import remove from './remove';
 import block from './block';
+import flag from './flag';
 import { apLogger } from '../logger';
+import Resolver from '../resolver';
+import { toArray } from '../../../prelude/array';
 
-const self = async (actor: IRemoteUser, activity: Object): Promise<void> => {
-	if (actor.isSuspended) return;
-
-	switch (activity.type) {
-	case 'Create':
-		await create(actor, activity);
-		break;
-
-	case 'Delete':
-		await performDeleteActivity(actor, activity);
-		break;
-
-	case 'Update':
-		await performUpdateActivity(actor, activity);
-		break;
-
-	case 'Follow':
-		await follow(actor, activity);
-		break;
-
-	case 'Accept':
-		await accept(actor, activity);
-		break;
-
-	case 'Reject':
-		await reject(actor, activity);
-		break;
-
-	case 'Add':
-		await add(actor, activity).catch(err => apLogger.error(err));
-		break;
-
-	case 'Remove':
-		await remove(actor, activity).catch(err => apLogger.error(err));
-		break;
-
-	case 'Announce':
-		await announce(actor, activity);
-		break;
-
-	case 'Like':
-		await like(actor, activity);
-		break;
-
-	case 'Undo':
-		await undo(actor, activity);
-		break;
-
-	case 'Block':
-		await block(actor, activity);
-		break;
-
-	case 'Collection':
-	case 'OrderedCollection':
-		// TODO
-		break;
-
-	default:
-		apLogger.warn(`unknown activity type: ${(activity as any).type}`);
-		return null;
+export async function performActivity(actor: IRemoteUser, activity: IObject): Promise<string> {
+	if (isCollectionOrOrderedCollection(activity)) {
+		const resolver = new Resolver();
+		for (const item of toArray(isCollection(activity) ? activity.items : activity.orderedItems)) {
+			try {
+				const act = await resolver.resolve(item);
+				const result = await performOneActivity(actor, act);
+				apLogger.info(`processed: ${result}`);
+			} catch (e) {
+				apLogger.warn(`failed: ${e}`);
+				continue;
+			}
+		}
+		return `ok: collection activity completed`;
+	} else {
+		return await performOneActivity(actor, activity);
 	}
-};
+}
 
-export default self;
+export async function performOneActivity(actor: IRemoteUser, activity: IObject): Promise<string> {
+	if (actor.isSuspended) return 'skip: actor is suspended';
+
+	if (isCreate(activity)) {
+		return await create(actor, activity);
+	} else if (isDelete(activity)) {
+		return await performDeleteActivity(actor, activity);
+	} else if (isUpdate(activity)) {
+		return await performUpdateActivity(actor, activity);
+	} else if (isRead(activity)) {
+		return await performReadActivity(actor, activity);
+	} else if (isFollow(activity)) {
+		return await follow(actor, activity);
+	} else if (isAccept(activity)) {
+		return await accept(actor, activity);
+	} else if (isReject(activity)) {
+		return await reject(actor, activity);
+	} else if (isAdd(activity)) {
+		return await add(actor, activity);
+	} else if (isRemove(activity)) {
+		return await remove(actor, activity);
+	} else if (isAnnounce(activity)) {
+		return await announce(actor, activity);
+	} else if (isLike(activity)) {
+		return await like(actor, activity);
+	} else if (isUndo(activity)) {
+		return await undo(actor, activity);
+	} else if (isBlock(activity)) {
+		return await block(actor, activity);
+	} else if (isFlag(activity)) {
+		return await flag(actor, activity);
+	} else {
+		return `skip: unknown activity type: ${(activity as any).type}`;
+	}
+}

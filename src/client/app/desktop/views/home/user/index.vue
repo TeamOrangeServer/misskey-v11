@@ -1,10 +1,13 @@
 <template>
-<div class="omechnps" v-if="!fetching">
-	<div class="is-suspended" v-if="user.isSuspended" :class="{ shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }">
+<div class="omechnps" v-if="!fetching && user">
+	<div class="is-suspended" v-if="user.isSuspended">
 		<fa icon="exclamation-triangle"/> {{ $t('@.user-suspended') }}
 	</div>
-	<div class="is-remote" v-if="user.host != null" :class="{ shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }">
+	<div class="is-remote" v-if="user.host != null">
 		<fa icon="exclamation-triangle"/> {{ $t('@.is-remote-user') }}<a :href="user.url || user.uri" rel="nofollow noopener" target="_blank">{{ $t('@.view-on-remote') }}</a>
+	</div>
+	<div class="no-federation" v-if="user.noFederation">
+		<fa icon="exclamation-triangle"/> {{ $t('@.user-no-federation') }}
 	</div>
 	<div class="main">
 		<x-header class="header" :user="user"/>
@@ -39,10 +42,14 @@ export default Vue.extend({
 	},
 	methods: {
 		fetch() {
+			if (!this.$route.params.user) return;
 			this.fetching = true;
 			Progress.start();
 			this.$root.api('users/show', parseAcct(this.$route.params.user)).then(user => {
 				this.user = user;
+				this.fetching = false;
+				Progress.done();
+			}).catch(() => {
 				this.fetching = false;
 				Progress.done();
 			});
@@ -62,21 +69,18 @@ export default Vue.extend({
 
 	> .is-suspended
 	> .is-remote
+	> .no-federation
 		margin-bottom 16px
 		padding 14px 16px
 		font-size 14px
-
-		&.round
-			border-radius 6px
-
-		&.shadow
-			box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
+		border-radius 6px
+		box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
 
 		&.is-suspended
 			color var(--suspendedInfoFg)
 			background var(--suspendedInfoBg)
 
-		&.is-remote
+		&.is-remote, &.no-federation
 			color var(--remoteInfoFg)
 			background var(--remoteInfoBg)
 

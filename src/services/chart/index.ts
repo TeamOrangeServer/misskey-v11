@@ -61,7 +61,7 @@ type Log<T extends Obj> = {
  */
 export default abstract class Chart<T extends Obj> {
 	protected collection: ICollection<Log<T>>;
-	protected abstract async getTemplate(init: boolean, latest?: T, group?: any): Promise<T>;
+	protected abstract async getTemplate(init: boolean, latest?: T | null, group?: any): Promise<T>;
 	private name: string;
 
 	constructor(name: string, grouped = false) {
@@ -110,7 +110,7 @@ export default abstract class Chart<T extends Obj> {
 	}
 
 	@autobind
-	private getLatestLog(span: Span, group?: any): Promise<Log<T>> {
+	private getLatestLog(span: Span, group?: any): Promise<Log<T> | null | undefined> {
 		return this.collection.findOne({
 			group: group,
 			span: span
@@ -129,6 +129,8 @@ export default abstract class Chart<T extends Obj> {
 			span == 'day' ? utc([y, m, d]) :
 			span == 'hour' ? utc([y, m, d, h]) :
 			null;
+
+		if (current == null) throw `Invalid span ${span}`;
 
 		// 現在(今日または今のHour)のログ
 		const currentLog = await this.collection.findOne({
@@ -180,12 +182,20 @@ export default abstract class Chart<T extends Obj> {
 			// 並列動作している他のチャートエンジンプロセスと処理が重なる場合がある
 			// その場合は再度最も新しいログを持ってくる
 			if (e.code === 11000) {
-				log = await this.getLatestLog(span, group);
+				log = (await this.getLatestLog(span, group))!;
 			} else {
 				logger.error(e);
 				throw e;
 			}
 		}
+
+		const dateExpire = new Date(Date.now() - (span === 'hour' ? 1000 * 60 * 60 * 500 : 1000 * 60 * 60 * 24 * 500));
+		const deleted = await this.collection.remove({
+			span: span,
+			date: { $lt: dateExpire }
+		});
+
+		if (deleted.deletedCount > 0) logger.info(`${this.name}: Deleted ${span} ${deleted.deletedCount} logs before ${dateExpire.toLocaleString()}`);
 
 		return log;
 	}
@@ -242,6 +252,8 @@ export default abstract class Chart<T extends Obj> {
 			span == 'day' ? utc([y, m, d]).subtract(range, 'days') :
 			span == 'hour' ? utc([y, m, d, h]).subtract(range, 'hours') :
 			null;
+
+		if (gt == null) throw `Invalid span ${span}`;
 
 		// ログ取得
 		let logs = await this.collection.find({
@@ -356,8 +368,8 @@ export function convertLog(logSchema: Schema): Schema {
 			type: 'number'
 		};
 	} else if (v.type === 'object') {
-		for (const k of Object.keys(v.properties)) {
-			v.properties[k] = convertLog(v.properties[k]);
+		for (const k of Object.keys(v.properties!)) {
+			v.properties![k] = convertLog(v.properties![k]);
 		}
 	}
 	return v;

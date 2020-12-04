@@ -1,5 +1,5 @@
 <template>
-<div class="ivaojijs" :class="{ shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }">
+<div class="ivaojijs">
 	<div class="empty" v-if="notes.length == 0 && !fetching && inited">{{ $t('@.no-notes') }}</div>
 
 	<mk-error v-if="!fetching && !inited" @retry="init()"/>
@@ -10,6 +10,10 @@
 		</template>
 	</div>
 
+	<header v-if="paged">
+		<button @click="reload">{{ $t('@.newest') }}</button>
+	</header>
+
 	<!-- トランジションを有効にするとなぜかメモリリークする -->
 	<component :is="!$store.state.device.reduceMotion ? 'transition-group' : 'div'" name="mk-notes" class="transition" tag="div">
 		<template v-for="(note, i) in _notes">
@@ -18,13 +22,17 @@
 				<span><fa icon="angle-up"/>{{ note._datetext }}</span>
 				<span><fa icon="angle-down"/>{{ _notes[i + 1]._datetext }}</span>
 			</p>
+			<p class="date" :key="note.id + '_hour'" v-if="i != notes.length - 1 && timeSplitters.includes(note._hour) && note._hour != _notes[i + 1]._hour">
+				<span>{{ note._hourtext }}</span>
+			</p>
 		</template>
 	</component>
 
 	<footer v-if="cursor != null">
 		<button @click="more" :disabled="moreFetching" :style="{ cursor: moreFetching ? 'wait' : 'pointer' }">
-			<template v-if="!moreFetching">{{ $t('@.load-more') }}</template>
 			<template v-if="moreFetching"><fa icon="spinner" pulse fixed-width/></template>
+			<template v-else-if="hasNextPage">{{ $t('@.next-page') }}</template>
+			<template v-else>{{ $t('@.load-more') }}</template>
 		</button>
 	</footer>
 </div>
@@ -33,7 +41,8 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import shouldMuteNote from '../../../common/scripts/should-mute-note';
+import { shouldMuteNote } from '../../../common/scripts/should-mute-note';
+import { getSpeechName, getSpeechText } from '../../../../../misc/get-note-speech';
 
 const displayLimit = 30;
 
@@ -41,6 +50,11 @@ export default Vue.extend({
 	i18n: i18n(),
 
 	props: {
+		timeSplitters: {
+			type: Array,
+			required: false,
+			default: (): any[] => [],
+		},
 		makePromise: {
 			required: true
 		}
@@ -52,6 +66,7 @@ export default Vue.extend({
 			queue: [],
 			fetching: true,
 			moreFetching: false,
+			paged: false,
 			inited: false,
 			cursor: null
 		};
@@ -64,9 +79,16 @@ export default Vue.extend({
 				const month = new Date(note.createdAt).getMonth() + 1;
 				note._date = date;
 				note._datetext = this.$t('@.month-and-day').replace('{month}', month.toString()).replace('{day}', date.toString());
+				const hour = new Date(note.createdAt).getHours();
+				note._hour = hour;
+				note._hourtext = `${hour}:00`;
 				return note;
 			});
-		}
+		},
+
+		hasNextPage(): boolean {
+			return this.cursor != null && this.notes.length >= displayLimit * 5;
+		},
 	},
 
 	watch: {
@@ -101,6 +123,7 @@ export default Vue.extend({
 		},
 
 		reload() {
+			this.paged = false;
 			this.queue = [];
 			this.notes = [];
 			this.init();
@@ -127,7 +150,17 @@ export default Vue.extend({
 			if (this.cursor == null || this.moreFetching) return;
 			this.moreFetching = true;
 			this.makePromise(this.cursor).then(x => {
-				this.notes = this.notes.concat(x.notes);
+				// 改ページ
+				if (this.hasNextPage) {
+					this.paged = true;
+					this.notes = x.notes;
+					this.queue = [];
+					window.scrollTo({
+						top: 0
+					});
+				} else {
+					this.notes = this.notes.concat(x.notes);
+				}
 				this.cursor = x.cursor;
 				this.moreFetching = false;
 			}, e => {
@@ -136,12 +169,29 @@ export default Vue.extend({
 		},
 
 		prepend(note, silent = false) {
+			if (this.paged) return;
+
 			// 弾く
 			if (shouldMuteNote(this.$store.state.i, this.$store.state.settings, note)) return;
 
-			// タブが非表示またはスクロール位置が最上部ではないならタイトルで通知
-			if (document.hidden || !this.isScrollTop()) {
-				this.$store.commit('pushBehindNote', note);
+			// 既存をRenoteされたらそこを置き換える
+			if (note.renoteId && !note.text && !note.poll && (!note.fileIds || !note.fileIds.length)) {
+				for (let i = 0; i < 10; i++) {
+					if (!this.notes[i]) break;
+
+					// 引用投稿はスキップ
+					if (this.notes[i].renoteId && (this.notes[i].text || this.notes[i].poll || this.notes[i].fileIds?.length > 0)) {
+						continue;
+					}
+
+					const extId = this.notes[i].renoteId || this.notes[i].id;
+					const newId = note.renoteId || note.id;
+
+					if (extId == newId) {
+						Vue.set((this as any).notes, i, note);
+						return;
+					}
+				}
 			}
 
 			if (this.isScrollTop()) {
@@ -155,6 +205,20 @@ export default Vue.extend({
 				}
 			} else {
 				this.queue.push(note);
+			}
+
+			if (this.$store.state.device.enableSpeech && !silent) {
+				const name = getSpeechName(note);
+				const nameUttr = new SpeechSynthesisUtterance(name);
+				nameUttr.pitch = 2;
+
+				const text = getSpeechText(note);
+				const textUttr = new SpeechSynthesisUtterance(text);
+
+				if (getSpeechText) {
+					speechSynthesis.speak(nameUttr);
+					speechSynthesis.speak(textUttr);
+				}
 			}
 		},
 
@@ -176,6 +240,7 @@ export default Vue.extend({
 			}
 
 			if (this.$store.state.settings.fetchOnScroll !== false) {
+				if (this.hasNextPage) return;
 				// 親要素が display none だったら弾く
 				// https://github.com/syuilo/misskey/issues/1569
 				// http://d.hatena.ne.jp/favril/20091105/1257403319
@@ -193,12 +258,8 @@ export default Vue.extend({
 .ivaojijs
 	overflow hidden
 	background var(--face)
-
-	&.round
-		border-radius 8px
-
-	&.shadow
-		box-shadow 0 4px 16px rgba(#000, 0.1)
+	border-radius 8px
+	box-shadow 0 4px 16px rgba(#000, 0.1)
 
 		@media (min-width 500px)
 			box-shadow 0 8px 32px rgba(#000, 0.1)
@@ -225,7 +286,6 @@ export default Vue.extend({
 			font-size 0.9em
 			color var(--dateDividerFg)
 			background var(--dateDividerBg)
-			border-bottom solid var(--lineWidth) var(--faceDivider)
 
 			span
 				margin 0 16px
@@ -247,9 +307,10 @@ export default Vue.extend({
 		text-align center
 		color var(--text)
 
-	> footer
+	> header, footer
 		text-align center
 		border-top solid var(--lineWidth) var(--faceDivider)
+		border-bottom solid var(--lineWidth) var(--faceDivider)
 
 		&:empty
 			display none

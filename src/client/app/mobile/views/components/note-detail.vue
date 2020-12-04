@@ -1,5 +1,5 @@
 <template>
-<div class="mk-note-detail" tabindex="-1" :class="{ shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }">
+<div class="mk-note-detail" tabindex="-1">
 	<button
 		class="more"
 		v-if="appearNote.reply && appearNote.reply.replyId && conversation.length == 0"
@@ -9,19 +9,20 @@
 		<template v-if="!conversationFetching"><fa icon="ellipsis-v"/></template>
 		<template v-if="conversationFetching"><fa icon="spinner" pulse/></template>
 	</button>
+	<mk-renote class="renote" v-if="isRenote" :note="note" mini/>
 	<div class="conversation">
 		<x-sub v-for="note in conversation" :key="note.id" :note="note"/>
 	</div>
 	<div class="reply-to" v-if="appearNote.reply">
 		<x-sub :note="appearNote.reply"/>
 	</div>
-	<mk-renote class="renote" v-if="isRenote" :note="note" mini/>
 	<article>
 		<header>
 			<mk-avatar class="avatar" :user="appearNote.user"/>
 			<div>
 				<router-link class="name" :to="appearNote.user | userPage"><mk-user-name :user="appearNote.user"/></router-link>
 				<span class="username"><mk-acct :user="appearNote.user"/></span>
+				<x-instance-info v-if="appearNote.user.instance && !$store.state.device.disableShowingInstanceInfo" :instance="appearNote.user.instance" />
 			</div>
 		</header>
 		<div class="body">
@@ -36,7 +37,7 @@
 					<mfm v-if="appearNote.text" :text="appearNote.text" :author="appearNote.user" :i="$store.state.i" :custom-emojis="appearNote.emojis"/>
 				</div>
 				<div class="files" v-if="appearNote.files.length > 0">
-					<mk-media-list :media-list="appearNote.files" :raw="true"/>
+					<mk-media-list :media-list="appearNote.files" :hide="!$store.state.device.alwaysShowNsfw && appearNote.cw == null"/>
 				</div>
 				<mk-poll v-if="appearNote.poll" :note="appearNote"/>
 				<mk-url-preview v-for="url in urls" :url="url" :key="url" :detail="true"/>
@@ -48,16 +49,14 @@
 			</div>
 		</div>
 		<router-link class="time" :to="appearNote | notePage">
+			<fa :icon="faClock"/>
+			{{ }}
 			<mk-time :time="appearNote.createdAt" mode="detail"/>
 		</router-link>
 		<div class="visibility-info">
-			<span class="visibility" v-if="appearNote.visibility != 'public'">
-				<fa v-if="appearNote.visibility == 'home'" icon="home"/>
-				<fa v-if="appearNote.visibility == 'followers'" icon="unlock"/>
-				<fa v-if="appearNote.visibility == 'specified'" icon="envelope"/>
-			</span>
-			<span class="localOnly" v-if="appearNote.localOnly == true"><fa icon="heart"/></span>
+			<x-visibility-icon class="visibility" :v="appearNote.visibility" :localOnly="appearNote.localOnly" :copyOnce="appearNote.copyOnce" :withText="true"/>
 		</div>
+		<span class="app" v-if="appearNote.app && $store.state.settings.showVia">via <b>{{ appearNote.app.name }}</b></span>
 		<footer>
 			<mk-reactions-viewer :note="appearNote"/>
 			<button @click="reply()" :title="$t('title')">
@@ -65,16 +64,19 @@
 				<template v-else><fa icon="reply"/></template>
 				<p class="count" v-if="appearNote.repliesCount > 0">{{ appearNote.repliesCount }}</p>
 			</button>
-			<button v-if="['public', 'home'].includes(appearNote.visibility)" @click="renote()" title="Renote">
+			<button v-if="appearNote.myRenoteId != null" @click="undoRenote()" title="Undo" class="renoted">
+				<fa icon="retweet"/><p class="count" v-if="appearNote.renoteCount > 0">{{ appearNote.renoteCount }}</p>
+			</button>
+			<button v-else-if="['public', 'home'].includes(appearNote.visibility)" @click="renote()" title="Renote">
 				<fa icon="retweet"/><p class="count" v-if="appearNote.renoteCount > 0">{{ appearNote.renoteCount }}</p>
 			</button>
 			<button v-else>
 				<fa icon="ban"/>
 			</button>
-			<button v-if="!isMyNote && appearNote.myReaction == null" class="reactionButton" @click="react()" ref="reactButton">
+			<button v-if="appearNote.myReaction == null" class="reactionButton" @click="react()" ref="reactButton">
 				<fa icon="plus"/>
 			</button>
-			<button v-if="!isMyNote && appearNote.myReaction != null" class="reactionButton reacted" @click="undoReact(appearNote)" ref="reactButton">
+			<button v-if="appearNote.myReaction != null" class="reactionButton reacted" @click="undoReact(appearNote)" ref="reactButton">
 				<fa icon="minus"/>
 			</button>
 			<button @click="menu()" ref="menuButton">
@@ -94,12 +96,17 @@ import i18n from '../../../i18n';
 import XSub from './note.sub.vue';
 import noteSubscriber from '../../../common/scripts/note-subscriber';
 import noteMixin from '../../../common/scripts/note-mixin';
+import { faClock } from '@fortawesome/free-regular-svg-icons';
+import XVisibilityIcon from '../../../common/views/components/visibility-icon.vue';
+import XInstanceInfo from '../../../common/views/components/instance-info.vue';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/components/note-detail.vue'),
 
 	components: {
-		XSub
+		XVisibilityIcon,
+		XSub,
+		XInstanceInfo
 	},
 
 	mixins: [noteMixin(), noteSubscriber('note')],
@@ -116,6 +123,7 @@ export default Vue.extend({
 
 	data() {
 		return {
+			faClock,
 			conversation: [],
 			conversationFetching: false,
 			replies: []
@@ -164,12 +172,8 @@ export default Vue.extend({
 	width 100%
 	text-align left
 	background var(--face)
-
-	&.round
-		border-radius 8px
-
-	&.shadow
-		box-shadow 0 4px 16px rgba(#000, 0.1)
+	border-radius 8px
+	box-shadow 0 4px 16px rgba(#000, 0.1)
 
 		@media (min-width 500px)
 			box-shadow 0 8px 32px rgba(#000, 0.1)
@@ -283,12 +287,12 @@ export default Vue.extend({
 						font-size 24px
 
 				> .renote
-					margin 8px 0
+					margin 0.3em 0.6em
+					opacity 0.9
 
 					> *
-						padding 16px
-						border dashed 1px var(--quoteBorder)
-						border-radius 8px
+						padding 0.7em
+						border-left 3px solid var(--mfmQuoteLine)
 
 				> .location
 					margin 4px 0
@@ -310,15 +314,10 @@ export default Vue.extend({
 						display block
 						max-width 100%
 
-		> .time
-			font-size 16px
-			color var(--noteHeaderInfo)
 
-		> .visibility-info
+		> .time, .visibility-info, .app
 			color var(--noteHeaderInfo)
-
-			> .localOnly
-				margin-left 4px
+			font-size 0.9em
 
 		> footer
 			font-size 1.2em
@@ -346,6 +345,9 @@ export default Vue.extend({
 					opacity 0.7
 
 				&.reacted
+					color var(--primary)
+
+				&.renoted
 					color var(--primary)
 
 	> .replies

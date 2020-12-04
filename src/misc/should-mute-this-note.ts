@@ -1,20 +1,35 @@
-import * as mongo from 'mongodb';
-import isObjectId from './is-objectid';
+import { oidIncludes } from '../prelude/oid';
 
-function toString(id: any) {
-	return isObjectId(id) ? (id as mongo.ObjectID).toHexString() : id;
-}
-
-export default function(note: any, mutedUserIds: string[]): boolean {
-	if (mutedUserIds.includes(toString(note.userId))) {
+/**
+ * 対象のNoteをミュートする必要があるか
+ * @param note 対象のPackedNote
+ * @param mutedUserIds ミュートしているユーザーID
+ * @param hideFromUsers Hide指定のあるユーザーID
+ * @param hideFromHosts Hide指定のあるホスト
+ */
+export default function(note: any, mutedUserIds: string[], hideFromUsers?: string[], hideFromHosts?: (string | null)[]): boolean {
+	// ミュートしているユーザーの投稿
+	if (oidIncludes(mutedUserIds, note.userId)) {
 		return true;
 	}
 
-	if (note.reply != null && mutedUserIds.includes(toString(note.reply.userId))) {
+	// ミュートしているユーザーへのリプライ
+	if (note.reply != null && oidIncludes(mutedUserIds, note.reply.userId)) {
 		return true;
 	}
 
-	if (note.renote != null && mutedUserIds.includes(toString(note.renote.userId))) {
+	// ミュートしているユーザーへのRenote/Quote
+	if (note.renote != null && oidIncludes(mutedUserIds, note.renote.userId)) {
+		return true;
+	}
+
+	// Hide指定のユーザー
+	if (hideFromUsers && oidIncludes(hideFromUsers, note.userId)) {
+		return true;
+	}
+
+	// Hide指定のホスト
+	if (hideFromHosts && hideFromHosts.includes(note.user.host)) {
 		return true;
 	}
 

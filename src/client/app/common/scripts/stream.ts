@@ -1,8 +1,9 @@
 import autobind from 'autobind-decorator';
 import { EventEmitter } from 'eventemitter3';
 import ReconnectingWebsocket from 'reconnecting-websocket';
-import { wsUrl } from '../../config';
+import { wsUrl, version } from '../../config';
 import MiOS from '../../mios';
+import { query as urlQuery } from '../../../../prelude/url';
 
 /**
  * Misskey stream connection
@@ -21,7 +22,14 @@ export default class Stream extends EventEmitter {
 
 		const user = os.store.state.i;
 
-		this.stream = new ReconnectingWebsocket(wsUrl + (user ? `?i=${user.token}` : ''));
+		const query = urlQuery({
+			i: user?.token,
+			_user: user?.username,
+			_t: Date.now(),
+			_v: version,
+		});
+
+		this.stream = new ReconnectingWebsocket(`${wsUrl}?${query}`);
 		this.stream.addEventListener('open', this.onOpen);
 		this.stream.addEventListener('close', this.onClose);
 		this.stream.addEventListener('message', this.onMessage);

@@ -22,7 +22,17 @@ export default Vue.extend({
 			type: Boolean,
 			required: false,
 			default: false
-		}
+		},
+		sfwMediaOnly: {
+			type: Boolean,
+			required: false,
+			default: false
+		},
+		nsfwMediaOnly: {
+			type: Boolean,
+			required: false,
+			default: false
+		},
 	},
 
 	data() {
@@ -33,6 +43,9 @@ export default Vue.extend({
 				limit: fetchLimit + 1,
 				untilId: cursor ? cursor : undefined,
 				withFiles: this.mediaOnly,
+				fileType: (this.sfwMediaOnly || this.nsfwMediaOnly) ? ['image/jpeg','image/png','image/apng','image/gif','image/webp','video/mp4','video/webm'] : undefined,
+				excludeNsfw: this.sfwMediaOnly,
+				excludeSfw: this.nsfwMediaOnly,
 				includeMyRenotes: this.$store.state.settings.showMyRenotes,
 				includeRenotedMyNotes: this.$store.state.settings.showRenotedMyNotes,
 				includeLocalRenotes: this.$store.state.settings.showLocalRenotes
@@ -56,17 +69,27 @@ export default Vue.extend({
 	watch: {
 		mediaOnly() {
 			this.$refs.timeline.reload();
-		}
+		},
+		sfwMediaOnly() {
+			(this.$refs.timeline as any).reload();
+		},
+		nsfwMediaOnly() {
+			(this.$refs.timeline as any).reload();
+		},
 	},
 
 	mounted() {
 		if (this.connection) this.connection.dispose();
 		this.connection = this.$root.stream.connectToChannel('userList', {
-			listId: this.list.id
+			listId: this.list.id,
+			excludeForeignReply: this.$store.state.settings.excludeForeignReply,
 		});
 		this.connection.on('note', this.onNote);
 		this.connection.on('userAdded', this.onUserAdded);
 		this.connection.on('userRemoved', this.onUserRemoved);
+		this.connection.on('hostAdded', this.onHostAdded);
+		this.connection.on('hostRemoved', this.onHostRemoved);
+		this.connection.on('settingChanged', this.onSettingChanged);
 	},
 
 	beforeDestroy() {
@@ -76,6 +99,8 @@ export default Vue.extend({
 	methods: {
 		onNote(note) {
 			if (this.mediaOnly && note.files.length == 0) return;
+			if (this.sfwMediaOnly && (note.files.length == 0 || note.files.some((x: any) => x.isSensitive))) return;
+			if (this.nsfwMediaOnly && (note.files.length == 0 || note.files.every((x: any) => !x.isSensitive))) return;
 			(this.$refs.timeline as any).prepend(note);
 		},
 
@@ -84,6 +109,18 @@ export default Vue.extend({
 		},
 
 		onUserRemoved() {
+			this.$refs.timeline.reload();
+		},
+
+		onHostAdded() {
+			this.$refs.timeline.reload();
+		},
+
+		onHostRemoved() {
+			this.$refs.timeline.reload();
+		},
+
+		onSettingChanged() {
 			this.$refs.timeline.reload();
 		},
 

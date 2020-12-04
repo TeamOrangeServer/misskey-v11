@@ -10,9 +10,10 @@ import getDriveFileUrl from '../../../../misc/get-drive-file-url';
 import { parse, parsePlain } from '../../../../mfm/parse';
 import extractEmojis from '../../../../misc/extract-emojis';
 import extractHashtags from '../../../../misc/extract-hashtags';
-import * as langmap from 'langmap';
-import { updateHashtag } from '../../../../services/update-hashtag';
+import { updateUsertags } from '../../../../services/update-hashtag';
 import { ApiError } from '../../error';
+import { sendDeleteActivity } from '../../../../services/suspend-user';
+import { doPostUnsuspend } from '../../../../services/unsuspend-user';
 
 export const meta = {
 	desc: {
@@ -24,7 +25,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'account-write',
+	kind: ['write:account', 'account-write', 'account/write'],
 
 	params: {
 		name: {
@@ -38,13 +39,6 @@ export const meta = {
 			validator: $.optional.nullable.str.pipe(isValidDescription),
 			desc: {
 				'ja-JP': 'アカウントの説明や自己紹介'
-			}
-		},
-
-		lang: {
-			validator: $.optional.nullable.str.or(Object.keys(langmap)),
-			desc: {
-				'ja-JP': '言語'
 			}
 		},
 
@@ -100,10 +94,52 @@ export const meta = {
 			}
 		},
 
+		carefulRemote: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'リモートからのフォローを承認制にするか'
+			}
+		},
+
+		carefulMassive: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': '大量フォロワーのフォローを承認制にするか'
+			}
+		},
+
 		autoAcceptFollowed: {
 			validator: $.optional.bool,
 			desc: {
 				'ja-JP': 'フォローしているユーザーからのフォローリクエストを自動承認するか'
+			}
+		},
+
+		refuseFollow: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'refuseFollow'
+			}
+		},
+
+		avoidSearchIndex: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'avoidSearchIndex'
+			}
+		},
+
+		hideFollows: {
+			validator: $.optional.nullable.str.or(['', 'follower', 'always']),
+			desc: {
+				'ja-JP': 'hide Follow/Follower list'
+			}
+		},
+
+		noFederation: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': 'noFederation'
 			}
 		},
 
@@ -132,6 +168,30 @@ export const meta = {
 			validator: $.optional.bool,
 			desc: {
 				'ja-JP': 'アップロードするメディアをデフォルトで「閲覧注意」として設定するか'
+			}
+		},
+
+		fields: {
+			validator: $.optional.arr($.object()).range(1, 4),
+			desc: {
+				'ja-JP': 'fields'
+			}
+		},
+
+		pushNotifications: {
+			validator: $.optional.object({
+				follow: $.optional.bool,
+				mention: $.optional.bool,
+				reply: $.optional.bool,
+				renote: $.optional.bool,
+				quote: $.optional.bool,
+				reaction: $.optional.bool,
+				poll_vote: $.optional.bool,
+				poll_finished: $.optional.bool,
+				highlight: $.optional.bool
+			}),
+			desc: {
+				'ja-JP': 'オフラインプッシュ通知の対象'
 			}
 		},
 	},
@@ -170,7 +230,6 @@ export default define(meta, async (ps, user, app) => {
 
 	if (ps.name !== undefined) updates.name = ps.name;
 	if (ps.description !== undefined) updates.description = ps.description;
-	if (ps.lang !== undefined) updates.lang = ps.lang;
 	if (ps.location !== undefined) updates['profile.location'] = ps.location;
 	if (ps.birthday !== undefined) updates['profile.birthday'] = ps.birthday;
 	if (ps.avatarId !== undefined) updates.avatarId = ps.avatarId;
@@ -179,10 +238,17 @@ export default define(meta, async (ps, user, app) => {
 	if (typeof ps.isLocked == 'boolean') updates.isLocked = ps.isLocked;
 	if (typeof ps.isBot == 'boolean') updates.isBot = ps.isBot;
 	if (typeof ps.carefulBot == 'boolean') updates.carefulBot = ps.carefulBot;
+	if (typeof ps.carefulRemote == 'boolean') updates.carefulRemote = ps.carefulRemote;
+	if (typeof ps.carefulMassive == 'boolean') updates.carefulMassive = ps.carefulMassive;
+	if (typeof ps.refuseFollow == 'boolean') updates.refuseFollow = ps.refuseFollow;
 	if (typeof ps.autoAcceptFollowed == 'boolean') updates.autoAcceptFollowed = ps.autoAcceptFollowed;
+	if (typeof ps.avoidSearchIndex == 'boolean') updates.avoidSearchIndex = ps.avoidSearchIndex;
+	if (ps.hideFollows !== undefined) updates.hideFollows = ps.hideFollows;
+	if (typeof ps.noFederation == 'boolean') updates.noFederation = ps.noFederation;
 	if (typeof ps.isCat == 'boolean') updates.isCat = ps.isCat;
 	if (typeof ps.autoWatch == 'boolean') updates['settings.autoWatch'] = ps.autoWatch;
 	if (typeof ps.alwaysMarkNsfw == 'boolean') updates['settings.alwaysMarkNsfw'] = ps.alwaysMarkNsfw;
+	if (ps.pushNotifications) updates['settings.pushNotifications'] = ps.pushNotifications;
 
 	if (ps.avatarId) {
 		const avatar = await DriveFile.findOne({
@@ -245,6 +311,14 @@ export default define(meta, async (ps, user, app) => {
 		}
 	}
 
+	if (ps.fields) {
+		updates.fields = ps.fields
+			.filter(x => typeof x.name === 'string' && x.name !== '' && typeof x.value === 'string' && x.value !== '')
+			.map(x => {
+				return { name: x.name, value: x.value };
+			});
+	}
+
 	//#region emojis/tags
 	if (updates.name != null || updates.description != null) {
 		let emojis = [] as string[];
@@ -258,15 +332,14 @@ export default define(meta, async (ps, user, app) => {
 		if (updates.description != null) {
 			const tokens = parse(updates.description);
 			emojis = emojis.concat(extractEmojis(tokens));
-			tags = extractHashtags(tokens).map(tag => tag.toLowerCase());
+			tags = extractHashtags(tokens).map(tag => tag.toLowerCase()).slice(0, 64);
 		}
 
 		updates.emojis = emojis;
 		updates.tags = tags;
 
 		// ハッシュタグ更新
-		for (const tag of tags) updateHashtag(user, tag, true, true);
-		for (const tag of (user.tags || []).filter(x => !tags.includes(x))) updateHashtag(user, tag, true, false);
+		updateUsertags(user, tags);
 	}
 	//#endregion
 
@@ -287,8 +360,16 @@ export default define(meta, async (ps, user, app) => {
 		acceptAllFollowRequests(user);
 	}
 
-	// フォロワーにUpdateを配信
-	publishToFollowers(user._id);
+	if (typeof updates.noFederation !== 'undefined') {
+		if (updates.noFederation) {
+			sendDeleteActivity(user);
+		} else {
+			doPostUnsuspend(user);
+		}
+	} else {
+		// フォロワーにUpdateを配信
+		publishToFollowers(user._id);
+	}
 
 	return iObj;
 });

@@ -27,7 +27,17 @@
 			<footer>
 				<button @click="chooseFile"><fa icon="upload"/></button>
 				<button @click="chooseFileFromDrive"><fa icon="cloud"/></button>
-				<button @click="post" :disabled="posting" class="post">{{ $t('note') }}</button>
+				<button @click="kao"><fa :icon="faFish"/></button>
+				<button @click="setVisibility" class="visibility" ref="visibilityButton">
+					<x-visibility-icon :v="visibility" :localOnly="localOnly" :copyOnce="copyOnce"/>
+				</button>
+				<button v-if="tertiaryNoteVisibility != null && tertiaryNoteVisibility != 'none'" @click="post(tertiaryNoteVisibility)" :disabled="posting" class="tertiary" title="Tertiary Post">
+					<x-visibility-icon :v="tertiaryNoteVisibility"/>
+				</button>
+				<button v-if="secondaryNoteVisibility != null && secondaryNoteVisibility != 'none'" @click="post(secondaryNoteVisibility)" :disabled="posting" class="secondary" title="Secondary Post (Alt+Enter)">
+					<x-visibility-icon :v="secondaryNoteVisibility"/>
+				</button>
+				<button @click="post()" :disabled="posting" class="post" title="Post (Ctrl+Enter)">{{ $t('note') }}</button>
 			</footer>
 		</div>
 	</ui-container>
@@ -38,7 +48,12 @@
 import define from '../../../common/define-widget';
 import i18n from '../../../i18n';
 import insertTextAtCursor from 'insert-text-at-cursor';
+import getFace from '../../../common/scripts/get-face';
+import MkVisibilityChooser from '../../../common/views/components/visibility-chooser.vue';
 import XPostFormAttaches from '../components/post-form-attaches.vue';
+import XVisibilityIcon from '../components/visibility-icon.vue';
+import { faFish } from '@fortawesome/free-solid-svg-icons';
+import { parseVisibility } from '../../../common/scripts/parse-visibility';
 
 export default define({
 	name: 'post-form',
@@ -49,7 +64,9 @@ export default define({
 	i18n: i18n('desktop/views/widgets/post-form.vue'),
 
 	components: {
-		XPostFormAttaches
+		XPostFormAttaches,
+		MkVisibilityChooser,
+		XVisibilityIcon,
 	},
 
 	data() {
@@ -57,6 +74,12 @@ export default define({
 			posting: false,
 			text: '',
 			files: [],
+			visibility: 'public',
+			localOnly: false,
+			copyOnce: false,
+			secondaryNoteVisibility: 'none',
+			tertiaryNoteVisibility: 'none',
+			faFish
 		};
 	},
 
@@ -72,6 +95,11 @@ export default define({
 			];
 			return xs[Math.floor(Math.random() * xs.length)];
 		}
+	},
+
+	mounted() {
+		// デフォルト公開範囲
+		this.applyVisibilityFromState();
 	},
 
 	methods: {
@@ -97,6 +125,10 @@ export default define({
 		},
 
 		attachMedia(driveFile) {
+			if (driveFile.error) {
+				this.$notify(driveFile.error.message);
+				return;
+			}
 			this.files.push(driveFile);
 			this.$emit('change-attached-files', this.files);
 		},
@@ -108,12 +140,18 @@ export default define({
 
 		onKeydown(e) {
 			if ((e.which == 10 || e.which == 13) && (e.ctrlKey || e.metaKey) && !this.posting && this.text) this.post();
+			if ((e.which == 10 || e.which == 13) && (e.altKey) && !this.posting && this.text
+				&& this.secondaryNoteVisibility != null && this.secondaryNoteVisibility != 'none') this.post(this.secondaryNoteVisibility);
 		},
 
-		onPaste(e) {
+		onPaste(e: ClipboardEvent) {
 			for (const item of Array.from(e.clipboardData.items)) {
 				if (item.kind == 'file') {
-					this.upload(item.getAsFile());
+					const file = item.getAsFile();
+					const lio = file.name.lastIndexOf('.');
+					const ext = lio >= 0 ? file.name.slice(lio) : '';
+					const name = `${new Date().toISOString().replace(/\D/g, '').substr(0, 14)}${ext}`;
+					this.upload(file, name);
 				}
 			}
 		},
@@ -122,8 +160,8 @@ export default define({
 			for (const x of Array.from((this.$refs.file as any).files)) this.upload(x);
 		},
 
-		upload(file) {
-			(this.$refs.uploader as any).upload(file);
+		upload(file: File, name?: string) {
+			(this.$refs.uploader as any).upload(file, null, name, false, true);
 		},
 
 		onDragover(e) {
@@ -158,37 +196,73 @@ export default define({
 			const button = this.$refs.emoji;
 			const rect = button.getBoundingClientRect();
 			const vm = this.$root.new(Picker, {
+				includeRemote: true,
 				x: button.offsetWidth + rect.left + window.pageXOffset,
 				y: rect.top + window.pageYOffset
 			});
-			vm.$once('chosen', emoji => {
-				insertTextAtCursor(this.$refs.text, emoji);
+			vm.$on('chosen', (emoji: string) => {
+				insertTextAtCursor(this.$refs.text, emoji + String.fromCharCode(0x200B));
 			});
 		},
 
-		post() {
-			this.posting = true;
+		kao() {
+			this.text += getFace();
+		},
 
-			let visibility = 'public';
-			let localOnly = false;
+		setVisibility() {
+			const w = this.$root.new(MkVisibilityChooser, {
+				source: this.$refs.visibilityButton,
+				currentVisibility: this.visibility
+			});
+			w.$once('chosen', v => {
+				this.applyVisibility(v);
+			});
+		},
 
-			const m = this.$store.state.settings.defaultNoteVisibility.match(/^local-(.+)/);
-			if (m) {
-				visibility = m[1];
-				localOnly = true;
-			} else {
-				visibility = this.$store.state.settings.defaultNoteVisibility;
+		applyVisibilityFromState() {
+			this.applyVisibility(this.$store.state.settings.rememberNoteVisibility
+				? (this.$store.state.device.visibility || this.$store.state.settings.defaultNoteVisibility)
+				: this.$store.state.settings.defaultNoteVisibility);
+
+			this.secondaryNoteVisibility = this.$store.state.settings.secondaryNoteVisibility;
+			this.tertiaryNoteVisibility = this.$store.state.settings.tertiaryNoteVisibility;
+		},
+
+		applyVisibility(v :string) {
+			const vis = parseVisibility(v);
+			this.localOnly = vis.localOnly;
+			this.copyOnce = vis.copyOnce;
+			this.visibility = vis.visibility;
+		},
+
+		post(v: any) {
+			let visibility = this.visibility;
+			let localOnly = this.localOnly;
+			let copyOnce = this.copyOnce;
+
+			if (typeof v == 'string') {
+				const vis = parseVisibility(v);
+				localOnly = vis.localOnly;
+				copyOnce = vis.copyOnce;
+				visibility = vis.visibility;
 			}
+
+			this.posting = true;
 
 			this.$root.api('notes/create', {
 				text: this.text == '' ? undefined : this.text,
 				fileIds: this.files.length > 0 ? this.files.map(f => f.id) : undefined,
 				visibility,
 				localOnly,
+				copyOnce,
 			}).then(data => {
 				this.clear();
-			}).catch(err => {
-				alert('Something happened');
+			}).catch((e: any) => {
+				this.$root.dialog({
+					type: 'error',
+					text: e.message || e
+				});
+				throw e;
 			}).then(() => {
 				this.posting = false;
 				this.$nextTick(() => {
@@ -251,14 +325,38 @@ export default define({
 
 		> button:not(.post)
 			color var(--text)
+			opacity 0.7
 
 			&:hover
 				color var(--textHighlighted)
+				opacity 1.0
+
+		> .visibility
+			margin 0 auto 0 0
+
+		> .secondary, .tertiary
+			display block
+			margin 0 2px
+			padding 0 10px
+			height 28px
+			color var(--text)
+			background: var(--buttonBg) !important
+			outline none
+			border none
+			border-radius 4px
+			transition background 0.1s ease
+			cursor pointer
+
+			&:hover
+				background var(--buttonHoverBg) !important
+
+			&:active
+				background var(--buttonActiveBg) !important
 
 		> .post
 			display block
-			margin 0 0 0 auto
 			padding 0 10px
+			margin-left 3px
 			height 28px
 			color var(--primaryForeground)
 			background var(--primary) !important

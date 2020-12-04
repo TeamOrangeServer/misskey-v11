@@ -2,6 +2,7 @@ import $ from 'cafy';
 import ID, { transform } from '../../../../misc/cafy-id';
 import Mute, { packMany } from '../../../../models/mute';
 import define from '../../define';
+import User from '../../../../models/user';
 
 export const meta = {
 	desc: {
@@ -9,11 +10,11 @@ export const meta = {
 		'en-US': 'Get muted users.'
 	},
 
-	tags: ['mute', 'account'],
+	tags: ['account'],
 
 	requireCredential: true,
 
-	kind: 'account/read',
+	kind: ['read:mutes', 'read:account', 'account-read', 'account/read'],
 
 	params: {
 		limit: {
@@ -41,8 +42,17 @@ export const meta = {
 };
 
 export default define(meta, async (ps, me) => {
+	const suspended = await User.find({
+		isSuspended: true
+	}, {
+		fields: {
+			_id: true
+		}
+	});
+
 	const query = {
-		muterId: me._id
+		muterId: me._id,
+		muteeId: { $nin: suspended.map(x => x._id) }
 	} as any;
 
 	const sort = {

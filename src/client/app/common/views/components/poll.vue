@@ -5,7 +5,7 @@
 			<div class="backdrop" :style="{ 'width': `${showResult ? (choice.votes / total * 100) : 0}%` }"></div>
 			<span>
 				<template v-if="choice.isVoted"><fa icon="check"/></template>
-				<mfm :text="choice.text" :should-break="false" :plain-text="true" :custom-emojis="note.emojis"/>
+				<mfm :text="choice.text" :plain="true" :custom-emojis="note.emojis"/>
 				<span class="votes" v-if="showResult">({{ $t('vote-count').replace('{}', choice.votes) }})</span>
 			</span>
 		</li>
@@ -46,9 +46,9 @@ export default Vue.extend({
 		},
 		timer(): string {
 			return this.$t(
-				this.remaining > 86400 ? 'remaining-days' :
-				this.remaining > 3600 ? 'remaining-hours' :
-				this.remaining > 60 ? 'remaining-minutes' : 'remaining-seconds')
+				this.remaining >= 86400 ? 'remaining-days' :
+				this.remaining >= 3600 ? 'remaining-hours' :
+				this.remaining >= 60 ? 'remaining-minutes' : 'remaining-seconds')
 				.replace('{s}', Math.floor(this.remaining % 60))
 				.replace('{m}', Math.floor(this.remaining / 60) % 60)
 				.replace('{h}', Math.floor(this.remaining / 3600) % 24)
@@ -90,7 +90,8 @@ export default Vue.extend({
 				}
 				if (!this.showResult) this.showResult = !this.poll.multiple;
 			});
-		}
+			this.$emit('voted');
+		},
 	}
 });
 </script>

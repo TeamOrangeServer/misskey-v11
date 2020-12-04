@@ -11,12 +11,14 @@ import NoteReaction from './note-reaction';
 import { packMany as packFileMany, IDriveFile } from './drive-file';
 import Following from './following';
 import Emoji from './emoji';
+import { packEmojis } from '../misc/pack-emojis';
 import { dbLogger } from '../db/logger';
-import { unique, concat } from '../prelude/array';
+import { decodeReaction, decodeReactionCounts } from '../misc/reaction-lib';
+import { parse } from '../mfm/parse';
+import { toString } from '../mfm/to-string';
 
 const Note = db.get<INote>('notes');
 Note.createIndex('uri', { sparse: true, unique: true });
-Note.createIndex('userId');
 Note.createIndex('mentions');
 Note.createIndex('visibleUserIds');
 Note.createIndex('replyId');
@@ -27,10 +29,16 @@ Note.createIndex('_files._id');
 Note.createIndex('_files.contentType');
 Note.createIndex({ createdAt: -1 });
 Note.createIndex({ score: -1 }, { sparse: true });
+Note.createIndex({ '_user.host': 1, replyId: 1, _id: -1 });
+Note.createIndex('mecabWords');
+Note.createIndex('trendWords');
+Note.createIndex({ 'userId': 1, _id: -1 });
+Note.dropIndex('userId').catch(() => {});
+
 export default Note;
 
 export function isValidCw(text: string): boolean {
-	return length(text.trim()) <= 100;
+	return length(text.trim()) <= 500;
 }
 
 export type INote = {
@@ -52,12 +60,14 @@ export type INote = {
 	appId: mongo.ObjectID;
 	viaMobile: boolean;
 	localOnly: boolean;
+	copyOnce?: boolean;
 	renoteCount: number;
 	repliesCount: number;
 	reactionCounts: Record<string, number>;
 	mentions: mongo.ObjectID[];
 	mentionedRemoteUsers: {
 		uri: string;
+		url?: string;
 		username: string;
 		host: string;
 	}[];
@@ -81,12 +91,26 @@ export type INote = {
 		speed: number;
 	};
 
-	uri: string;
+	/**
+	 * AP Object ID
+	 */
+	uri?: string;
+
+	/**
+	 * AP url
+	 */
+	url?: string;
 
 	/**
 	 * 人気の投稿度合いを表すスコア
 	 */
 	score: number;
+
+	/**
+	 * MeCab index
+	 */
+	mecabWords?: string[];
+	trendWords?: string[];
 
 	// 非正規化
 	_reply?: {
@@ -170,6 +194,15 @@ export const hideNote = async (packedNote: any, meId: mongo.ObjectID) => {
 	if (hide) {
 		packedNote.fileIds = [];
 		packedNote.files = [];
+		packedNote.mediaIds = [];
+		packedNote.media = [];
+		packedNote.replyId = null;
+		packedNote.reply = [];
+		packedNote.appId = null;
+		packedNote.visibleUserIds = null;
+		packedNote.reactionCounts = {};
+		packedNote.renoteCount = 0;
+		packedNote.repliesCount = 0;
 		packedNote.text = null;
 		packedNote.poll = null;
 		packedNote.cw = null;
@@ -179,15 +212,17 @@ export const hideNote = async (packedNote: any, meId: mongo.ObjectID) => {
 	}
 };
 
-export const packMany = (
+export const packMany = async (
 	notes: (string | mongo.ObjectID | INote)[],
 	me?: string | mongo.ObjectID | IUser,
 	options?: {
 		detail?: boolean;
 		skipHide?: boolean;
+		removeError?: boolean;
 	}
 ) => {
-	return Promise.all(notes.map(n => pack(n, me, options)));
+	const items = await Promise.all(notes.map(n => pack(n, me, options)));
+	return (options && options.removeError) ? items.filter(x => x != null) : items;
 };
 
 /**
@@ -246,7 +281,9 @@ export const pack = async (
 	// Some counts
 	_note.renoteCount = _note.renoteCount || 0;
 	_note.repliesCount = _note.repliesCount || 0;
-	_note.reactionCounts = _note.reactionCounts || {};
+	_note.reactionCounts = _note.reactionCounts ? decodeReactionCounts(_note.reactionCounts) : {};
+	_note.reactions = _note.reactionCounts;
+	_note.score = _note.score || 0;
 
 	// _note._userを消す前か、_note.userを解決した後でないとホストがわからない
 	if (_note._user) {
@@ -259,13 +296,13 @@ export const pack = async (
 				fields: { _id: false }
 			});
 		} else {
-			_note.emojis = unique(concat([_note.emojis, Object.keys(_note.reactionCounts).map(x => x.replace(/:/g, ''))]));
-
-			_note.emojis = Emoji.find({
-				name: { $in: _note.emojis },
-				host: host
-			}, {
-				fields: { _id: false }
+			_note.emojis = packEmojis(_note.emojis, host,
+				Object.keys(_note.reactionCounts)
+					.map(x => decodeReaction(x))
+					.map(x => x.replace(/:/g, '')))
+			.catch(e => {
+				console.warn(e);
+				return [];
 			});
 		}
 	}
@@ -277,7 +314,8 @@ export const pack = async (
 	delete _note.prev;
 	delete _note.next;
 	delete _note.tagsLower;
-	delete _note.score;
+	delete _note.mecabWords;
+	delete _note.trendWords;
 	delete _note._user;
 	delete _note._reply;
 	delete _note._renote;
@@ -365,10 +403,26 @@ export const pack = async (
 					});
 
 				if (reaction) {
-					return reaction.reaction;
+					return decodeReaction(reaction.reaction);
 				}
 
 				return null;
+			})();
+
+			// Fetch my renote
+			_note.myRenoteId = (async () => {
+				const renote = await Note.findOne({
+					userId: meId,
+					renoteId: _note.id,
+					text: null,
+					poll: null,
+					'fileIds.0': { $exists: false },
+					deletedAt: { $exists: false }
+				}, {
+					_id: 1
+				});
+
+				return renote ? renote._id : null;
 			})();
 		}
 	}
@@ -395,19 +449,17 @@ export const pack = async (
 	}
 	//#endregion
 
-	if (_note.name) {
-		_note.text = `【${_note.name}】\n${_note.text}`;
+	if (_note.user.isCat && _note.text) {
+		try {
+			const tokens = _note.text ? parse(_note.text) : [];
+			_note.text = toString(tokens, { doNyaize: true });
+		} catch (e) {
+			console.log(e);
+		}
 	}
 
-	if (_note.user.isCat && _note.text) {
-		_note.text = (_note.text
-			// ja-JP
-			.replace(/な/g, 'にゃ').replace(/ナ/g, 'ニャ').replace(/ﾅ/g, 'ﾆｬ')
-			// ko-KR
-			.replace(/[나-낳]/g, (match: string) => String.fromCharCode(
-				match.codePointAt(0)  + '냐'.charCodeAt(0) - '나'.charCodeAt(0)
-			))
-		);
+	if (_note.name && (_note.url || _note.uri)) {
+		_note.text = `【${_note.name}】\n${(_note.text || '').trim()}\n\n${_note.url || _note.uri}`;
 	}
 
 	if (!opts.skipHide) {

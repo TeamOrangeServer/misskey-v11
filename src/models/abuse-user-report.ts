@@ -24,9 +24,9 @@ export const packMany = (
 	return Promise.all(reports.map(x => pack(x)));
 };
 
-export const pack = (
+export const pack = async (
 	report: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _report: any;
 
 	if (isObjectId(report)) {
@@ -48,5 +48,5 @@ export const pack = (
 	_report.reporter = await packUser(_report.reporterId, null, { detail: true });
 	_report.user = await packUser(_report.userId, null, { detail: true });
 
-	resolve(_report);
-});
+	return _report;
+};

@@ -5,9 +5,10 @@ import isObjectId from '../misc/is-objectid';
 import { pack as packUser } from './user';
 
 const NoteReaction = db.get<INoteReaction>('noteReactions');
-NoteReaction.createIndex('noteId');
-NoteReaction.createIndex('userId');
-NoteReaction.createIndex(['userId', 'noteId'], { unique: true });
+NoteReaction.createIndex(['noteId', 'userId'], { unique: true });
+NoteReaction.dropIndex('noteId').catch(() => {});
+NoteReaction.dropIndex('userId').catch(() => {});
+NoteReaction.dropIndex(['userId', 'noteId'], { unique: true }).catch(() => {});
 export default NoteReaction;
 
 export interface INoteReaction {
@@ -16,15 +17,16 @@ export interface INoteReaction {
 	noteId: mongo.ObjectID;
 	userId: mongo.ObjectID;
 	reaction: string;
+	dislike?: boolean;
 }
 
 /**
  * Pack a reaction for API response
  */
-export const pack = (
+export const pack = async (
 	reaction: any,
 	me?: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _reaction: any;
 
 	// Populate the reaction if 'reaction' is ID
@@ -47,5 +49,5 @@ export const pack = (
 	// Populate user
 	_reaction.user = await packUser(_reaction.userId, me);
 
-	resolve(_reaction);
-});
+	return _reaction;
+};

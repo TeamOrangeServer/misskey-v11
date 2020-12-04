@@ -14,15 +14,19 @@ const index = {
 				}
 			},
 			analyzer: {
-				bigram: {
-					tokenizer: 'bigram_tokenizer'
+				ngram_ja : {
+					type: 'custom',
+					tokenizer: 'ngram_ja_tokenizer',
+					char_filter : ['html_strip'],
+					filter: ['cjk_width', 'lowercase']
 				}
 			},
 			tokenizer: {
-				bigram_tokenizer: {
+				ngram_ja_tokenizer: {
 					type: 'nGram',
 					min_gram: 2,
-					max_gram: 2
+					max_gram: 3,
+					token_chars: ['letter', 'digit']
 				}
 			}
 		}
@@ -33,8 +37,7 @@ const index = {
 				text: {
 					type: 'text',
 					index: true,
-					analyzer: 'bigram',
-					normalizer: 'lowercase_normalizer'
+					analyzer: 'ngram_ja'
 				}
 			}
 		}

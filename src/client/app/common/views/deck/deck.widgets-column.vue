@@ -13,17 +13,16 @@
 					<option value="activity">{{ $t('@.widgets.activity') }}</option>
 					<option value="rss">{{ $t('@.widgets.rss') }}</option>
 					<option value="trends">{{ $t('@.widgets.trends') }}</option>
-					<option value="photo-stream">{{ $t('@.widgets.photo-stream') }}</option>
 					<option value="slideshow">{{ $t('@.widgets.slideshow') }}</option>
 					<option value="version">{{ $t('@.widgets.version') }}</option>
 					<option value="broadcast">{{ $t('@.widgets.broadcast') }}</option>
 					<option value="notifications">{{ $t('@.widgets.notifications') }}</option>
-					<option value="users">{{ $t('@.widgets.users') }}</option>
 					<option value="polls">{{ $t('@.widgets.polls') }}</option>
 					<option value="post-form">{{ $t('@.widgets.post-form') }}</option>
 					<option value="messaging">{{ $t('@.widgets.messaging') }}</option>
 					<option value="memo">{{ $t('@.widgets.memo') }}</option>
 					<option value="hashtags">{{ $t('@.widgets.hashtags') }}</option>
+					<option value="words">{{ $t('@.widgets.words') }}</option>
 					<option value="posts-monitor">{{ $t('@.widgets.posts-monitor') }}</option>
 					<option value="server">{{ $t('@.widgets.server') }}</option>
 					<option value="queue">{{ $t('@.widgets.queue') }}</option>
@@ -53,8 +52,8 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import XColumn from './deck.column.vue';
-import * as XDraggable from 'vuedraggable';
-import * as uuid from 'uuid';
+import XDraggable from 'vuedraggable';
+import { v4 as uuid } from 'uuid';
 
 export default Vue.extend({
 	i18n: i18n(),
@@ -92,7 +91,7 @@ export default Vue.extend({
 	created() {
 		this.menu = [{
 			icon: 'cog',
-			text: this.$t('edit'),
+			text: this.$t('@.edit'),
 			action: () => {
 				this.edit = !this.edit;
 			}

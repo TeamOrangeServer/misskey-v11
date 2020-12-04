@@ -9,8 +9,8 @@
 	<!-- トランジションを有効にするとなぜかメモリリークする -->
 	<component :is="!$store.state.device.reduceMotion ? 'transition-group' : 'div'" name="mk-notifications" class="transition notifications" tag="div">
 		<template v-for="(notification, i) in _notifications">
-			<x-notification class="notification" :notification="notification" :key="notification.id"/>
-			<p class="date" v-if="i != notifications.length - 1 && notification._date != _notifications[i + 1]._date" :key="notification.id + '-time'">
+			<x-notification v-if="notification" class="notification" :notification="notification" :key="notification.id"/>
+			<p class="date" v-if="i != notifications.length - 1 && notification && _notifications[i + 1] && notification._date != _notifications[i + 1]._date" :key="notification.id + '-time'">
 				<span><fa icon="angle-up"/>{{ notification._datetext }}</span>
 				<span><fa icon="angle-down"/>{{ _notifications[i + 1]._datetext }}</span>
 			</p>
@@ -19,7 +19,7 @@
 	<button class="more" :class="{ fetching: fetchingMoreNotifications }" v-if="moreNotifications" @click="fetchMoreNotifications" :disabled="fetchingMoreNotifications">
 		<template v-if="fetchingMoreNotifications"><fa icon="spinner" pulse fixed-width/></template>{{ fetchingMoreNotifications ? this.$t('@.loading') : this.$t('@.load-more') }}
 	</button>
-	<p class="empty" v-if="notifications.length == 0 && !fetching">{{ $t('empty') }}</p>
+	<p class="empty" v-if="notifications.length == 0 && !fetching">{{ $t('@.empty') }}</p>
 </div>
 </template>
 
@@ -27,6 +27,7 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import XNotification from './deck.notification.vue';
+import * as config from '../../../config';
 
 const displayLimit = 20;
 
@@ -38,9 +39,16 @@ export default Vue.extend({
 
 	inject: ['column', 'isScrollTop', 'count'],
 
+	props: {
+		type: {
+			type: String,
+			required: false
+		}
+	},
+
 	data() {
 		return {
-			fetching: true,
+			fetching: false,
 			fetchingMoreNotifications: false,
 			notifications: [],
 			queue: [],
@@ -52,6 +60,7 @@ export default Vue.extend({
 	computed: {
 		_notifications(): any[] {
 			return (this.notifications as any).map(notification => {
+				if (notification == null) return null;
 				const date = new Date(notification.createdAt).getDate();
 				const month = new Date(notification.createdAt).getMonth() + 1;
 				notification._date = date;
@@ -64,6 +73,10 @@ export default Vue.extend({
 	watch: {
 		queue(q) {
 			this.count(q.length);
+		},
+
+		type() {
+			this.reload();
 		}
 	},
 
@@ -75,19 +88,7 @@ export default Vue.extend({
 		this.column.$on('top', this.onTop);
 		this.column.$on('bottom', this.onBottom);
 
-		const max = 10;
-
-		this.$root.api('i/notifications', {
-			limit: max + 1
-		}).then(notifications => {
-			if (notifications.length == max + 1) {
-				this.moreNotifications = true;
-				notifications.pop();
-			}
-
-			this.notifications = notifications;
-			this.fetching = false;
-		});
+		this.reload();
 	},
 
 	beforeDestroy() {
@@ -98,14 +99,36 @@ export default Vue.extend({
 	},
 
 	methods: {
+		reload() {
+			this.fetching = true;
+
+			const max = 10;
+
+			this.$root.api('i/notifications', {
+				includeTypes: this.type ? [this.type] : undefined,
+				limit: max + 1
+			}).then(notifications => {
+				if (notifications.length == max + 1) {
+					this.moreNotifications = true;
+					notifications.pop();
+				}
+
+				this.notifications = notifications;
+				this.fetching = false;
+			});
+		},
+
 		fetchMoreNotifications() {
 			this.fetchingMoreNotifications = true;
 
 			const max = 20;
 
+			const last = this.notifications.filter(x => x).pop();
+
 			this.$root.api('i/notifications', {
+				includeTypes: this.type ? [this.type] : undefined,
 				limit: max + 1,
-				untilId: this.notifications[this.notifications.length - 1].id
+				untilId: last.id
 			}).then(notifications => {
 				if (notifications.length == max + 1) {
 					this.moreNotifications = true;
@@ -125,6 +148,11 @@ export default Vue.extend({
 			});
 
 			this.prepend(notification);
+
+			// タブが非表示ならタイトルで通知
+			if (document.hidden) {
+				this.$store.commit('pushBehindNotification', notification);
+			}
 		},
 
 		prepend(notification) {
@@ -138,6 +166,13 @@ export default Vue.extend({
 				}
 			} else {
 				this.queue.push(notification);
+			}
+
+			// サウンドを再生する
+			if (this.$store.state.device.enableSounds && this.$store.state.device.enableSoundsInNotifications) {
+				const sound = new Audio(`${config.url}/assets/piko.mp3`);
+				sound.volume = this.$store.state.device.soundVolume;
+				sound.play();
 			}
 		},
 
@@ -175,10 +210,6 @@ export default Vue.extend({
 		opacity 0.3
 
 	> .notifications
-
-		> .notification:not(:last-child)
-			border-bottom solid var(--lineWidth) var(--faceDivider)
-
 		> .date
 			display block
 			margin 0
@@ -187,7 +218,6 @@ export default Vue.extend({
 			font-size 12px
 			color var(--dateDividerFg)
 			background var(--dateDividerBg)
-			border-bottom solid var(--lineWidth) var(--faceDivider)
 
 			span
 				margin 0 16px

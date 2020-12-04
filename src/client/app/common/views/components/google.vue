@@ -1,6 +1,6 @@
 <template>
 <div class="mk-google">
-	<input type="search" v-model="query" :placeholder="q">
+	<input type="search" v-model="query" :placeholder="q" readonly>
 	<button @click="search"><fa icon="search"/> {{ $t('@.search') }}</button>
 </div>
 </template>
@@ -22,9 +22,8 @@ export default Vue.extend({
 	},
 	methods: {
 		search() {
-			const engine = this.$store.state.settings.webSearchEngine ||
-				'https://www.google.com/?#q={{query}}';
-			const url = engine.replace('{{query}}', this.query)
+			const engine = 'https://www.google.com/search?q={{query}}';
+			const url = engine.replace('{{query}}', encodeURIComponent(this.query))
 			window.open(url, '_blank');
 		}
 	}
@@ -41,7 +40,6 @@ export default Vue.extend({
 		padding 10px
 		width 100%
 		height 40px
-		font-family sans-serif
 		font-size 16px
 		color var(--googleSearchFg)
 		background var(--googleSearchBg)

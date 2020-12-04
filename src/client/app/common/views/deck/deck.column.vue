@@ -1,5 +1,5 @@
 <template>
-<div class="dnpfarvgbnfmyzbdquhhzyxcmstpdqzs" :class="{ naked, narrow, active, isStacked, draghover, dragging, dropready, isMobile: $root.isMobile, shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }"
+<div class="dnpfarvgbnfmyzbdquhhzyxcmstpdqzs" :class="{ naked, narrow, active, isStacked, draghover, dragging, dropready, isMobile: $root.isMobile }"
 		@dragover.prevent.stop="onDragover"
 		@dragleave="onDragleave"
 		@drop.prevent.stop="onDrop"
@@ -14,7 +14,7 @@
 			<template v-if="active"><fa icon="angle-up"/></template>
 			<template v-else><fa icon="angle-down"/></template>
 		</button>
-		<span><slot name="header"></slot></span>
+		<span class="header"><slot name="header"></slot></span>
 		<span class="count" v-if="count > 0">({{ count }})</span>
 		<button v-if="!isTemporaryColumn" class="menu" ref="menu" @click.stop="showMenu"><fa icon="caret-down"/></button>
 		<button v-else class="close" @click.stop="close"><fa icon="times"/></button>
@@ -323,12 +323,7 @@ export default Vue.extend({
 	height 100%
 	background var(--face)
 	overflow hidden
-
-	&.round
-		border-radius 6px
-
-	&.shadow
-		box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
+	border-radius 6px
 
 	&.draghover
 		box-shadow 0 0 0 2px var(--primaryAlpha08)
@@ -382,7 +377,6 @@ export default Vue.extend({
 		font-size 14px
 		color var(--faceHeaderText)
 		background var(--faceHeader)
-		box-shadow 0 var(--lineWidth) rgba(#000, 0.15)
 		cursor pointer
 
 		&, *
@@ -394,13 +388,22 @@ export default Vue.extend({
 		&.indicate
 			box-shadow 0 3px 0 0 var(--primary)
 
-		> span
+		> .header
+			display inline-block
+			align-items center
+			overflow hidden
+			text-overflow ellipsis
+			white-space nowrap
+
 			[data-icon]
 				margin-right 8px
 
 		> .count
 			margin-left 4px
 			opacity 0.5
+		
+		> span:only-of-type
+			width 100%
 
 		> .toggleActive
 		> .menu

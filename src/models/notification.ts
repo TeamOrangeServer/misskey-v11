@@ -5,9 +5,11 @@ import isObjectId from '../misc/is-objectid';
 import { IUser, pack as packUser } from './user';
 import { pack as packNote } from './note';
 import { dbLogger } from '../db/logger';
+import { decodeReaction } from '../misc/reaction-lib';
 
 const Notification = db.get<INotification>('notifications');
 Notification.createIndex('notifieeId');
+Notification.createIndex('noteId', { sparse: true });
 export default Notification;
 
 export interface INotification {
@@ -44,12 +46,20 @@ export interface INotification {
 	 * reaction - (自分または自分がWatchしている)投稿にリアクションされた
 	 * poll_vote - (自分または自分がWatchしている)投稿の投票に投票された
 	 */
-	type: 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'poll_vote';
+	type: 'follow' | 'mention' | 'reply' | 'renote' | 'quote' | 'reaction' | 'poll_vote' | 'poll_finished' | 'highlight';
 
 	/**
 	 * 通知が読まれたかどうか
 	 */
 	isRead: boolean;
+
+	/**
+	 * mention/reply/renote/quote/highlightの場合notifierのNoteId
+	 * reaction/poll_voteの場合notifieeのNoteId
+	 */
+	noteId?: mongo.ObjectID;
+
+	choice?: number;
 }
 
 export const packMany = (
@@ -61,7 +71,7 @@ export const packMany = (
 /**
  * Pack a notification for API response
  */
-export const pack = (notification: any) => new Promise<any>(async (resolve, reject) => {
+export const pack = async (notification: any) => {
 	let _notification: any;
 
 	// Populate the notification if 'notification' is ID
@@ -102,13 +112,17 @@ export const pack = (notification: any) => new Promise<any>(async (resolve, reje
 		case 'quote':
 		case 'reaction':
 		case 'poll_vote':
+		case 'highlight':
+		case 'poll_finished':
 			// Populate note
 			_notification.note = await packNote(_notification.noteId, me);
 
 			// (データベースの不具合などで)投稿が見つからなかったら
 			if (_notification.note == null) {
 				dbLogger.warn(`[DAMAGED DB] (missing) pkg: notification -> note :: ${_notification.id} (note ${_notification.noteId})`);
-				return resolve(null);
+				_notification.type = '_missing_';
+				delete _notification.noteId;
+				delete _notification.note;
 			}
 			break;
 		default:
@@ -116,5 +130,7 @@ export const pack = (notification: any) => new Promise<any>(async (resolve, reje
 			break;
 	}
 
-	resolve(_notification);
-});
+	if (_notification.reaction) _notification.reaction = decodeReaction(_notification.reaction);
+
+	return _notification;
+};

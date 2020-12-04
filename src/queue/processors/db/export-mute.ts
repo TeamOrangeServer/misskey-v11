@@ -4,20 +4,25 @@ import * as fs from 'fs';
 import * as mongo from 'mongodb';
 
 import { queueLogger } from '../../logger';
-import addFile from '../../../services/drive/add-file';
+import { addFile } from '../../../services/drive/add-file';
 import User from '../../../models/user';
 import dateFormat = require('dateformat');
 import Mute from '../../../models/mute';
 import { getFullApAccount } from '../../../misc/convert-host';
+import { DbUserJobData } from '../..';
 
 const logger = queueLogger.createSubLogger('export-mute');
 
-export async function exportMute(job: Bull.Job, done: any): Promise<void> {
+export async function exportMute(job: Bull.Job<DbUserJobData>): Promise<string> {
 	logger.info(`Exporting mute of ${job.data.user._id} ...`);
 
 	const user = await User.findOne({
 		_id: new mongo.ObjectID(job.data.user._id.toString())
 	});
+
+	if (user == null) {
+		return `skip: user not found`;
+	}
 
 	// Create temp file
 	const [path, cleanup] = await new Promise<[string, any]>((res, rej) => {
@@ -33,6 +38,10 @@ export async function exportMute(job: Bull.Job, done: any): Promise<void> {
 
 	let exportedCount = 0;
 	let cursor: any = null;
+
+	const total = await Mute.count({
+		muterId: user._id,
+	});
 
 	while (true) {
 		const mutes = await Mute.find({
@@ -54,6 +63,7 @@ export async function exportMute(job: Bull.Job, done: any): Promise<void> {
 
 		for (const mute of mutes) {
 			const u = await User.findOne({ _id: mute.muteeId }, { fields: { username: true, host: true } });
+			if (u == null) continue;	// DB blocken ?
 			const content = getFullApAccount(u.username, u.host);
 			await new Promise((res, rej) => {
 				stream.write(content + '\n', err => {
@@ -68,10 +78,6 @@ export async function exportMute(job: Bull.Job, done: any): Promise<void> {
 			exportedCount++;
 		}
 
-		const total = await Mute.count({
-			muterId: user._id,
-		});
-
 		job.progress(exportedCount / total);
 	}
 
@@ -79,9 +85,8 @@ export async function exportMute(job: Bull.Job, done: any): Promise<void> {
 	logger.succ(`Exported to: ${path}`);
 
 	const fileName = 'mute-' + dateFormat(new Date(), 'yyyy-mm-dd-HH-MM-ss') + '.csv';
-	const driveFile = await addFile(user, path, fileName, null, null, true);
+	const driveFile = await addFile(user, path, fileName, undefined, undefined, true);
 
-	logger.succ(`Exported to: ${driveFile._id}`);
 	cleanup();
-	done();
+	return `Exported to: ${driveFile._id}`;
 }

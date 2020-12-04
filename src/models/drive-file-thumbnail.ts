@@ -1,11 +1,11 @@
 import * as mongo from 'mongodb';
-import monkDb, { nativeDbConn } from '../db/mongodb';
+import db, { nativeDbConn } from '../db/mongodb';
 
-const DriveFileThumbnail = monkDb.get<IDriveFileThumbnail>('driveFileThumbnails.files');
+const DriveFileThumbnail = db.get<IDriveFileThumbnail>('driveFileThumbnails.files');
 DriveFileThumbnail.createIndex('metadata.originalId', { sparse: true, unique: true });
 export default DriveFileThumbnail;
 
-export const DriveFileThumbnailChunk = monkDb.get('driveFileThumbnails.chunks');
+export const DriveFileThumbnailChunk = db.get('driveFileThumbnails.chunks');
 
 export const getDriveFileThumbnailBucket = async (): Promise<mongo.GridFSBucket> => {
 	const db = await nativeDbConn();

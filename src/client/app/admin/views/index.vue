@@ -9,27 +9,27 @@
 		@click="navOpend = false"
 		@touchstart="navOpend = false"
 	></div>
-	<nav v-show="navOpend">
+	<nav v-show="navOpend" @click="navOpend = !isMobile">
 		<div class="mi">
 			<img svg-inline src="../assets/header-icon.svg"/>
 		</div>
-		<div class="me">
+		<div class="me" v-if="$store.state.i != null">
 			<img class="avatar" :src="$store.state.i.avatarUrl" alt="avatar"/>
 			<p class="name"><mk-user-name :user="$store.state.i"/></p>
 		</div>
 		<ul>
-			<li @click="nav('dashboard')" :class="{ active: page == 'dashboard' }"><fa icon="home" fixed-width/>{{ $t('dashboard') }}</li>
-			<li @click="nav('instance')" :class="{ active: page == 'instance' }"><fa icon="cog" fixed-width/>{{ $t('instance') }}</li>
-			<li @click="nav('queue')" :class="{ active: page == 'queue' }"><fa :icon="faTasks" fixed-width/>{{ $t('queue') }}</li>
-			<li @click="nav('logs')" :class="{ active: page == 'logs' }"><fa :icon="faStream" fixed-width/>{{ $t('logs') }}</li>
-			<li @click="nav('moderators')" :class="{ active: page == 'moderators' }"><fa :icon="faHeadset" fixed-width/>{{ $t('moderators') }}</li>
-			<li @click="nav('users')" :class="{ active: page == 'users' }"><fa icon="users" fixed-width/>{{ $t('users') }}</li>
-			<li @click="nav('drive')" :class="{ active: page == 'drive' }"><fa icon="cloud" fixed-width/>{{ $t('@.drive') }}</li>
-			<li @click="nav('federation')" :class="{ active: page == 'federation' }"><fa :icon="faGlobe" fixed-width/>{{ $t('federation') }}</li>
-			<li @click="nav('emoji')" :class="{ active: page == 'emoji' }"><fa :icon="faGrin" fixed-width/>{{ $t('emoji') }}</li>
-			<li @click="nav('announcements')" :class="{ active: page == 'announcements' }"><fa icon="broadcast-tower" fixed-width/>{{ $t('announcements') }}</li>
-			<li @click="nav('hashtags')" :class="{ active: page == 'hashtags' }"><fa icon="hashtag" fixed-width/>{{ $t('hashtags') }}</li>
-			<li @click="nav('abuse')" :class="{ active: page == 'abuse' }"><fa :icon="faExclamationCircle" fixed-width/>{{ $t('abuse') }}</li>
+			<li><router-link to="/dashboard" active-class="active"><fa icon="home" fixed-width/>{{ $t('dashboard') }}</router-link></li>
+			<li><router-link to="/instance" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa icon="cog" fixed-width/>{{ $t('instance') }}</router-link></li>
+			<li><router-link to="/queue" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa :icon="faTasks" fixed-width/>{{ $t('queue') }}</router-link></li>
+			<li><router-link to="/moderators" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa :icon="faHeadset" fixed-width/>{{ $t('moderators') }}</router-link></li>
+			<li><router-link to="/users" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa icon="users" fixed-width/>{{ $t('users') }}</router-link></li>
+			<li><router-link to="/drive" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa icon="cloud" fixed-width/>{{ $t('@.drive') }}</router-link></li>
+			<li><router-link to="/federation" active-class="active"><fa :icon="faGlobe" fixed-width/>{{ $t('federation') }}</router-link></li>
+			<li><router-link to="/relays" active-class="active"><fa :icon="faProjectDiagram" fixed-width/>{{ $t('relays') }}</router-link></li>
+			<li><router-link to="/emoji" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa :icon="faGrin" fixed-width/>{{ $t('emoji') }}</router-link></li>
+			<li><router-link to="/announcements" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa icon="broadcast-tower" fixed-width/>{{ $t('announcements') }}</router-link></li>
+			<li><router-link to="/hashtags" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa icon="hashtag" fixed-width/>{{ $t('hashtags') }}</router-link></li>
+			<li><router-link to="/abuse" active-class="active" v-if="$store.getters.isAdminOrModerator"><fa :icon="faExclamationCircle" fixed-width/>{{ $t('abuse') }}</router-link></li>
 		</ul>
 		<div class="back-to-misskey">
 			<a href="/"><fa :icon="faArrowLeft"/> {{ $t('back-to-misskey') }}</a>
@@ -43,7 +43,6 @@
 			<div v-if="page == 'dashboard'"><x-dashboard/></div>
 			<div v-if="page == 'instance'"><x-instance/></div>
 			<div v-if="page == 'queue'"><x-queue/></div>
-			<div v-if="page == 'logs'"><x-logs/></div>
 			<div v-if="page == 'moderators'"><x-moderators/></div>
 			<div v-if="page == 'users'"><x-users/></div>
 			<div v-if="page == 'emoji'"><x-emoji/></div>
@@ -51,6 +50,7 @@
 			<div v-if="page == 'hashtags'"><x-hashtags/></div>
 			<div v-if="page == 'drive'"><x-drive/></div>
 			<div v-if="page == 'federation'"><x-federation/></div>
+			<div v-if="page == 'relays'"><x-relays/></div>
 			<div v-if="page == 'abuse'"><x-abuse/></div>
 		</div>
 	</main>
@@ -64,7 +64,6 @@ import { version } from '../../config';
 import XDashboard from "./dashboard.vue";
 import XInstance from "./instance.vue";
 import XQueue from "./queue.vue";
-import XLogs from "./logs.vue";
 import XModerators from "./moderators.vue";
 import XEmoji from "./emoji.vue";
 import XAnnouncements from "./announcements.vue";
@@ -73,8 +72,9 @@ import XUsers from "./users.vue";
 import XDrive from "./drive.vue";
 import XAbuse from "./abuse.vue";
 import XFederation from "./federation.vue";
+import XRelays from "./relays.vue";
 
-import { faHeadset, faArrowLeft, faGlobe, faExclamationCircle, faTasks, faStream } from '@fortawesome/free-solid-svg-icons';
+import { faHeadset, faArrowLeft, faGlobe, faProjectDiagram, faExclamationCircle, faTasks, faStream } from '@fortawesome/free-solid-svg-icons';
 import { faGrin } from '@fortawesome/free-regular-svg-icons';
 
 // Detect the user agent
@@ -87,7 +87,6 @@ export default Vue.extend({
 		XDashboard,
 		XInstance,
 		XQueue,
-		XLogs,
 		XModerators,
 		XEmoji,
 		XAnnouncements,
@@ -96,13 +95,13 @@ export default Vue.extend({
 		XDrive,
 		XAbuse,
 		XFederation,
+		XRelays,
 	},
 	provide: {
 		isMobile
 	},
 	data() {
 		return {
-			page: 'dashboard',
 			version,
 			isMobile,
 			navOpend: !isMobile,
@@ -110,14 +109,15 @@ export default Vue.extend({
 			faArrowLeft,
 			faHeadset,
 			faGlobe,
+			faProjectDiagram,
 			faExclamationCircle,
 			faTasks,
 			faStream
 		};
 	},
-	methods: {
-		nav(page: string) {
-			this.page = page;
+	computed: {
+		page() {
+			return this.$route.params.page;
 		}
 	}
 });
@@ -239,11 +239,10 @@ export default Vue.extend({
 			list-style none
 			font-size 15px
 
-			> li
+			> li > a
 				display block
 				padding 10px 16px
 				margin 0
-				cursor pointer
 				user-select none
 				color #eee
 				transition margin-left 0.2s ease

@@ -9,6 +9,7 @@ import Vue from 'vue';
 import i18n from '../../../i18n';
 import { faExclamationCircle, faMicrophoneSlash } from '@fortawesome/free-solid-svg-icons';
 import { faSnowflake } from '@fortawesome/free-regular-svg-icons';
+import { faUserTag } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('common/views/components/user-menu.vue'),
@@ -22,28 +23,42 @@ export default Vue.extend({
 			action: () => {
 				this.$post({ mention: this.user });
 			}
-		}, null, {
-			icon: ['fas', 'list'],
-			text: this.$t('push-to-list'),
-			action: this.pushList
 		}] as any;
 		
+		// ログインユーザー
 		if (this.$store.getters.isSignedIn && this.$store.state.i.id != this.user.id) {
-			menu = menu.concat([null, {
-				icon: this.user.isMuted ? ['fas', 'eye'] : ['far', 'eye-slash'],
-				text: this.user.isMuted ? this.$t('unmute') : this.$t('mute'),
-				action: this.toggleMute
-			}, {
-				icon: 'ban',
-				text: this.user.isBlocking ? this.$t('unblock') : this.$t('block'),
-				action: this.toggleBlock
-			}, null, {
-				icon: faExclamationCircle,
-				text: this.$t('report-abuse'),
-				action: this.reportAbuse
-			}]);
+			menu = menu.concat([
+				null,
+				{
+					icon: faUserTag,
+					text: this.$t('@.addUsertag'),
+					action: this.addUsertag
+				},
+				{
+					icon: this.user.isHideRenoting ? ['fas', 'eye'] : ['far', 'eye-slash'],
+					text: this.user.isHideRenoting ? this.$t('unhide-renote') : this.$t('hide-renote'),
+					action: this.toggleHideRenote
+				},
+				{
+					icon: this.user.isMuted ? ['fas', 'eye'] : ['far', 'eye-slash'],
+					text: this.user.isMuted ? this.$t('unmute') : this.$t('mute'),
+					action: this.toggleMute
+				},
+				{
+					icon: 'ban',
+					text: this.user.isBlocking ? this.$t('unblock') : this.$t('block'),
+					action: this.toggleBlock
+				},
+				null,
+				{
+					icon: faExclamationCircle,
+					text: this.$t('report-abuse'),
+					action: this.reportAbuse
+				}
+			]);
 		}
 
+		// Admin or Moderator
 		if (this.$store.getters.isSignedIn && (this.$store.state.i.isAdmin || this.$store.state.i.isModerator)) {
 			menu = menu.concat([null, {
 				icon: faMicrophoneSlash,
@@ -68,28 +83,55 @@ export default Vue.extend({
 			});
 		},
 
-		async pushList() {
-			const t = this.$t('select-list'); // なぜか後で参照すると null になるので最初にメモリに確保しておく
-			const lists = await this.$root.api('users/lists/list');
-			const { canceled, result: listId } = await this.$root.dialog({
-				type: null,
-				title: t,
-				select: {
-					items: lists.map(list => ({
-						value: list.id, text: list.title
-					}))
-				},
-				showCancelButton: true
+		async addUsertag() {
+			const { canceled, result: tag } = await this.$root.dialog({
+				title: this.$t('@.addUsertag'),
+				text: this.$t('@.addUsertagDetail'),
+				input: true
 			});
+
 			if (canceled) return;
-			await this.$root.api('users/lists/push', {
-				listId: listId,
-				userId: this.user.id
+
+			this.$root.api('usertags/add', {
+				targetId: this.user.id,
+				tag
+			}).then(() => {
+				this.$root.dialog({
+					type: 'success',
+					splash: true
+				});
+			}, e => {
+				this.$root.dialog({
+					type: 'error',
+					text: e
+				});
 			});
-			this.$root.dialog({
-				type: 'success',
-				splash: true
-			});
+		},
+
+		async toggleHideRenote() {
+			if (this.user.isHideRenoting) {
+				if (!await this.getConfirmed(this.$t('unhide-renote-confirm'))) return;
+
+				this.$root.api('user-filter/update', {
+					targetId: this.user.id,
+					hideRenote: false,
+				}).then(() => {
+					this.user.isHideRenoting = false;
+				}, (e: any) => {
+					this.$root.dialog({ type: 'error', text: e });
+				});
+			} else {
+				if (!await this.getConfirmed(this.$t('hide-renote-confirm'))) return;
+
+				this.$root.api('user-filter/update', {
+					targetId: this.user.id,
+					hideRenote: true,
+				}).then(() => {
+					this.user.isHideRenoting = true;
+				}, (e: any) => {
+					this.$root.dialog({ type: 'error', text: e });
+				});
+			}
 		},
 
 		async toggleMute() {

@@ -6,14 +6,14 @@
 			<div class="top">
 				<p class="name"><fa icon="spinner" pulse/>{{ ctx.name }}</p>
 				<p class="status">
-					<span class="initing" v-if="ctx.progress == undefined">{{ $t('waiting') }}<mk-ellipsis/></span>
-					<span class="kb" v-if="ctx.progress != undefined">{{ String(Math.floor(ctx.progress.value / 1024)).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,') }}<i>KB</i> / {{ String(Math.floor(ctx.progress.max / 1024)).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,') }}<i>KB</i></span>
-					<span class="percentage" v-if="ctx.progress != undefined">{{ Math.floor((ctx.progress.value / ctx.progress.max) * 100) }}</span>
+					<span class="initing" v-if="ctx.progressValue === undefined">{{ $t('waiting') }}<mk-ellipsis/></span>
+					<span class="kb" v-if="ctx.progressValue !== undefined">{{ String(Math.floor(ctx.progressValue / 1024)).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,') }}<i>KB</i> / {{ String(Math.floor(ctx.progressMax / 1024)).replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,') }}<i>KB</i></span>
+					<span class="percentage" v-if="ctx.progressValue !== undefined">{{ Math.floor((ctx.progressValue / ctx.progressMax) * 100) }}</span>
 				</p>
 			</div>
-			<progress v-if="ctx.progress != undefined && ctx.progress.value != ctx.progress.max" :value="ctx.progress.value" :max="ctx.progress.max"></progress>
-			<div class="progress initing" v-if="ctx.progress == undefined"></div>
-			<div class="progress waiting" v-if="ctx.progress != undefined && ctx.progress.value == ctx.progress.max"></div>
+			<progress v-if="ctx.progressValue !== undefined && ctx.progressValue !== ctx.progressMax" :value="ctx.progressValue" :max="ctx.progressMax"></progress>
+			<div class="progress initing" v-if="ctx.progressValue === undefined"></div>
+			<div class="progress waiting" v-if="ctx.progressValue !== undefined && ctx.progressValue === ctx.progressMax"></div>
 		</li>
 	</ol>
 </div>
@@ -23,7 +23,7 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import { apiUrl } from '../../../config';
-import getMD5 from '../../scripts/get-md5';
+import { readAndCompressImage } from 'browser-image-resizer';
 
 export default Vue.extend({
 	i18n: i18n('common/views/components/uploader.vue'),
@@ -33,72 +33,75 @@ export default Vue.extend({
 		};
 	},
 	methods: {
-		checkExistence(fileData: ArrayBuffer): Promise<any> {
-			return new Promise((resolve, reject) => {
-				const data = new FormData();
-				data.append('md5', getMD5(fileData));
-
-				this.$root.api('drive/files/check_existence', {
-					md5: getMD5(fileData)
-				}).then(resp => {
-					resolve(resp.file);
-				});
-			});
-		},
-
-		upload(file: File, folder: any) {
+		async upload(file: File, folder: any, name?: string, useJpeg = false, clientResize = false) {
 			if (folder && typeof folder == 'object') folder = folder.id;
-
 			const id = Math.random();
+			name = name || file.name || 'untitled';
 
-			const reader = new FileReader();
-			reader.onload = (e: any) => {
-				this.checkExistence(e.target.result).then(result => {
-					if (result !== null) {
-						this.$emit('uploaded', result);
-						return;
-					}
+			let resizedImage: any;
+			if (useJpeg && (file.type === 'image/png' || file.type === 'image/jpeg')) {
+				const config = {
+					quality: 0.85,
+					maxWidth: 2048,
+					maxHeight: 2048,
+					autoRotate: true,
+					debug: true
+				};
+				resizedImage = await readAndCompressImage(file, config)
 
-					const ctx = {
-						id: id,
-						name: file.name || 'untitled',
-						progress: undefined,
-						img: window.URL.createObjectURL(file)
-					};
-
-					this.uploads.push(ctx);
-					this.$emit('change', this.uploads);
-
-					const data = new FormData();
-					data.append('i', this.$store.state.i.token);
-					data.append('force', 'true');
-					data.append('file', file);
-
-					if (folder) data.append('folderId', folder);
-
-					const xhr = new XMLHttpRequest();
-					xhr.open('POST', apiUrl + '/drive/files/create', true);
-					xhr.onload = (e: any) => {
-						const driveFile = JSON.parse(e.target.response);
-
-						this.$emit('uploaded', driveFile);
-
-						this.uploads = this.uploads.filter(x => x.id != id);
-						this.$emit('change', this.uploads);
-					};
-
-					xhr.upload.onprogress = e => {
-						if (e.lengthComputable) {
-							if (ctx.progress == undefined) ctx.progress = {};
-							ctx.progress.max = e.total;
-							ctx.progress.value = e.loaded;
-						}
-					};
-
-					xhr.send(data);
-				})
+				name = name.replace(/\.png/, '.jpg');
 			}
-			reader.readAsArrayBuffer(file);
+
+			const ctx = {
+				id,
+				name,
+				progressMax: undefined,
+				progressValue: undefined,
+				img: window.URL.createObjectURL(file)
+			};
+
+			this.uploads.push(ctx);
+			this.$emit('change', this.uploads);
+
+			const data = new FormData();
+			data.append('i', this.$store.state.i.token);
+			data.append('force', 'true');
+			data.append('isWebpublic', `${!!resizedImage}`);
+			data.append('file', resizedImage || file);
+
+			if (folder) data.append('folderId', folder);
+			if (name) data.append('name', name);
+
+			const xhr = new XMLHttpRequest();
+			xhr.open('POST', apiUrl + '/drive/files/create', true);
+			xhr.onload = (e: any) => {
+				if (xhr.status !== 200) {
+					this.uploads = (this.uploads as any[]).filter(x => x.id !== id);
+					this.$root.dialog({
+						type: 'error',
+						text: xhr.status === 413 ? `File to large` : `${xhr.status} ${xhr.statusText}`
+					});
+					return;
+				}
+
+				const driveFile = JSON.parse(e.target.response);
+
+				this.$emit('uploaded', driveFile);
+
+				this.uploads = this.uploads.filter(x => x.id != id);
+				this.$emit('change', this.uploads);
+			};
+
+			xhr.upload.onprogress = e => {
+				if (e.lengthComputable) {
+					ctx.progressMax = e.total;
+					ctx.progressValue = e.loaded;
+				}
+			};
+
+			xhr.send(data);
+
+
 		}
 	}
 });

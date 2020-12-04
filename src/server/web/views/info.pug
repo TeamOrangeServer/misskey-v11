@@ -8,7 +8,7 @@ html
 		title Misskey
 		style.
 			html {
-				font-family: sans-serif;
+				font-family: Roboto, HelveticaNeue, Arial, sans-serif;
 			}
 
 			main {
@@ -56,6 +56,7 @@ html
 				background-color: #ddd;
 				border: 1px solid #000;
 				padding: 4px 5px;
+				word-break: break-all;
 			}
 
 			footer {
@@ -73,24 +74,15 @@ html
 					td= meta.name
 				tr
 					th Description
-					td= meta.description
+					td= desc
 				tr
 					th Maintainer
 					td
 						= meta.maintainer.name
 						|  &lt;#{meta.maintainer.email}&gt;
 				tr
-					th System
-					td= os
-				tr
-					th Node version
-					td= node
-				tr
-					th Machine
-					td= machine
-				tr
-					th CPU
-					td= cpu.model
+					th Proxy account name
+					td= meta.proxyAccount || '(none)'
 				tr
 					th Original users
 					td= meta.stats.originalUsersCount

@@ -5,18 +5,23 @@ import * as mongo from 'mongodb';
 
 import { queueLogger } from '../../logger';
 import Note, { INote } from '../../../models/note';
-import addFile from '../../../services/drive/add-file';
+import { addFile } from '../../../services/drive/add-file';
 import User from '../../../models/user';
 import dateFormat = require('dateformat');
+import { DbUserJobData } from '../..';
 
 const logger = queueLogger.createSubLogger('export-notes');
 
-export async function exportNotes(job: Bull.Job, done: any): Promise<void> {
+export async function exportNotes(job: Bull.Job<DbUserJobData>): Promise<string> {
 	logger.info(`Exporting notes of ${job.data.user._id} ...`);
 
 	const user = await User.findOne({
 		_id: new mongo.ObjectID(job.data.user._id.toString())
 	});
+
+	if (user == null) {
+		return `skip: user not found`;
+	}
 
 	// Create temp file
 	const [path, cleanup] = await new Promise<[string, any]>((res, rej) => {
@@ -43,6 +48,10 @@ export async function exportNotes(job: Bull.Job, done: any): Promise<void> {
 
 	let exportedNotesCount = 0;
 	let cursor: any = null;
+
+	const total = await Note.count({
+		userId: user._id,
+	});
 
 	while (true) {
 		const notes = await Note.find({
@@ -77,10 +86,6 @@ export async function exportNotes(job: Bull.Job, done: any): Promise<void> {
 			exportedNotesCount++;
 		}
 
-		const total = await Note.count({
-			userId: user._id,
-		});
-
 		job.progress(exportedNotesCount / total);
 	}
 
@@ -99,11 +104,10 @@ export async function exportNotes(job: Bull.Job, done: any): Promise<void> {
 	logger.succ(`Exported to: ${path}`);
 
 	const fileName = 'notes-' + dateFormat(new Date(), 'yyyy-mm-dd-HH-MM-ss') + '.json';
-	const driveFile = await addFile(user, path, fileName, null, null, true);
+	const driveFile = await addFile(user, path, fileName, undefined, undefined, true);
 
-	logger.succ(`Exported to: ${driveFile._id}`);
 	cleanup();
-	done();
+	return `Exported to: ${driveFile._id}`;
 }
 
 function serialize(note: INote): any {
@@ -121,6 +125,7 @@ function serialize(note: INote): any {
 		visibleUserIds: note.visibleUserIds,
 		appId: note.appId,
 		geo: note.geo,
-		localOnly: note.localOnly
+		localOnly: note.localOnly,
+		copyOnce: !!note.copyOnce
 	};
 }

@@ -5,31 +5,34 @@ import * as nestedProperty from 'nested-property';
 import MiOS from './mios';
 import { erase } from '../../prelude/array';
 import getNoteSummary from '../../misc/get-note-summary';
+import getNotificationSummary from '../../misc/get-notification-summary';
+import { mods } from './config';
 
 const defaultSettings = {
 	home: null,
 	mobileHome: [],
-	keepCw: false,
 	tagTimelines: [],
 	fetchOnScroll: true,
-	remainDeletedNote: false,
 	showPostFormOnTopOfTl: false,
+	showPostFormOnTopOfTlMobile: false,
 	suggestRecentHashtags: true,
 	showClockOnHeader: true,
 	circleIcons: true,
-	contrastedAcct: true,
 	showFullAcct: false,
 	showVia: true,
 	showReplyTarget: true,
 	showMyRenotes: true,
 	showRenotedMyNotes: true,
 	showLocalRenotes: true,
+	excludeForeignReply: false,
 	loadRemoteMedia: true,
 	disableViaMobile: false,
 	memo: null,
 	iLikeSushi: false,
 	rememberNoteVisibility: false,
 	defaultNoteVisibility: 'public',
+	secondaryNoteVisibility: null,
+	tertiaryNoteVisibility: null,
 	webSearchEngine: 'https://www.google.com/?#q={{query}}',
 	mutedWords: [],
 	games: {
@@ -37,39 +40,54 @@ const defaultSettings = {
 			showBoardLabels: false,
 			useAvatarStones: true,
 		}
-	}
+	},
+	reactions: ['👍', '❤', '😆', '🤔', '😮', '🎉', '💢', '😥', '😇', '🍮']
 };
 
-const defaultDeviceSettings = {
+const defaultDeviceSettings = Object.assign({
 	deck: null,
 	deckMode: false,
 	deckColumnAlign: 'center',
-	deckColumnWidth: 'normal',
-	useShadow: false,
 	roundedCorners: true,
 	reduceMotion: false,
-	darkmode: true,
-	darkTheme: 'bb5a8287-a072-4b0a-8ae5-ea2a0d33f4f2',
+	visibilityColoring: 'left',
+	darkmode: false,
+	darkTheme: 'dark',
 	lightTheme: 'light',
-	lineWidth: 1,
-	fontSize: 0,
 	themes: [],
 	enableSounds: true,
+	enableSoundsInTimeline: false,
+	enableSoundsInNotifications: true,
 	soundVolume: 0.5,
 	mediaVolume: 0.5,
+	enableSpeech: false,
 	lang: null,
 	debug: false,
-	lightmode: false,
-	loadRawImages: false,
+	showAdvancedSettings: false,
 	alwaysShowNsfw: false,
+	alwaysOpenCw: false,
+	disableClientImageResizing: false,
 	postStyle: 'standard',
 	navbar: 'top',
 	mobileNotificationPosition: 'bottom',
-	useOsDefaultEmojis: false,
-	disableShowingAnimatedImages: false,
+	disableShowingAnimatedImages: true,
+	disableShowingInstanceInfo: false,
 	expandUsersPhotos: true,
 	expandUsersActivity: true,
-};
+	showPostPreview: true,
+	enableMobileQuickNotificationView: false,
+	roomGraphicsQuality: 'medium',
+	hasDisconnectedAction: 'notify',
+	roomUseOrthographicCamera: true,
+	activeEmojiCategoryName: undefined,
+	recentEmojis: [],
+	recentReactions: [],
+	recentReactionsCount: 5,
+	showDislikeInPicker: false,
+	enableRandomReactionPicker: false,
+	appType: 'auto',
+	emojiFlavor: 'default',
+}, mods.defaultDeviceSettings || {});
 
 export default (os: MiOS) => new Vuex.Store({
 	plugins: [createPersistedState({
@@ -84,7 +102,8 @@ export default (os: MiOS) => new Vuex.Store({
 	},
 
 	getters: {
-		isSignedIn: state => state.i != null
+		isSignedIn: state => state.i != null,
+		isAdminOrModerator: state => state.i && (state.i.isAdmin || state.i.isModerator),
 	},
 
 	mutations: {
@@ -111,6 +130,11 @@ export default (os: MiOS) => new Vuex.Store({
 			document.title = `(${state.behindNotes.length}) ${getNoteSummary(note)}`;
 		},
 
+		pushBehindNotification(state, notification) {
+			state.behindNotes.push(notification);
+			document.title = `(${state.behindNotes.length}) ${getNotificationSummary(notification)}`;
+		},
+
 		clearBehindNotes(state) {
 			state.behindNotes = [];
 			document.title = os.instanceName;
@@ -125,7 +149,9 @@ export default (os: MiOS) => new Vuex.Store({
 
 		logout(ctx) {
 			ctx.commit('updateI', null);
-			document.cookie = 'i=;';
+			document.cookie = 'i=; path=/';
+			document.cookie = 'i=; path=/i/settings';
+			document.cookie = `i=; domain=${document.location.hostname}; path=/`;
 			localStorage.removeItem('i');
 		},
 

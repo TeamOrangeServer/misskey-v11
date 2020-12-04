@@ -1,13 +1,13 @@
 import config from '../../config';
 import * as mongo from 'mongodb';
-import User, { isLocalUser, isRemoteUser, ILocalUser, IUser } from '../../models/user';
+import User, { isLocalUser, IUser } from '../../models/user';
 import Note, { packMany } from '../../models/note';
-import Following from '../../models/following';
 import renderAdd from '../../remote/activitypub/renderer/add';
 import renderRemove from '../../remote/activitypub/renderer/remove';
 import { renderActivity } from '../../remote/activitypub/renderer';
-import { deliver } from '../../queue';
 import { IdentifiableError } from '../../misc/identifiable-error';
+import { deliverToFollowers } from '../../remote/activitypub/deliver-manager';
+import { deliverToRelays } from '../relay';
 
 /**
  * 指定した投稿をピン留めします
@@ -18,6 +18,8 @@ export async function addPinned(user: IUser, noteId: mongo.ObjectID) {
 	// Fetch pinee
 	const note = await Note.findOne({
 		_id: noteId,
+		visibility: { $in: ['public', 'home'] },
+		localOnly: { $ne: true },
 		userId: user._id
 	});
 
@@ -30,9 +32,12 @@ export async function addPinned(user: IUser, noteId: mongo.ObjectID) {
 	//#region 現在ピン留め投稿している投稿が実際にデータベースに存在しているのかチェック
 	// データベースの欠損などで存在していない(または破損している)場合があるので。
 	// 存在していなかったらピン留め投稿から外す
-	const pinnedNotes = await packMany(pinnedNoteIds, null, { detail: true });
+	let pinnedNotes = await packMany(pinnedNoteIds, null, { detail: true, removeError: true });
 
-	pinnedNoteIds = pinnedNoteIds.filter(id => pinnedNotes.some(n => n.id.toString() === id.toHexString()));
+	// 削除済みもこのタイミングで消してしまう
+	pinnedNotes = pinnedNotes.filter(x => !x.deletedAt);
+
+	pinnedNoteIds = pinnedNoteIds.filter(id => pinnedNotes.some(n => id.equals(n.id)));
 	//#endregion
 
 	if (pinnedNoteIds.length >= 5) {
@@ -94,38 +99,11 @@ export async function deliverPinnedChange(userId: mongo.ObjectID, noteId: mongo.
 
 	if (!isLocalUser(user)) return;
 
-	const queue = await CreateRemoteInboxes(user);
-
-	if (queue.length < 1) return;
-
 	const target = `${config.url}/users/${user._id}/collections/featured`;
 
 	const item = `${config.url}/notes/${noteId}`;
 	const content = renderActivity(isAddition ? renderAdd(user, target, item) : renderRemove(user, target, item));
-	for (const inbox of queue) {
-		deliver(user, content, inbox);
-	}
-}
 
-/**
- * ローカルユーザーのリモートフォロワーのinboxリストを作成する
- * @param user ローカルユーザー
- */
-async function CreateRemoteInboxes(user: ILocalUser): Promise<string[]> {
-	const followers = await Following.find({
-		followeeId: user._id
-	});
-
-	const queue: string[] = [];
-
-	for (const following of followers) {
-		const follower = following._follower;
-
-		if (isRemoteUser(follower)) {
-			const inbox = follower.sharedInbox || follower.inbox;
-			if (!queue.includes(inbox)) queue.push(inbox);
-		}
-	}
-
-	return queue;
+	deliverToFollowers(user, content);
+	deliverToRelays(user, content);
 }

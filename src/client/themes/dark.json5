@@ -33,9 +33,9 @@
 		switchActiveTrack: ':alpha<0.4<@switchActive',
 		radioActive: '$primary',
 
-		face: '$secondary',
+		face: ':alpha<0.6<$secondary',
 		faceText: '#fff',
-		faceHeader: ':lighten<5<$secondary',
+		faceHeader: ':lightenA<5<$secondary',
 		faceHeaderText: '$text',
 		faceDivider: 'rgba(0, 0, 0, 0.3)',
 		faceTextButton: '$text',
@@ -60,6 +60,13 @@
 		noteHeaderAcct: ':alpha<0.65<$text',
 		noteHeaderInfo: ':alpha<0.5<$text',
 
+		noteHomeBg: 'rgba(0, 50, 0, 0.8)',
+		noteFollowersBg: 'rgba(0, 0, 50, 0.8)',
+		noteSpecifiedBg: 'rgba(0, 0, 25, 0.8)',
+		noteHomeBorder: '#7d7',
+		noteFollowersBorder: '#77e',
+		noteSpecifiedBorder: '#777',
+
 		noteActions: ':alpha<0.45<$text',
 		noteActionsHover: ':alpha<0.6<$text',
 		noteActionsReplyHover: '#0af',
@@ -71,7 +78,7 @@
 
 		modalBackdrop: 'rgba(0, 0, 0, 0.5)',
 
-		dateDividerBg: ':darken<2<$secondary',
+		dateDividerBg: ':darkenA<2<$secondary',
 		dateDividerFg: ':alpha<0.7<$text',
 
 		switchTrack: 'rgba(255, 255, 255, 0.15)',
@@ -116,7 +123,7 @@
 
 		chartCaption: ':alpha<0.6<$text',
 
-		announcementsBg: '#253a50',
+		announcementsBg: ':lightenA<5<$secondary',
 		announcementsTitle: '#539eff',
 		announcementsText: '#fff',
 
@@ -160,7 +167,7 @@
 		formButtonHoverBorder: ':alpha<0.5<$primary',
 		formButtonActiveBg: ':alpha<0.12<$primary',
 
-		desktopHeaderBg: ':lighten<5<$secondary',
+		desktopHeaderBg: ':lightenA<5<$secondary',
 		desktopHeaderFg: '$text',
 		desktopHeaderHoverFg: '#fff',
 		desktopHeaderSearchBg: 'rgba(0, 0, 0, 0.1)',
@@ -232,5 +239,8 @@
 		adminDashboardCardBg: '$secondary',
 		adminDashboardCardFg: '$text',
 		adminDashboardCardDivider: 'rgba(0, 0, 0, 0.3)',
+
+		pageBlockBorder: 'rgba(255, 255, 255, 0.1)',
+		pageBlockBorderHover: 'rgba(255, 255, 255, 0.15)',
 	},
 }

@@ -1,6 +1,7 @@
 import * as mongo from 'mongodb';
 import redis from '../db/redis';
 import Xev from 'xev';
+import config from '../config';
 
 type ID = string | mongo.ObjectID;
 
@@ -22,7 +23,7 @@ class Publisher {
 		if (this.ev) {
 			this.ev.emit(channel, message);
 		} else {
-			redis.publish('misskey', JSON.stringify({
+			redis.publish(config.host, JSON.stringify({
 				channel: channel,
 				message: message
 			}));
@@ -64,24 +65,12 @@ class Publisher {
 		this.publish(`reversiGameStream:${gameId}`, type, typeof value === 'undefined' ? null : value);
 	}
 
-	public publishHomeTimelineStream = (userId: ID, note: any): void => {
-		this.publish(`homeTimeline:${userId}`, null, note);
+	public publishNotesStream = (note: any): void => {
+		this.publish('notesStream', null, note);
 	}
 
-	public publishLocalTimelineStream = async (note: any): Promise<void> => {
-		this.publish('localTimeline', null, note);
-	}
-
-	public publishHybridTimelineStream = async (userId: ID, note: any): Promise<void> => {
-		this.publish(userId ? `hybridTimeline:${userId}` : 'hybridTimeline', null, note);
-	}
-
-	public publishGlobalTimelineStream = (note: any): void => {
-		this.publish('globalTimeline', null, note);
-	}
-
-	public publishHashtagStream = (note: any): void => {
-		this.publish('hashtag', null, note);
+	public publishHotStream = (note: any): void => {
+		this.publish(`hotStream`, null, note);
 	}
 
 	public publishApLogStream = (log: any): void => {
@@ -90,6 +79,11 @@ class Publisher {
 
 	public publishAdminStream = (userId: ID, type: string, value?: any): void => {
 		this.publish(`adminStream:${userId}`, type, typeof value === 'undefined' ? null : value);
+	}
+
+	public publishServerEvent = (userId: ID | null, type: string, value?: any): void => {
+		const name = userId ? `serverEvent:${userId}` : `serverEvent`;
+		this.publish(name, type, typeof value === 'undefined' ? null : value);
 	}
 }
 
@@ -100,15 +94,13 @@ export default publisher;
 export const publishMainStream = publisher.publishMainStream;
 export const publishDriveStream = publisher.publishDriveStream;
 export const publishNoteStream = publisher.publishNoteStream;
+export const publishNotesStream = publisher.publishNotesStream;
 export const publishUserListStream = publisher.publishUserListStream;
+export const publishHotStream = publisher.publishHotStream;
 export const publishMessagingStream = publisher.publishMessagingStream;
 export const publishMessagingIndexStream = publisher.publishMessagingIndexStream;
 export const publishReversiStream = publisher.publishReversiStream;
 export const publishReversiGameStream = publisher.publishReversiGameStream;
-export const publishHomeTimelineStream = publisher.publishHomeTimelineStream;
-export const publishLocalTimelineStream = publisher.publishLocalTimelineStream;
-export const publishHybridTimelineStream = publisher.publishHybridTimelineStream;
-export const publishGlobalTimelineStream = publisher.publishGlobalTimelineStream;
-export const publishHashtagStream = publisher.publishHashtagStream;
 export const publishApLogStream = publisher.publishApLogStream;
 export const publishAdminStream = publisher.publishAdminStream;
+export const publishServerEvent = publisher.publishServerEvent;

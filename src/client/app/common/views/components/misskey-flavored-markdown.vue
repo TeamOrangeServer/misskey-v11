@@ -1,5 +1,5 @@
 <template>
-<mfm-core v-bind="$attrs" class="havbbuyv" v-once/>
+<mfm-core v-bind="$attrs" class="havbbuyv" :class="{ nowrap: $attrs['nowrap'] }" v-once/>
 </template>
 
 <script lang="ts">
@@ -15,6 +15,11 @@ export default Vue.extend({
 
 <style lang="stylus" scoped>
 .havbbuyv
+	white-space pre-wrap
+
+	&.nowrap
+		white-space pre
+
 	>>> .title
 		display block
 		margin-bottom 4px
@@ -25,6 +30,7 @@ export default Vue.extend({
 		border-radius 4px
 
 	>>> .quote
+		display block
 		margin 8px
 		padding 6px 0 6px 12px
 		color var(--mfmQuote)

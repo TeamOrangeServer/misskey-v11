@@ -51,7 +51,7 @@ export default Vue.extend({
 	display flex
 	padding 16px
 	font-size 10px
-	background var(--subNoteBg)
+	background linear-gradient(to bottom, var(--face), var(--subNoteBg) 10%, var(--subNoteBg) 90%, var(--face) 100%)
 
 	&:not(.mini)
 
@@ -115,7 +115,9 @@ export default Vue.extend({
 					margin 0
 					padding 0
 					color var(--subNoteText)
-					font-size calc(1em + var(--fontSize))
+					max-height 100px
+					overflow auto
+					font-size 1em
 
 					pre
 						max-height 120px

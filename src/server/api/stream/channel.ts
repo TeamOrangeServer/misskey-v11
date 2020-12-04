@@ -8,11 +8,14 @@ export default abstract class Channel {
 	protected connection: Connection;
 	public id: string;
 	public abstract readonly chName: string;
-	public static readonly shouldShare: boolean;
 	public static readonly requireCredential: boolean;
 
 	protected get user() {
 		return this.connection.user;
+	}
+
+	protected get mutedUserIds() {
+		return this.connection.muting;
 	}
 
 	protected get subscriber() {

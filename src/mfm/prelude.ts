@@ -36,4 +36,6 @@ export function createTree(type: string, children: MfmForest, props: any): MfmTr
 	return T.createTree({ type, props }, children);
 }
 
-export const urlRegex = /^https?:\/\/[\w\/:%#@\$&\?!\(\)\[\]~\.,=\+\-]+/;
+// eslint-disable-next-line no-useless-escape
+export const urlRegex     = /^https?:\/\/[\w\/:%#@\$&\?!\(\)\[\]~\.,=\+\-]+/;
+export const urlRegexFull = /^https?:\/\/[\w\/:%#@\$&\?!\(\)\[\]~\.,=\+\-]+$/;

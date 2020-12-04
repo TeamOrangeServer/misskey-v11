@@ -10,12 +10,6 @@
 				<span class="height">{{ file.properties.height }}</span>
 				<span class="px">px</span>
 			</span>
-			<span class="separator"></span>
-			<span class="aspect-ratio">
-				<span class="width">{{ file.properties.width / gcd(file.properties.width, file.properties.height) }}</span>
-				<span class="colon">:</span>
-				<span class="height">{{ file.properties.height / gcd(file.properties.width, file.properties.height) }}</span>
-			</span>
 		</footer>
 	</div>
 	<div class="info">
@@ -34,7 +28,7 @@
 	<div class="menu">
 		<div>
 			<ui-input readonly :value="file.url">URL</ui-input>
-			<ui-button link :href="dlUrl" :download="file.name"><fa icon="download"/> {{ $t('download') }}</ui-button>
+			<ui-button link :href="dlUrl"><fa :icon="faExternalLinkAlt"/> {{ $t('open') }}</ui-button>
 			<ui-button @click="rename"><fa icon="pencil-alt"/> {{ $t('rename') }}</ui-button>
 			<ui-button @click="move"><fa :icon="['far', 'folder-open']"/> {{ $t('move') }}</ui-button>
 			<ui-button @click="toggleSensitive" v-if="file.isSensitive"><fa :icon="['far', 'eye']"/> {{ $t('unmark-as-sensitive') }}</ui-button>
@@ -56,9 +50,8 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import { gcd } from '../../../../../prelude/math';
-import { appendQuery } from '../../../../../prelude/url';
 import XFileThumbnail from '../../../common/views/components/drive-file-thumbnail.vue';
+import { faExternalLinkAlt } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/components/drive.file-detail.vue'),
@@ -70,8 +63,8 @@ export default Vue.extend({
 
 	data() {
 		return {
-			gcd,
-			exif: null
+			exif: null,
+			faExternalLinkAlt
 		};
 	},
 
@@ -85,13 +78,11 @@ export default Vue.extend({
 		},
 
 		style(): any {
-			return this.file.properties.avgColor && this.file.properties.avgColor.length == 3 ? {
-				'background-color': `rgb(${ this.file.properties.avgColor.join(',') })`
-			} : {};
+			return {};
 		},
 
 		dlUrl(): string {
-			return appendQuery(this.file.url, 'download');
+			return this.file.url;
 		}
 	},
 
@@ -122,7 +113,7 @@ export default Vue.extend({
 			this.$root.api('drive/files/delete', {
 				fileId: this.file.id
 			}).then(() => {
-				this.browser.cd(this.file.folderId, true);
+				this.browser.cd(this.file.folderId);
 			});
 		},
 
@@ -175,16 +166,6 @@ export default Vue.extend({
 
 				.px
 					margin-left 4px
-
-			> .aspect-ratio
-				display inline
-				opacity 0.7
-
-				&:before
-					content "("
-
-				&:after
-					content ")"
 
 	> .info
 		padding 14px

@@ -26,12 +26,12 @@ export function isValidFolderName(name: string): boolean {
 /**
  * Pack a drive folder for API response
  */
-export const pack = (
+export const pack = async (
 	folder: any,
 	options?: {
 		detail: boolean
 	}
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	const opts = Object.assign({
 		detail: false
 	}, options);
@@ -71,5 +71,5 @@ export const pack = (
 		});
 	}
 
-	resolve(_folder);
-});
+	return _folder;
+};

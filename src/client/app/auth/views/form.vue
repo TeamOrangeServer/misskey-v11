@@ -14,15 +14,7 @@
 			<h2>{{ $t('permission-ask') }}</h2>
 			<ul>
 				<template v-for="p in app.permission">
-					<li v-if="p == 'account-read'">{{ $t('account-read') }}</li>
-					<li v-if="p == 'account-write'">{{ $t('account-write') }}</li>
-					<li v-if="p == 'note-write'">{{ $t('note-write') }}</li>
-					<li v-if="p == 'like-write'">{{ $t('like-write') }}</li>
-					<li v-if="p == 'following-write'">{{ $t('following-write') }}</li>
-					<li v-if="p == 'drive-read'">{{ $t('drive-read') }}</li>
-					<li v-if="p == 'drive-write'">{{ $t('drive-write') }}</li>
-					<li v-if="p == 'notification-read'">{{ $t('notification-read') }}</li>
-					<li v-if="p == 'notification-write'">{{ $t('notification-write') }}</li>
+					<li :key="p">{{ $t(`@.permissions.${p}`) }}</li>
 				</template>
 			</ul>
 		</section>
@@ -80,19 +72,14 @@ export default Vue.extend({
 			padding 32px 32px 20px 32px
 			font-size 24px
 			font-weight normal
-			color #777
 
 			i
-				color #77aeca
 
 				&:before
 					content '「'
 
 				&:after
 					content '」'
-
-			b
-				color #666
 
 		> img
 			display block
@@ -106,8 +93,6 @@ export default Vue.extend({
 
 	> .app
 		padding 44px 16px 0 16px
-		color #555
-		background #eee
 		box-shadow 0 2px 2px rgba(#000, 0.1) inset
 
 		&:after
@@ -124,7 +109,6 @@ export default Vue.extend({
 			> h2
 				margin 0
 				font-size 16px
-				color #777
 
 	> .action
 		padding 16px
@@ -132,6 +116,8 @@ export default Vue.extend({
 		> button
 			margin 0 8px
 			padding 0
+			color var(--primary)
+			font-weight bold
 
 	@media (max-width 600px)
 		> header

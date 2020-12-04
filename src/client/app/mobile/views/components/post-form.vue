@@ -1,12 +1,17 @@
 <template>
 <div class="mk-post-form">
 	<div class="form">
-		<header>
+		<header v-if="!inside">
 			<button class="cancel" @click="cancel"><fa icon="times"/></button>
 			<div>
-				<span class="text-count" :class="{ over: trimmedLength(text) > maxNoteTextLength }">{{ maxNoteTextLength - trimmedLength(text) }}</span>
+				<span v-if="!renote || quote" class="text-count" :class="{ over: trimmedLength(text) > maxNoteTextLength }">{{ maxNoteTextLength - trimmedLength(text) }}</span>
 				<span class="geo" v-if="geo"><fa icon="map-marker-alt"/></span>
-				<button class="submit" :disabled="!canPost" @click="post">{{ submitText }}</button>
+				<button v-if="tertiaryNoteVisibility != null && tertiaryNoteVisibility != 'none'" class="tertiary" :disabled="!canPost" @click="post(tertiaryNoteVisibility)">
+					<x-visibility-icon :v="tertiaryNoteVisibility"/>
+				</button>
+				<button v-if="secondaryNoteVisibility != null && secondaryNoteVisibility != 'none'" class="secondary" :disabled="!canPost" @click="post(secondaryNoteVisibility)">
+					<x-visibility-icon :v="secondaryNoteVisibility"/>
+				</button>
 			</div>
 		</header>
 		<div class="form">
@@ -20,29 +25,44 @@
 				<a @click="addVisibleUser">+{{ $t('add-visible-user') }}</a>
 			</div>
 			<input v-show="useCw" ref="cw" v-model="cw" :placeholder="$t('annotations')" v-autocomplete="{ model: 'cw' }">
-			<textarea v-model="text" ref="text" :disabled="posting" :placeholder="placeholder" v-autocomplete="{ model: 'text' }"></textarea>
+			<div class="textarea">
+				<textarea v-if="!renote || quote" v-model="text" ref="text" :disabled="posting" :placeholder="placeholder" v-autocomplete="{ model: 'text' }"></textarea>
+				<button class="emoji" @click="emoji" ref="emoji">
+					<fa :icon="['far', 'laugh']"/>
+				</button>
+			</div>
 			<x-post-form-attaches class="attaches" :files="files"/>
 			<mk-poll-editor v-if="poll" ref="poll" @destroyed="poll = false" @updated="onPollUpdate()"/>
 			<mk-uploader ref="uploader" @uploaded="attachMedia" @change="onChangeUploadings"/>
-			<footer>
+			<footer v-if="!renote || quote">
 				<button class="upload" @click="chooseFile"><fa icon="upload"/></button>
 				<button class="drive" @click="chooseFileFromDrive"><fa icon="cloud"/></button>
-				<button class="kao" @click="kao"><fa :icon="['far', 'smile']"/></button>
-				<button class="poll" @click="poll = true"><fa icon="chart-pie"/></button>
-				<button class="poll" @click="useCw = !useCw"><fa :icon="['far', 'eye-slash']"/></button>
-				<button class="geo" @click="geo ? removeGeo() : setGeo()"><fa icon="map-marker-alt"/></button>
+				<button class="jpeg" :class="{ enabled: useJpeg }" @click="useJpeg = !useJpeg"><fa :icon="faShareSquare"/></button>
+				<button class="kao" @click="kao"><fa :icon="faFish"/></button>
+				<button v-if="!inside" class="poll" :class="{ enabled: !!poll }" @click="poll = !poll"><fa icon="chart-pie"/></button>
+				<button class="cw" :class="{ enabled: useCw }" @click="useCw = !useCw"><fa :icon="['far', 'eye-slash']"/></button>
 				<button class="visibility" @click="setVisibility" ref="visibilityButton">
-					<span v-if="visibility === 'public'"><fa icon="globe"/></span>
-					<span v-if="visibility === 'home'"><fa icon="home"/></span>
-					<span v-if="visibility === 'followers'"><fa icon="unlock"/></span>
-					<span v-if="visibility === 'specified'"><fa icon="envelope"/></span>
+					<x-visibility-icon :v="visibility" :localOnly="localOnly" :copyOnce="copyOnce"/>
 				</button>
+				<ui-button class="submit" :disabled="!canPost" @click="post()">
+					<div style="display: inline-flex; gap: 4px">
+						<x-visibility-icon v-if="!(this.renote && !this.text.length && !this.files.length && !this.poll)" :v="visibility" :localOnly="localOnly" :copyOnce="copyOnce"/>
+						<div>{{ submitText }}</div>
+					</div>
+				</ui-button>
+			</footer>
+			<footer v-else>
+				<a class="quote" @click="quote = true">{{ $t('quote') }}</a>
 			</footer>
 			<input ref="file" class="file" type="file" multiple="multiple" @change="onChangeFile"/>
 		</div>
+		<details v-if="!inside && preview" class="preview" ref="preview" :open="$store.state.device.showPostPreview" @toggle="togglePreview">
+			<summary>{{ $t('preview') }}</summary>
+			<mk-note class="note" :note="preview" :key="preview.id" :compact="true" :preview="true" />
+		</details>
 	</div>
-	<div class="hashtags" v-if="recentHashtags.length > 0 && $store.state.settings.suggestRecentHashtags">
-		<a v-for="tag in recentHashtags.slice(0, 5)" @click="addTag(tag)">#{{ tag }}</a>
+	<div class="hashtags" v-if="!inside && recentHashtags.length > 0 && $store.state.settings.suggestRecentHashtags">
+		<a v-for="tag in recentHashtags.slice(0, 5)" :key="tag" @click="addTag(tag)">#{{ tag }}</a>
 	</div>
 </div>
 </template>
@@ -50,114 +70,61 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import insertTextAtCursor from 'insert-text-at-cursor';
-import MkVisibilityChooser from '../../../common/views/components/visibility-chooser.vue';
-import getFace from '../../../common/scripts/get-face';
 import { parse } from '../../../../../mfm/parse';
 import { host } from '../../../config';
-import { erase, unique } from '../../../../../prelude/array';
-import { length } from 'stringz';
 import { toASCII } from 'punycode';
 import extractMentions from '../../../../../misc/extract-mentions';
 import XPostFormAttaches from '../../../common/views/components/post-form-attaches.vue';
+import XVisibilityIcon from '../../../common/views/components/visibility-icon.vue';
+import form from '../../../common/scripts/post-form';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/components/post-form.vue'),
+
+	mixins: [
+		form({
+			mobile: true,
+			onFailure: (self: any, e?: any) => {
+				let msg = e.message || e;
+				if (e?.id === '3d81ceae-475f-4600-b2a8-2bc116157532') {
+					msg = `Error in param '${e?.info?.param}'`;
+				}
+				self.$notify(msg)
+			}
+		}),
+	],
+
 	components: {
-		XPostFormAttaches
+		XPostFormAttaches,
+		XVisibilityIcon,
 	},
 
 	props: {
-		reply: {
-			type: Object,
-			required: false
-		},
-		renote: {
-			type: Object,
-			required: false
-		},
-		mention: {
-			type: Object,
-			required: false
-		},
-		initialText: {
-			type: String,
-			required: false
-		},
-		instant: {
+		inside: {
 			type: Boolean,
 			required: false,
 			default: false
-		}
+		},
+		quote: {
+			type: Boolean,
+			required: false,
+			default: true
+		},
 	},
 
-	data() {
-		return {
-			posting: false,
-			text: '',
-			uploadings: [],
-			files: [],
-			poll: false,
-			pollChoices: [],
-			pollMultiple: false,
-			geo: null,
-			visibility: 'public',
-			visibleUsers: [],
-			localOnly: false,
-			useCw: false,
-			cw: null,
-			recentHashtags: JSON.parse(localStorage.getItem('hashtags') || '[]'),
-			maxNoteTextLength: 1000
-		};
-	},
-
-	created() {
-		this.$root.getMeta().then(meta => {
-			this.maxNoteTextLength = meta.maxNoteTextLength;
-		});
-	},
-
-	computed: {
-		draftId(): string {
-			return this.renote
-				? `renote:${this.renote.id}`
-				: this.reply
-					? `reply:${this.reply.id}`
-					: 'note';
+	watch: {
+		text() {
+			this.triggerPreview();
 		},
-
-		placeholder(): string {
-			const xs = [
-				this.$t('@.note-placeholders.a'),
-				this.$t('@.note-placeholders.b'),
-				this.$t('@.note-placeholders.c'),
-				this.$t('@.note-placeholders.d'),
-				this.$t('@.note-placeholders.e'),
-				this.$t('@.note-placeholders.f')
-			];
-			const x = xs[Math.floor(Math.random() * xs.length)];
-
-			return this.renote
-				? this.$t('quote-placeholder')
-				: this.reply
-					? this.$t('reply-placeholder')
-					: x;
+		files() {
+			this.doPreview();
 		},
-
-		submitText(): string {
-			return this.renote
-				? this.$t('renote')
-				: this.reply
-					? this.$t('reply')
-					: this.$t('submit');
+		visibility() {
+			this.doPreview();
 		},
-
-		canPost(): boolean {
-			return !this.posting &&
-				(1 <= this.text.length || 1 <= this.files.length || this.poll || this.renote) &&
-				(this.text.trim().length <= this.maxNoteTextLength) &&
-				(!this.poll || this.pollChoices.length >= 2);
-		}
+		localOnly() {
+			this.doPreview();
+		},
 	},
 
 	mounted() {
@@ -192,188 +159,81 @@ export default Vue.extend({
 		}
 
 		// デフォルト公開範囲
-		this.applyVisibility(this.$store.state.settings.rememberNoteVisibility ? (this.$store.state.device.visibility || this.$store.state.settings.defaultNoteVisibility) : this.$store.state.settings.defaultNoteVisibility);
+		this.applyVisibilityFromState();
+
+		if (this.reply && this.reply.localOnly) {
+			this.localOnly = true;
+		}
+
+		// 自分のリモートフォロワーのみ投稿かも
+		if (this.reply?.reply?.copyOnce) {
+			this.copyOnce = true;
+		}
 
 		// 公開以外へのリプライ時は元の公開範囲を引き継ぐ
 		if (this.reply && ['home', 'followers', 'specified'].includes(this.reply.visibility)) {
 			this.visibility = this.reply.visibility;
+			if (this.reply.visibility === 'specified') {
+				this.$root.api('users/show', {
+					userIds: this.reply.visibleUserIds.filter(uid => uid !== this.$store.state.i.id && uid !== this.reply.userId)
+				}).then(users => {
+					this.visibleUsers.push(...users);
+				});
+			}
 		}
 
-		if (this.reply) {
+		if (this.reply && this.reply.userId !== this.$store.state.i.id) {
 			this.$root.api('users/show', { userId: this.reply.userId }).then(user => {
 				this.visibleUsers.push(user);
 			});
 		}
 
-		// keep cw when reply
-		if (this.$store.state.settings.keepCw && this.reply && this.reply.cw) {
-			this.useCw = true;
-			this.cw = this.reply.cw;
+		// 空リプ
+		if (this.airReply) {
+			this.localOnly = this.airReply.user.host == null && this.airReply.visibility === 'public';
+			this.visibility = this.airReply.visibility;
+			if (this.airReply.user.host != null && this.visibility === 'public') {
+				this.visibility = 'home';
+			}
 		}
 
-		this.focus();
-
 		this.$nextTick(() => {
-			this.focus();
+			if (this.initialNote) {
+				// 削除して編集
+				const init = this.initialNote;
+				this.text =
+					this.normalizedText(this.initialText) ||
+					this.normalizedText(this.text) ||
+					this.normalizedText(init.text) || '';
+				this.files = init.files;
+				this.cw = init.cw;
+				this.useCw = init.cw != null;
+				if (init.poll) {
+					this.poll = true;
+					this.$nextTick(() => {
+						(this.$refs.poll as any).set({
+							choices: init.poll.choices.map(c => c.text),
+							multiple: init.poll.multiple
+						});
+					});
+				}
+				this.visibility = init.visibility;
+				this.localOnly = init.localOnly;
+				this.quoteId = init.renote ? init.renote.id : null;
+				if (!this.renote) this.renote = this.initialNote.renote;
+				this.quote = true;
+			}
+
+			if (!this.inside) {
+				this.$nextTick(this.focus);
+			}
 		});
 	},
 
 	methods: {
-		trimmedLength(text: string) {
-			return length(text.trim());
-		},
-
-		addTag(tag: string) {
-			insertTextAtCursor(this.$refs.text, ` #${tag} `);
-		},
-
-		focus() {
-			(this.$refs.text as any).focus();
-		},
-
-		addVisibleUser() {
-			this.$root.dialog({
-				title: this.$t('enter-username'),
-				user: true
-			}).then(({ canceled, result: user }) => {
-				if (canceled) return;
-				this.visibleUsers.push(user);
-			});
-		},
-
-		chooseFile() {
-			(this.$refs.file as any).click();
-		},
-
-		chooseFileFromDrive() {
-			this.$chooseDriveFile({
-				multiple: true
-			}).then(files => {
-				for (const x of files) this.attachMedia(x);
-			});
-		},
-
-		attachMedia(driveFile) {
-			this.files.push(driveFile);
-			this.$emit('change-attached-files', this.files);
-		},
-
-		detachMedia(id) {
-			this.files = this.files.filter(x => x.id != id);
-			this.$emit('change-attached-files', this.files);
-		},
-
-		onChangeFile() {
-			for (const x of Array.from((this.$refs.file as any).files)) this.upload(x);
-		},
-
-		onPollUpdate() {
-			const got = this.$refs.poll.get();
-			this.pollChoices = got.choices;
-			this.pollMultiple = got.multiple;
-		},
-
-		upload(file) {
-			(this.$refs.uploader as any).upload(file);
-		},
-
-		onChangeUploadings(uploads) {
-			this.$emit('change-uploadings', uploads);
-		},
-
-		setGeo() {
-			if (navigator.geolocation == null) {
-				alert(this.$t('location-alert'));
-				return;
-			}
-
-			navigator.geolocation.getCurrentPosition(pos => {
-				this.geo = pos.coords;
-			}, err => {
-				alert(`%i18n:@error%: ${err.message}`);
-			}, {
-					enableHighAccuracy: true
-				});
-		},
-
-		removeGeo() {
-			this.geo = null;
-		},
-
-		setVisibility() {
-			const w = this.$root.new(MkVisibilityChooser, {
-				source: this.$refs.visibilityButton,
-				currentVisibility: this.visibility
-			});
-			w.$once('chosen', v => {
-				this.applyVisibility(v);
-			});
-		},
-
-		applyVisibility(v :string) {
-			const m = v.match(/^local-(.+)/);
-			if (m) {
-				this.localOnly = true;
-				this.visibility = m[1];
-			} else {
-				this.localOnly = false;
-				this.visibility = v;
-			}
-		},
-
-		removeVisibleUser(user) {
-			this.visibleUsers = erase(user, this.visibleUsers);
-		},
-
-		clear() {
-			this.text = '';
-			this.files = [];
-			this.poll = false;
-			this.$emit('change-attached-files');
-		},
-
-		post() {
-			this.posting = true;
-			const viaMobile = this.$store.state.settings.disableViaMobile !== true;
-			this.$root.api('notes/create', {
-				text: this.text == '' ? undefined : this.text,
-				fileIds: this.files.length > 0 ? this.files.map(f => f.id) : undefined,
-				replyId: this.reply ? this.reply.id : undefined,
-				renoteId: this.renote ? this.renote.id : undefined,
-				poll: this.poll ? (this.$refs.poll as any).get() : undefined,
-				cw: this.useCw ? this.cw || '' : undefined,
-				geo: this.geo ? {
-					coordinates: [this.geo.longitude, this.geo.latitude],
-					altitude: this.geo.altitude,
-					accuracy: this.geo.accuracy,
-					altitudeAccuracy: this.geo.altitudeAccuracy,
-					heading: isNaN(this.geo.heading) ? null : this.geo.heading,
-					speed: this.geo.speed,
-				} : null,
-				visibility: this.visibility,
-				visibleUserIds: this.visibility == 'specified' ? this.visibleUsers.map(u => u.id) : undefined,
-				localOnly: this.localOnly,
-				viaMobile: viaMobile
-			}).then(data => {
-				this.$emit('posted');
-			}).catch(err => {
-				this.posting = false;
-			});
-
-			if (this.text && this.text != '') {
-				const hashtags = parse(this.text).filter(x => x.node.type === 'hashtag').map(x => x.node.props.hashtag);
-				const history = JSON.parse(localStorage.getItem('hashtags') || '[]') as string[];
-				localStorage.setItem('hashtags', JSON.stringify(unique(hashtags.concat(history))));
-			}
-		},
-
 		cancel() {
 			this.$emit('cancel');
 		},
-
-		kao() {
-			this.text += getFace();
-		}
 	}
 });
 </script>
@@ -395,7 +255,7 @@ export default Vue.extend({
 		margin 32px auto
 
 	> .form
-		background var(--face)
+		background var(--bg)
 		border-radius 8px
 		box-shadow 0 0 2px rgba(#000, 0.1)
 
@@ -419,18 +279,19 @@ export default Vue.extend({
 
 				> .text-count
 					line-height 50px
+					margin-right 6px
 
 				> .geo
 					margin 0 8px
 					line-height 50px
 
-				> .submit
-					margin 8px
+				> .secondary, .tertiary
+					margin 8px 6px
 					padding 0 16px
 					line-height 34px
 					vertical-align bottom
-					color var(--primaryForeground)
-					background var(--primary)
+					color var(--text)
+					background var(--buttonBg)
 					border-radius 4px
 
 					&:disabled
@@ -439,6 +300,32 @@ export default Vue.extend({
 		> .form
 			max-width 500px
 			margin 0 auto
+
+			>.textarea
+				> textarea
+					display block
+					padding 12px
+					padding-right 32px
+					margin 0
+					width 100%
+					font-size 16px
+					color var(--inputText)
+					background var(--mobilePostFormTextareaBg)
+					border none
+					border-radius 0
+					box-shadow 0 1px 0 0 var(--mobilePostFormDivider)
+					max-width 100%
+					min-width 100%
+					min-height 80px
+
+				> .emoji
+					position absolute
+					top 0
+					right 0
+					padding 10px
+					font-size 18px
+					color var(--text)
+					opacity 0.5
 
 			> .preview
 				padding 16px
@@ -455,7 +342,6 @@ export default Vue.extend({
 				z-index 1
 
 			> input
-			> textarea
 				display block
 				padding 12px
 				margin 0
@@ -473,7 +359,7 @@ export default Vue.extend({
 			> textarea
 				max-width 100%
 				min-width 100%
-				min-height 80px
+				min-height 60px
 
 			> .mk-uploader
 				margin 8px 0 0 0
@@ -483,6 +369,8 @@ export default Vue.extend({
 				display none
 
 			> footer
+				display flex
+				align-items center
 				white-space nowrap
 				overflow auto
 				-webkit-overflow-scrolling touch
@@ -501,11 +389,72 @@ export default Vue.extend({
 					border none
 					border-radius 0
 					box-shadow none
+					opacity 0.7
+
+				> .jpeg
+				> .poll
+				> .cw
+					&.enabled
+						color var(--primary)
+						opacity 1
+
+				> .visibility > .localOnly
+					color var(--primary)
+					position absolute
+					top 0
+					right 0.2em
+					transform scale(.8)
+
+				> .quote
+					display block
+					margin-right auto
+					margin-left 8px
+					color var(--link)
+
+				> .submit
+					height 36px
+					margin 8px 6px
+					padding 0 8px
+					margin-left auto
+					line-height 34px
+					min-width 80px
+					vertical-align bottom
+					color var(--primaryForeground)
+					background var(--primary)
+					border-radius 4px
+					font-size 14px
+					opacity 1.0
+
+					&:disabled
+						opacity 0.7
+
+		> .preview
+			> summary
+				padding 12px
+				font-size 14px
+				color var(--text)
+
+			> .note
+				border-top solid var(--lineWidth) var(--faceDivider)
 
 	> .hashtags
 		margin 8px
 
 		> *
-			margin-right 8px
+			display inline-block
+			margin-right 6px
+			margin-bottom 6px
+			padding 3px
+			font-size 12px
+			line-height 16px
+			background #fff
+			color #000
+			opacity 0.5
+			border solid 1px #333
+			border-radius 3px
+			text-decoration none
+
+			&:hover
+				opacity 0.7
 
 </style>

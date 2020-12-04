@@ -1,6 +1,8 @@
 import * as Deque from 'double-ended-queue';
 import Xev from 'xev';
 import { deliverQueue, inboxQueue } from '../queue';
+import config from '../config';
+import { getWorkerStrategies } from '..';
 
 const ev = new Xev();
 
@@ -10,6 +12,12 @@ const interval = 3000;
  * Report queue stats regularly
  */
 export default function() {
+	const st = getWorkerStrategies(config);
+	const workers = st.workers + st.queues || 1;
+
+	const deliverConcurrencyPerWorker = config.deliverJobConcurrency || 128;
+	const inboxConcurrencyPerWorker = config.inboxJobConcurrency || 16;
+
 	const log = new Deque<any>();
 
 	ev.on('requestQueueStatsLog', x => {
@@ -33,12 +41,14 @@ export default function() {
 
 		const stats = {
 			deliver: {
+				limit: deliverConcurrencyPerWorker * workers,
 				activeSincePrevTick: activeDeliverJobs,
 				active: deliverJobCounts.active,
 				waiting: deliverJobCounts.waiting,
 				delayed: deliverJobCounts.delayed
 			},
 			inbox: {
+				limit: inboxConcurrencyPerWorker * workers,
 				activeSincePrevTick: activeInboxJobs,
 				active: inboxJobCounts.active,
 				waiting: inboxJobCounts.waiting,

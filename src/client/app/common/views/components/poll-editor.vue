@@ -4,8 +4,8 @@
 		<fa icon="exclamation-triangle"/>{{ $t('no-only-one-choice') }}
 	</p>
 	<ul ref="choices">
-		<li v-for="(choice, i) in choices">
-			<input :value="choice" @input="onInput(i, $event)" :placeholder="$t('choice-n').replace('{}', i + 1)">
+		<li v-for="(choice, i) in choices" :key="i">
+			<input :value="choice" @input="onInput(i, $event)" @keydown="onKeydown" :placeholder="$t('choice-n').replace('{}', i + 1)">
 			<button @click="remove(i)" :title="$t('remove')">
 				<fa icon="times"/>
 			</button>
@@ -18,48 +18,46 @@
 	</button>
 	<section>
 		<ui-switch v-model="multiple">{{ $t('multiple') }}</ui-switch>
-		<div>
+		<ui-horizon-group inputs>
 			<ui-select v-model="expiration">
 				<template #label>{{ $t('expiration') }}</template>
 				<option value="infinite">{{ $t('infinite') }}</option>
-				<option value="at">{{ $t('at') }}</option>
+				<option value="30">30 {{ $t('second') }}</option>
+				<option value="300">5 {{ $t('minute') }}</option>
+				<option value="3600">1 {{ $t('hour') }}</option>
+				<option value="86400">1 {{ $t('day') }}</option>
+				<option value="604800">7 {{ $t('day') }}</option>
+				<option value="31536000">365 {{ $t('day') }}</option>
 				<option value="after">{{ $t('after') }}</option>
 			</ui-select>
-			<section v-if="expiration === 'at'">
-				<ui-input v-model="atDate" type="date">{{ $t('deadline-date') }}</ui-input>
-				<ui-input v-model="atTime" type="time">{{ $t('deadline-time') }}</ui-input>
-			</section>
-			<section v-if="expiration === 'after'">
-				<ui-input v-model="after" type="number">{{ $t('interval') }}</ui-input>
-				<ui-select v-model="unit">
-					<template #label>{{ $t('unit') }}</template>
-					<option value="second">{{ $t('second') }}</option>
-					<option value="minute">{{ $t('minute') }}</option>
-					<option value="hour">{{ $t('hour') }}</option>
-					<option value="day">{{ $t('day') }}</option>
-				</ui-select>
-			</section>
-		</div>
+			<ui-input v-if="expiration === 'after'" v-model="after" type="number">
+			</ui-input>
+			<ui-select v-if="expiration === 'after'" v-model="unit">
+				<option value="second">{{ $t('second') }}</option>
+				<option value="minute">{{ $t('minute') }}</option>
+				<option value="hour">{{ $t('hour') }}</option>
+				<option value="day">{{ $t('day') }}</option>
+			</ui-select>
+		</ui-horizon-group>
 	</section>
 </div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-import * as moment from 'moment';
 import i18n from '../../../i18n';
 import { erase } from '../../../../../prelude/array';
+
 export default Vue.extend({
 	i18n: i18n('common/views/components/poll-editor.vue'),
+
 	data() {
 		return {
 			choices: ['', ''],
 			multiple: false,
 			expiration: 'infinite',
-			atDate: moment().add(1, 'day').toISOString().split('T')[0],
-			atTime: '00:00',
-			after: 0,
-			unit: 'second'
+			after: 1,
+			unit: 'day'
 		};
 	},
 	watch: {
@@ -70,6 +68,10 @@ export default Vue.extend({
 	methods: {
 		onInput(i, e) {
 			Vue.set(this.choices, i, e.target.value);
+		},
+
+		onKeydown(e) {
+			this.$emit('keydown', e);
 		},
 
 		add() {
@@ -88,10 +90,6 @@ export default Vue.extend({
 		},
 
 		get() {
-			const at = () => {
-				return moment(`${this.atDate} ${this.atTime}`).valueOf();
-			};
-
 			const after = () => {
 				let base = parseInt(this.after);
 				switch (this.unit) {
@@ -107,8 +105,8 @@ export default Vue.extend({
 				choices: erase('', this.choices),
 				multiple: this.multiple,
 				...(
-					this.expiration === 'at' ? { expiresAt: at() } :
-					this.expiration === 'after' ? { expiredAfter: after() } : {})
+					this.expiration === 'after' ? { expiredAfter: after() } :
+					(this.expiration && this.expiration.match(/^\d+$/)) ? { expiredAfter: this.expiration * 1000 } : {})
 			};
 		},
 
@@ -117,10 +115,7 @@ export default Vue.extend({
 			this.choices = data.choices;
 			if (data.choices.length == 1) this.choices = this.choices.concat('');
 			this.multiple = data.multiple;
-			if (data.expiresAt) {
-				this.expiration = 'at';
-				this.atDate = this.atTime = data.expiresAt;
-			} else if (typeof data.expiredAfter === 'number') {
+			if (typeof data.expiredAfter === 'number') {
 				this.expiration = 'after';
 				this.after = data.expiredAfter;
 			} else {
@@ -206,22 +201,6 @@ export default Vue.extend({
 			color var(--primaryDarken30)
 
 	> section
-		margin 16px 0 -16px 0
+		margin 16px 8px -16px 8px
 
-		> div
-			margin 0 8px
-
-			&:last-child
-				flex 1 0 auto
-
-				> section
-					align-items center
-					display flex
-					margin -32px 0 0
-
-					> :first-child
-						margin-right 16px
-
-					> .ui-input
-						flex 1 0 auto
 </style>

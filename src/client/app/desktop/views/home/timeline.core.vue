@@ -1,6 +1,6 @@
 <template>
 <div>
-	<mk-notes ref="timeline" :make-promise="makePromise" @inited="() => $emit('loaded')">
+	<mk-notes ref="timeline" :make-promise="makePromise" :timeSplitters="[3, 6, 12, 18, 19, 20, 21, 22, 23]" @inited="() => $emit('loaded')">
 		<template #header>
 			<slot></slot>
 			<div v-if="src == 'home' && alone" class="ibpylqas">
@@ -38,7 +38,8 @@ export default Vue.extend({
 			baseQuery: {
 				includeMyRenotes: this.$store.state.settings.showMyRenotes,
 				includeRenotedMyNotes: this.$store.state.settings.showRenotedMyNotes,
-				includeLocalRenotes: this.$store.state.settings.showLocalRenotes
+				includeLocalRenotes: this.$store.state.settings.showLocalRenotes,
+				excludeForeignReply: this.$store.state.settings.excludeForeignReply,
 			},
 			query: {},
 			endpoint: null,
@@ -69,7 +70,7 @@ export default Vue.extend({
 			const onChangeFollowing = () => {
 				this.fetch();
 			};
-			this.connection = this.$root.stream.useSharedConnection('homeTimeline');
+			this.connection = this.$root.stream.connectToChannel('homeTimeline', { excludeForeignReply: this.$store.state.settings.excludeForeignReply });
 			this.connection.on('note', prepend);
 			this.connection.on('follow', onChangeFollowing);
 			this.connection.on('unfollow', onChangeFollowing);
@@ -77,9 +78,17 @@ export default Vue.extend({
 			this.endpoint = 'notes/local-timeline';
 			this.connection = this.$root.stream.useSharedConnection('localTimeline');
 			this.connection.on('note', prepend);
+		} else if (this.src == 'locao') {
+			this.endpoint = 'notes/locao-timeline';
+			this.connection = this.$root.stream.useSharedConnection('locaoTimeline');
+			this.connection.on('note', prepend);
 		} else if (this.src == 'hybrid') {
 			this.endpoint = 'notes/hybrid-timeline';
-			this.connection = this.$root.stream.useSharedConnection('hybridTimeline');
+			this.connection = this.$root.stream.connectToChannel('hybridTimeline', { excludeForeignReply: this.$store.state.settings.excludeForeignReply });
+			this.connection.on('note', prepend);
+		} else if (this.src == 'hot') {
+			this.endpoint = 'notes/hot-timeline';
+			this.connection = this.$root.stream.useSharedConnection('hotTimeline');
 			this.connection.on('note', prepend);
 		} else if (this.src == 'global') {
 			this.endpoint = 'notes/global-timeline';

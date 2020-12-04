@@ -1,9 +1,9 @@
 <template>
-<div class="kedshtep" :class="{ naked, inNakedDeckColumn, shadow: $store.state.device.useShadow, round: $store.state.device.roundedCorners }">
-	<header v-if="showHeader">
+<div class="kedshtep" :class="{ naked, inNakedDeckColumn }">
+	<header v-if="showHeader" :class="{ bodyTogglable }" @click="toggleContent(!showBody)">
 		<div class="title"><slot name="header"></slot></div>
 		<slot name="func"></slot>
-		<button v-if="bodyTogglable" @click="toggleContent(!showBody)">
+		<button v-if="bodyTogglable">
 			<template v-if="showBody"><fa icon="angle-up"/></template>
 			<template v-else><fa icon="angle-down"/></template>
 		</button>
@@ -47,6 +47,7 @@ export default Vue.extend({
 	},
 	methods: {
 		toggleContent(show: boolean) {
+			if (!this.bodyTogglable) return;
 			this.showBody = show;
 			this.$emit('toggle', show);
 		}
@@ -60,12 +61,8 @@ export default Vue.extend({
 
 	&:not(.inNakedDeckColumn)
 		background var(--face)
-
-		&.round
-			border-radius 6px
-
-		&.shadow
-			box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
+		border-radius 6px
+		box-shadow 0 3px 8px rgba(0, 0, 0, 0.2)
 
 		& + .kedshtep
 			margin-top 16px
@@ -77,6 +74,9 @@ export default Vue.extend({
 		> header
 			background var(--faceHeader)
 
+			&.bodyTogglable
+				cursor pointer
+
 			> .title
 				z-index 1
 				margin 0
@@ -85,7 +85,6 @@ export default Vue.extend({
 				font-size 0.9em
 				font-weight bold
 				color var(--faceHeaderText)
-				box-shadow 0 var(--lineWidth) rgba(#000, 0.07)
 
 				> [data-icon]
 					margin-right 6px
@@ -111,7 +110,6 @@ export default Vue.extend({
 					color var(--faceTextButtonActive)
 
 	&.inNakedDeckColumn
-		background var(--face)
 
 		> header
 			margin 0
@@ -119,6 +117,9 @@ export default Vue.extend({
 			font-size 12px
 			color var(--text)
 			background var(--deckColumnBg)
+
+			&.bodyTogglable
+				cursor pointer
 
 			> button
 				position absolute

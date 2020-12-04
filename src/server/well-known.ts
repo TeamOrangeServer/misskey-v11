@@ -1,5 +1,5 @@
 import * as mongo from 'mongodb';
-import * as Router from 'koa-router';
+import * as Router from '@koa/router';
 
 import config from '../config';
 import parseAcct from '../misc/acct/parse';
@@ -24,6 +24,8 @@ const jrd = 'application/jrd+json';
 const xrd = 'application/xrd+xml';
 
 router.get('/.well-known/host-meta', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	ctx.set('Content-Type', xrd);
 	ctx.body = XRD({ element: 'Link', attributes: {
 		type: xrd,
@@ -32,6 +34,8 @@ router.get('/.well-known/host-meta', async ctx => {
 });
 
 router.get('/.well-known/host-meta.json', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	ctx.set('Content-Type', jrd);
 	ctx.body = {
 		links: [{
@@ -43,6 +47,8 @@ router.get('/.well-known/host-meta.json', async ctx => {
 });
 
 router.get('/.well-known/nodeinfo', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	ctx.body = { links };
 });
 
@@ -51,18 +57,24 @@ router.get(webFingerPath, async ctx => {
 		resource.startsWith(`${config.url.toLowerCase()}/users/`) ?
 			fromId(new mongo.ObjectID(resource.split('/').pop())) :
 			fromAcct(parseAcct(
-				resource.startsWith(`${config.url.toLowerCase()}/@`) ? resource.split('/').pop() :
+				resource.startsWith(`${config.url.toLowerCase()}/@`) ? resource.split('/').pop()! :
 				resource.startsWith('acct:') ? resource.slice('acct:'.length) :
 				resource));
 
 	const fromId = (_id: mongo.ObjectID): Record<string, any> => ({
 			_id,
+			isDeleted: { $ne: true },
+			isSuspended: { $ne: true },
+			noFederation: { $ne: true },
 			host: null
 		});
 
 	const fromAcct = (acct: Acct): Record<string, any> | number =>
 		!acct.host || acct.host === config.host.toLowerCase() ? {
 			usernameLower: acct.username,
+			isDeleted: { $ne: true },
+			isSuspended: { $ne: true },
+			noFederation: { $ne: true },
 			host: null
 		} : 422;
 
@@ -80,7 +92,7 @@ router.get(webFingerPath, async ctx => {
 
 	const user = await User.findOne(query);
 
-	if (user === null) {
+	if (user == null) {
 		ctx.status = 404;
 		return;
 	}

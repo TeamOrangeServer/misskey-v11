@@ -1,11 +1,11 @@
 import * as mongo from 'mongodb';
-import monkDb, { nativeDbConn } from '../db/mongodb';
+import db, { nativeDbConn } from '../db/mongodb';
 
-const DriveFileWebpublic = monkDb.get<IDriveFileWebpublic>('driveFileWebpublics.files');
+const DriveFileWebpublic = db.get<IDriveFileWebpublic>('driveFileWebpublics.files');
 DriveFileWebpublic.createIndex('metadata.originalId', { sparse: true, unique: true });
 export default DriveFileWebpublic;
 
-export const DriveFileWebpublicChunk = monkDb.get('driveFileWebpublics.chunks');
+export const DriveFileWebpublicChunk = db.get('driveFileWebpublics.chunks');
 
 export const getDriveFileWebpublicBucket = async (): Promise<mongo.GridFSBucket> => {
 	const db = await nativeDbConn();

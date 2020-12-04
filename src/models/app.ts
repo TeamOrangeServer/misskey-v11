@@ -24,7 +24,7 @@ export type IApp = {
 /**
  * Pack an app for API response
  */
-export const pack = (
+export const pack = async (
 	app: any,
 	me?: any,
 	options?: {
@@ -32,7 +32,7 @@ export const pack = (
 		includeSecret?: boolean,
 		includeProfileImageIds?: boolean
 	}
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	const opts = Object.assign({
 		detail: false,
 		includeSecret: false,
@@ -98,5 +98,5 @@ export const pack = (
 		_app.isAuthorized = exist === 1;
 	}
 
-	resolve(_app);
-});
+	return _app;
+};

@@ -1,20 +1,19 @@
-import * as Koa from 'koa';
-import * as Router from 'koa-router';
-import * as request from 'request';
+import * as Router from '@koa/router';
 import { OAuth2 } from 'oauth';
 import User, { pack, ILocalUser } from '../../../models/user';
 import config from '../../../config';
 import { publishMainStream } from '../../../services/stream';
 import redis from '../../../db/redis';
-import * as uuid from 'uuid';
+import { v4 as uuid } from 'uuid';
 import signin from '../common/signin';
 import fetchMeta from '../../../misc/fetch-meta';
+import { getJson } from '../../../misc/fetch';
 
-function getUserToken(ctx: Koa.BaseContext) {
+function getUserToken(ctx: Router.RouterContext) {
 	return ((ctx.headers['cookie'] || '').match(/i=(!\w+)/) || [null, null])[1];
 }
 
-function compareOrigin(ctx: Koa.BaseContext) {
+function compareOrigin(ctx: Router.RouterContext) {
 	function normalizeUrl(url: string) {
 		return url ? url.endsWith('/') ? url.substr(0, url.length - 1) : url : '';
 	}
@@ -107,14 +106,10 @@ router.get('/signin/discord', async ctx => {
 		response_type: 'code'
 	};
 
-	const expires = 1000 * 60 * 60; // 1h
-	ctx.cookies.set('signin_with_discord_session_id', sessid, {
+	ctx.cookies.set('signin_with_discord_sid', sessid, {
 		path: '/',
-		domain: config.host,
 		secure: config.url.startsWith('https'),
-		httpOnly: true,
-		expires: new Date(Date.now() + expires),
-		maxAge: expires
+		httpOnly: true
 	});
 
 	redis.set(sessid, JSON.stringify(params));
@@ -129,7 +124,7 @@ router.get('/dc/cb', async ctx => {
 	const oauth2 = await getOAuth2();
 
 	if (!userToken) {
-		const sessid = ctx.cookies.get('signin_with_discord_session_id');
+		const sessid = ctx.cookies.get('signin_with_discord_sid');
 
 		if (!sessid) {
 			ctx.throw(400, 'invalid session');
@@ -174,19 +169,9 @@ router.get('/dc/cb', async ctx => {
 					});
 				}));
 
-		const { id, username, discriminator } = await new Promise<any>((res, rej) =>
-			request({
-				url: 'https://discordapp.com/api/users/@me',
-				headers: {
-					'Authorization': `Bearer ${accessToken}`,
-					'User-Agent': config.userAgent
-				}
-			}, (err, response, body) => {
-				if (err)
-					rej(err);
-				else
-					res(JSON.parse(body));
-			}));
+		const { id, username, discriminator } = await getJson('https://discordapp.com/api/users/@me', '*/*', 10 * 1000, {
+			'Authorization': `Bearer ${accessToken}`,
+		});
 
 		if (!id || !username || !discriminator) {
 			ctx.throw(400, 'invalid session');
@@ -209,6 +194,7 @@ router.get('/dc/cb', async ctx => {
 		}, {
 			$set: {
 				discord: {
+					id,
 					accessToken,
 					refreshToken,
 					expiresDate,
@@ -258,20 +244,9 @@ router.get('/dc/cb', async ctx => {
 						});
 				}));
 
-		const { id, username, discriminator } = await new Promise<any>((res, rej) =>
-			request({
-				url: 'https://discordapp.com/api/users/@me',
-				headers: {
-					'Authorization': `Bearer ${accessToken}`,
-					'User-Agent': config.userAgent
-				}
-			}, (err, response, body) => {
-				if (err)
-					rej(err);
-				else
-					res(JSON.parse(body));
-			}));
-
+		const { id, username, discriminator } = await getJson('https://discordapp.com/api/users/@me', '*/*', 10 * 1000, {
+			'Authorization': `Bearer ${accessToken}`,
+		});
 		if (!id || !username || !discriminator) {
 			ctx.throw(400, 'invalid session');
 			return;

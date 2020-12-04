@@ -17,11 +17,8 @@ const defaultMeta: any = {
 	enableTwitterIntegration: false,
 	enableGithubIntegration: false,
 	enableDiscordIntegration: false,
-	enableExternalUserRecommendation: false,
-	externalUserRecommendationEngine: 'https://vinayaka.distsn.org/cgi-bin/vinayaka-user-match-misskey-api.cgi?{{host}}+{{user}}+{{limit}}+{{offset}}',
-	externalUserRecommendationTimeout: 300000,
 	mascotImageUrl: '/assets/ai.png',
-	errorImageUrl: 'https://ai.misskey.xyz/aiart/yubitun.png',
+	errorImageUrl: 'https://xn--931a.moe/aiart/yubitun.png',
 	enableServiceWorker: false
 };
 

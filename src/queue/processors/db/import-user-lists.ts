@@ -11,60 +11,77 @@ import resolveUser from '../../../remote/resolve-user';
 import { pushUserToUserList } from '../../../services/user-list/push';
 import { downloadTextFile } from '../../../misc/download-text-file';
 import { isSelfHost, toDbHost } from '../../../misc/convert-host';
+import { DbUserImportJobData } from '../..';
 
 const logger = queueLogger.createSubLogger('import-user-lists');
 
-export async function importUserLists(job: Bull.Job, done: any): Promise<void> {
+export async function importUserLists(job: Bull.Job<DbUserImportJobData>): Promise<string> {
 	logger.info(`Importing user lists of ${job.data.user._id} ...`);
 
 	const user = await User.findOne({
 		_id: new mongo.ObjectID(job.data.user._id.toString())
 	});
 
+	if (user == null) {
+		return `skip: user not found`;
+	}
+
 	const file = await DriveFile.findOne({
 		_id: new mongo.ObjectID(job.data.fileId.toString())
 	});
+
+	if (file == null) {
+		return `skip: file not found`;
+	}
 
 	const url = getOriginalUrl(file);
 
 	const csv = await downloadTextFile(url);
 
+	let linenum = 0;
+
 	for (const line of csv.trim().split('\n')) {
-		const listName = line.split(',')[0].trim();
-		const { username, host } = parseAcct(line.split(',')[1].trim());
+		linenum++;
 
-		let list = await UserList.findOne({
-			userId: user._id,
-			title: listName
-		});
+		try {
+			const listName = line.split(',')[0].trim();
+			const { username, host } = parseAcct(line.split(',')[1].trim());
 
-		if (list == null) {
-			list = await UserList.insert({
-				createdAt: new Date(),
+			let list = await UserList.findOne({
 				userId: user._id,
-				title: listName,
-				userIds: []
+				title: listName
 			});
+
+			if (list == null) {
+				list = await UserList.insert({
+					createdAt: new Date(),
+					userId: user._id,
+					title: listName,
+					userIds: []
+				})!;
+			}
+
+			let target = isSelfHost(host) ? await User.findOne({
+				host: null,
+				usernameLower: username.toLowerCase()
+			}) : await User.findOne({
+				host: toDbHost(host),
+				usernameLower: username.toLowerCase()
+			});
+
+			if (host == null && target == null) continue;
+
+			if (target == null) {
+				target = await resolveUser(username, host);
+			}
+
+			if (list.userIds.some(id => id.equals(target._id))) continue;
+
+			pushUserToUserList(target, list);
+		} catch (e) {
+			logger.warn(`Error in line:${linenum} ${e}`);
 		}
-
-		let target = isSelfHost(host) ? await User.findOne({
-			host: null,
-			usernameLower: username.toLowerCase()
-		}) : await User.findOne({
-			host: toDbHost(host),
-			usernameLower: username.toLowerCase()
-		});
-
-		if (host == null && target == null) continue;
-		if (list.userIds.some(id => id.equals(target._id))) continue;
-
-		if (target == null) {
-			target = await resolveUser(username, host);
-		}
-
-		pushUserToUserList(target, list);
 	}
 
-	logger.succ('Imported');
-	done();
+	return `ok: Imported`;
 }

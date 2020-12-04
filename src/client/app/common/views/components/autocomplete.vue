@@ -17,8 +17,7 @@
 	<ol class="emojis" ref="suggests" v-if="emojis.length > 0">
 		<li v-for="emoji in emojis" @click="complete(type, emoji.emoji)" @keydown="onKeydown" tabindex="-1">
 			<span class="emoji" v-if="emoji.isCustomEmoji"><img :src="$store.state.device.disableShowingAnimatedImages ? getStaticImageUrl(emoji.url) : emoji.url" :alt="emoji.emoji"/></span>
-			<span class="emoji" v-else-if="!useOsDefaultEmojis"><img :src="emoji.url" :alt="emoji.emoji"/></span>
-			<span class="emoji" v-else>{{ emoji.emoji }}</span>
+			<span class="emoji" v-else><img :src="emoji.url" :alt="emoji.emoji"/></span>
 			<span class="name" v-html="emoji.name.replace(q, `<b>${q}</b>`)"></span>
 			<span class="alias" v-if="emoji.aliasOf">({{ emoji.aliasOf }})</span>
 		</li>
@@ -28,9 +27,9 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as emojilib from 'emojilib';
+import { emojilist } from '../../../../../misc/emojilist';
 import contains from '../../../common/scripts/contains';
-import { twemojiBase } from '../../../../../misc/twemoji-base';
+import { twemojiSvgBase } from '../../../../../misc/twemoji-base';
 import { getStaticImageUrl } from '../../../common/scripts/get-static-image-url';
 
 type EmojiDef = {
@@ -41,9 +40,7 @@ type EmojiDef = {
 	isCustomEmoji?: boolean;
 };
 
-const lib = Object.entries(emojilib.lib).filter((x: any) => {
-	return x[1].category != 'flags';
-});
+const lib = emojilist.filter(x => x.category !== 'flags');
 
 const char2file = (char: string) => {
 	let codes = Array.from(char).map(x => x.codePointAt(0).toString(16));
@@ -52,21 +49,21 @@ const char2file = (char: string) => {
 	return codes.join('-');
 };
 
-const emjdb: EmojiDef[] = lib.map((x: any) => ({
-	emoji: x[1].char,
-	name: x[0],
+const emjdb: EmojiDef[] = lib.map(x => ({
+	emoji: x.char,
+	name: x.name,
 	aliasOf: null,
-	url: `${twemojiBase}/2/svg/${char2file(x[1].char)}.svg`
+	url: `${twemojiSvgBase}/${char2file(x.char)}.svg`
 }));
 
-for (const x of lib as any) {
-	if (x[1].keywords) {
-		for (const k of x[1].keywords) {
+for (const x of lib) {
+	if (x.keywords) {
+		for (const k of x.keywords) {
 			emjdb.push({
-				emoji: x[1].char,
+				emoji: x.char,
 				name: k,
-				aliasOf: x[0],
-				url: `${twemojiBase}/2/svg/${char2file(x[1].char)}.svg`
+				aliasOf: x.name,
+				url: `${twemojiSvgBase}/${char2file(x.char)}.svg`
 			});
 		}
 	}
@@ -75,7 +72,7 @@ for (const x of lib as any) {
 emjdb.sort((a, b) => a.name.length - b.name.length);
 
 export default Vue.extend({
-	props: ['type', 'q', 'textarea', 'complete', 'close', 'x', 'y'],
+	props: ['type', 'q', 'textarea', 'complete', 'close', 'x', 'y', 'localOnly'],
 
 	data() {
 		return {
@@ -84,19 +81,10 @@ export default Vue.extend({
 			users: [],
 			hashtags: [],
 			emojis: [],
+			items: [],
 			select: -1,
-			emojilib,
+			emojilist,
 			emojiDb: [] as EmojiDef[]
-		}
-	},
-
-	computed: {
-		items(): HTMLCollection {
-			return (this.$refs.suggests as Element).children;
-		},
-
-		useOsDefaultEmojis(): boolean {
-			return this.$store.state.device.useOsDefaultEmojis;
 		}
 	},
 
@@ -116,6 +104,8 @@ export default Vue.extend({
 			this.$el.style.marginTop = 'calc(1em + 8px)';
 		}
 		//#endregion
+
+		this.items = (this.$refs.suggests as Element | undefined)?.children || [];
 	},
 
 	mounted() {
@@ -184,48 +174,27 @@ export default Vue.extend({
 			}
 
 			if (this.type == 'user') {
-				const cacheKey = `autocomplete:user:${this.q}`;
-				const cache = sessionStorage.getItem(cacheKey);
-				if (cache) {
-					const users = JSON.parse(cache);
+				this.$root.api('users/search', {
+					query: `@${this.q}`,
+					localOnly: !!this.localOnly,
+					limit: 20,
+					detail: false
+				}, false, false).then(users => {
 					this.users = users;
 					this.fetching = false;
-				} else {
-					this.$root.api('users/search', {
-						query: this.q,
-						limit: 10,
-						detail: false
-					}).then(users => {
-						this.users = users;
-						this.fetching = false;
-
-						// キャッシュ
-						sessionStorage.setItem(cacheKey, JSON.stringify(users));
-					});
-				}
+				});
 			} else if (this.type == 'hashtag') {
 				if (this.q == null || this.q == '') {
 					this.hashtags = JSON.parse(localStorage.getItem('hashtags') || '[]');
 					this.fetching = false;
 				} else {
-					const cacheKey = `autocomplete:hashtag:${this.q}`;
-					const cache = sessionStorage.getItem(cacheKey);
-					if (cache) {
-						const hashtags = JSON.parse(cache);
+					this.$root.api('hashtags/search', {
+						query: this.q,
+						limit: 30
+					}, false, true).then(hashtags => {
 						this.hashtags = hashtags;
 						this.fetching = false;
-					} else {
-						this.$root.api('hashtags/search', {
-							query: this.q,
-							limit: 30
-						}).then(hashtags => {
-							this.hashtags = hashtags;
-							this.fetching = false;
-
-							// キャッシュ
-							sessionStorage.setItem(cacheKey, JSON.stringify(hashtags));
-						});
-					}
+					});
 				}
 			} else if (this.type == 'emoji') {
 				if (this.q == null || this.q == '') {
@@ -310,6 +279,7 @@ export default Vue.extend({
 
 		selectNext() {
 			if (++this.select >= this.items.length) this.select = 0;
+			if (this.items.length === 0) this.select = -1;
 			this.applySelect();
 		},
 
@@ -323,8 +293,10 @@ export default Vue.extend({
 				el.removeAttribute('data-selected');
 			}
 
-			this.items[this.select].setAttribute('data-selected', 'true');
-			(this.items[this.select] as any).focus();
+			if (this.select !== -1) {
+				this.items[this.select].setAttribute('data-selected', 'true');
+				(this.items[this.select] as any).focus();
+			}
 		}
 	}
 });
@@ -337,7 +309,7 @@ export default Vue.extend({
 	max-width 100%
 	margin-top calc(1em + 8px)
 	overflow hidden
-	background var(--faceHeader)
+	background var(--secondary)
 	border solid 1px rgba(#000, 0.1)
 	border-radius 4px
 	transition top 0.1s ease, left 0.1s ease

@@ -18,6 +18,7 @@
 				<div class="text">
 					<mfm v-if="note.text" :text="note.cw != null ? note.cw : note.text" :author="note.user" :custom-emojis="note.emojis"/>
 				</div>
+				<mk-reactions-viewer class="reactions" :note="note"/>
 			</div>
 		</div>
 	</transition-group>
@@ -40,16 +41,11 @@ export default Vue.extend({
 		return {
 			fetching: true,
 			notes: [],
-			connection: null
 		};
 	},
 
 	mounted() {
 		this.fetch();
-
-		this.connection = this.$root.stream.useSharedConnection('localTimeline');
-
-		this.connection.on('note', this.onNote);
 	},
 
 	beforeDestroy() {
@@ -57,28 +53,18 @@ export default Vue.extend({
 	},
 
 	methods: {
-		fetch(cb?) {
+		fetch() {
 			this.fetching = true;
-			this.$root.api('notes', {
+
+			this.$root.api('notes/featured', {
 				limit: this.max,
-				local: true,
-				reply: false,
-				renote: false,
-				file: false,
-				poll: false
-			}).then(notes => {
+				days: 0.5,
+				excludeNsfw: true,
+			}, false, true).then((notes: any[]) => {
+				notes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 				this.notes = notes;
 				this.fetching = false;
 			});
-		},
-
-		onNote(note) {
-			if (note.replyId != null) return;
-			if (note.renoteId != null) return;
-			if (note.poll != null) return;
-			if (note.localOnly) return;
-
-			this.notes.unshift(note);
 		},
 	}
 });
@@ -102,7 +88,6 @@ export default Vue.extend({
 			overflow-wrap break-word
 			font-size .9em
 			color var(--noteText)
-			border-bottom 1px solid var(--faceDivider)
 
 			&:after
 				content ""
@@ -127,7 +112,6 @@ export default Vue.extend({
 				> header
 					display flex
 					align-items center
-					margin-bottom 4px
 					white-space nowrap
 
 					> .name
@@ -152,5 +136,10 @@ export default Vue.extend({
 
 				> .text
 					text-align left
-
+					max-height 120px
+					overflow auto
+					margin-left 0.2em
+				
+				> .reactions
+					pointer-events none
 </style>

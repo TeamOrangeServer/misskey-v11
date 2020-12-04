@@ -8,6 +8,7 @@ export type Theme = {
 	base?: 'dark' | 'light';
 	vars: { [key: string]: string };
 	props: { [key: string]: string };
+	revision?: number;
 };
 
 export const lightTheme: Theme = require('../themes/light.json5');
@@ -15,6 +16,9 @@ export const darkTheme: Theme = require('../themes/dark.json5');
 export const lavenderTheme: Theme = require('../themes/lavender.json5');
 export const futureTheme: Theme = require('../themes/future.json5');
 export const halloweenTheme: Theme = require('../themes/halloween.json5');
+export const promoTheme: Theme = require('../themes/promo.json5');
+export const hikaemeTheme: Theme = require('../themes/hikaeme.json5');
+export const halloweenLady: Theme = require('../themes/halloween-lady.json5');
 export const cafeTheme: Theme = require('../themes/cafe.json5');
 export const japaneseSushiSetTheme: Theme = require('../themes/japanese-sushi-set.json5');
 export const gruvboxDarkTheme: Theme = require('../themes/gruvbox-dark.json5');
@@ -31,6 +35,9 @@ export const builtinThemes = [
 	lavenderTheme,
 	futureTheme,
 	halloweenTheme,
+	promoTheme,
+	hikaemeTheme,
+	halloweenLady,
 	cafeTheme,
 	japaneseSushiSetTheme,
 	gruvboxDarkTheme,
@@ -66,6 +73,9 @@ export function applyTheme(theme: Theme, persisted = true) {
 
 	if (persisted) {
 		localStorage.setItem('theme', JSON.stringify(props));
+
+		const themeColor = document.querySelector('meta[name="theme-color"]');
+		if (themeColor && props.bg) themeColor.setAttribute('content', props.bg);
 	}
 }
 
@@ -88,7 +98,9 @@ function compile(theme: Theme): { [key: string]: string } {
 
 			switch (func) {
 				case 'darken': return color.darken(arg);
+				case 'darkenA': return color.darken(arg).setAlpha(0.6);
 				case 'lighten': return color.lighten(arg);
+				case 'lightenA': return color.lighten(arg).setAlpha(0.6);
 				case 'alpha': return color.setAlpha(arg);
 			}
 		}

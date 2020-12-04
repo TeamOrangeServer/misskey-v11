@@ -3,13 +3,14 @@ import * as promiseLimit from 'promise-limit';
 import { toUnicode } from 'punycode';
 
 import config from '../../../config';
-import User, { validateUsername, isValidName, IUser, IRemoteUser, isRemoteUser } from '../../../models/user';
+import User, { validateUsername, IUser, IRemoteUser, isRemoteUser } from '../../../models/user';
 import Resolver from '../resolver';
 import { resolveImage } from './image';
-import { isCollectionOrOrderedCollection, isCollection, IPerson, validActor } from '../type';
+import { isCollectionOrOrderedCollection, isCollection, isOrderedCollection, IObject, isActor, IApPerson, isPropertyValue, IApPropertyValue, ApObject, getApIds, getOneApHrefNullable, isOrderedCollectionPage, isCreate, isPost } from '../type';
 import { IDriveFile } from '../../../models/drive-file';
 import Meta from '../../../models/meta';
-import { fromHtml } from '../../../mfm/fromHtml';
+import { fromHtml } from '../../../mfm/from-html';
+import { htmlToMfm } from '../misc/html-to-mfm';
 import usersChart from '../../../services/chart/users';
 import instanceChart from '../../../services/chart/instance';
 import { URL } from 'url';
@@ -18,65 +19,65 @@ import { registerOrFetchInstanceDoc } from '../../../services/register-or-fetch-
 import Instance from '../../../models/instance';
 import getDriveFileUrl from '../../../misc/get-drive-file-url';
 import { IEmoji } from '../../../models/emoji';
-import { ITag, extractHashtags } from './tag';
+import { extractApHashtags } from './tag';
 import Following from '../../../models/following';
-import { IIdentifier } from './identifier';
 import { apLogger } from '../logger';
 import { INote } from '../../../models/note';
-import { updateHashtag } from '../../../services/update-hashtag';
+import { updateUsertags } from '../../../services/update-hashtag';
+import { toArray, toSingle } from '../../../prelude/array';
+import { UpdateInstanceinfo } from '../../../services/update-instanceinfo';
+import { extractDbHost } from '../../../misc/convert-host';
+import DbResolver from '../db-resolver';
+import resolveUser from '../../resolve-user';
 const logger = apLogger;
 
 /**
- * Validate Person object
- * @param x Fetched person object
+ * Validate and convert to actor object
+ * @param x Fetched object
  * @param uri Fetch target URI
  */
-function validatePerson(x: any, uri: string) {
+function toPerson(x: IObject, uri: string): IApPerson {
 	const expectHost = toUnicode(new URL(uri).hostname.toLowerCase());
 
 	if (x == null) {
-		return new Error('invalid person: object is null');
+		throw new Error('invalid person: object is null');
 	}
 
-	if (!validActor.includes(x.type)) {
-		return new Error(`invalid person: object is not a person or service '${x.type}'`);
+	if (!isActor(x)) {
+		throw new Error(`invalid person type '${x.type}'`);
 	}
 
 	if (typeof x.preferredUsername !== 'string') {
-		return new Error('invalid person: preferredUsername is not a string');
+		throw new Error('invalid person: preferredUsername is not a string');
 	}
 
 	if (typeof x.inbox !== 'string') {
-		return new Error('invalid person: inbox is not a string');
+		throw new Error('invalid person: inbox is not a string');
 	}
 
 	if (!validateUsername(x.preferredUsername, true)) {
-		return new Error('invalid person: invalid username');
-	}
-
-	if (!isValidName(x.name == '' ? null : x.name)) {
-		return new Error('invalid person: invalid name');
+		throw new Error('invalid person: invalid username');
 	}
 
 	if (typeof x.id !== 'string') {
-		return new Error('invalid person: id is not a string');
+		throw new Error('invalid person: id is not a string');
 	}
 
 	const idHost = toUnicode(new URL(x.id).hostname.toLowerCase());
 	if (idHost !== expectHost) {
-		return new Error('invalid person: id has different host');
+		throw new Error('invalid person: id has different host');
 	}
 
 	if (typeof x.publicKey.id !== 'string') {
-		return new Error('invalid person: publicKey.id is not a string');
+		throw new Error('invalid person: publicKey.id is not a string');
 	}
 
 	const publicKeyIdHost = toUnicode(new URL(x.publicKey.id).hostname.toLowerCase());
 	if (publicKeyIdHost !== expectHost) {
-		return new Error('invalid person: publicKey.id has different host');
+		throw new Error('invalid person: publicKey.id has different host');
 	}
 
-	return null;
+	return x;
 }
 
 /**
@@ -84,24 +85,11 @@ function validatePerson(x: any, uri: string) {
  *
  * Misskeyに対象のPersonが登録されていればそれを返します。
  */
-export async function fetchPerson(uri: string, resolver?: Resolver): Promise<IUser> {
+export async function fetchPerson(uri: string): Promise<IUser | null> {
 	if (typeof uri !== 'string') throw 'uri is not string';
 
-	// URIがこのサーバーを指しているならデータベースからフェッチ
-	if (uri.startsWith(config.url + '/')) {
-		const id = new mongo.ObjectID(uri.split('/').pop());
-		return await User.findOne({ _id: id });
-	}
-
-	//#region このサーバーに既に登録されていたらそれを返す
-	const exist = await User.findOne({ uri });
-
-	if (exist) {
-		return exist;
-	}
-	//#endregion
-
-	return null;
+	const dbResolver = new DbResolver();
+	return await dbResolver.getUserFromApId(uri);
 }
 
 /**
@@ -112,15 +100,9 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 
 	if (resolver == null) resolver = new Resolver();
 
-	const object = await resolver.resolve(uri) as any;
+	const object = await resolver.resolve(uri);
 
-	const err = validatePerson(object, uri);
-
-	if (err) {
-		throw err;
-	}
-
-	const person: IPerson = object;
+	const person = toPerson(object, uri);
 
 	logger.info(`Creating the Person: ${person.id}`);
 
@@ -143,19 +125,23 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 
 	const { fields, services } = analyzeAttachments(person.attachment);
 
-	const tags = extractHashtags(person.tag).map(tag => tag.toLowerCase());
+	const tags = extractApHashtags(person.tag).map(tag => tag.toLowerCase()).splice(0, 64);
 
-	const isBot = object.type == 'Service';
+	const movedToUserId = await resolveAnotherUser(uri, person.movedTo);
+	// const alsoKnownAsUserIds = await resolveAnotherUsers(uri, person.alsoKnownAs);
+	const alsoKnownAsUserIds: mongo.ObjectID[] = [];
+
+	const bday = person['vcard:bday']?.match(/^\d{4}-\d{2}-\d{2}/);
 
 	// Create user
-	let user: IRemoteUser;
+	let user: IRemoteUser | undefined;
 	try {
 		user = await User.insert({
 			avatarId: null,
 			bannerId: null,
-			createdAt: Date.parse(person.published) || null,
+			createdAt: new Date(),
 			lastFetchedAt: new Date(),
-			description: fromHtml(person.summary),
+			description: htmlToMfm(person.summary, person.tag),
 			followersCount,
 			followingCount,
 			notesCount,
@@ -170,24 +156,53 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 			},
 			inbox: person.inbox,
 			sharedInbox: person.sharedInbox || (person.endpoints ? person.endpoints.sharedInbox : undefined),
+			outbox: person.outbox,
 			featured: person.featured,
 			endpoints: person.endpoints,
 			uri: person.id,
-			url: person.url,
+			movedToUserId,
+			alsoKnownAsUserIds,
+			url: getOneApHrefNullable(person.url),
 			fields,
 			...services,
 			tags,
-			isBot,
+			profile: {
+				birthday: bday ? bday[0] : undefined,
+				location: person['vcard:Address'] || undefined,
+			},
+			isBot: object.type == 'Service',
+			isGroup: object.type == 'Group',
+			isOrganization: object.type == 'Organization',
 			isCat: (person as any).isCat === true
 		}) as IRemoteUser;
 	} catch (e) {
 		// duplicate key error
 		if (e.code === 11000) {
-			throw new Error('already registered');
-		}
+			user = await User.findOne({
+				uri: person.id
+			});
 
-		logger.error(e);
-		throw e;
+			// 同じ@username@host を持つものがあった場合、被った先を返す
+			if (user == null) {
+				const u = await User.findOne({
+					usernameLower: person.preferredUsername.toLowerCase(),
+					host
+				});
+
+				if (u) {
+					throw {
+						code: 'DUPLICATED_USERNAME',
+						with: u,
+					};
+				}
+
+				logger.error(e);
+				throw e;
+			}
+		} else {
+			logger.error(e);
+			throw e;
+		}
 	}
 
 	// Register host
@@ -197,6 +212,8 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 				usersCount: 1
 			}
 		});
+
+		UpdateInstanceinfo(i);
 
 		instanceChart.newUser(i.host);
 	});
@@ -212,13 +229,12 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
 	//#endregion
 
 	// ハッシュタグ更新
-	for (const tag of tags) updateHashtag(user, tag, true, true);
-	for (const tag of (user.tags || []).filter(x => !tags.includes(x))) updateHashtag(user, tag, true, false);
+	updateUsertags(user, tags);
 
 	//#region アイコンとヘッダー画像をフェッチ
 	const [avatar, banner] = (await Promise.all<IDriveFile>([
-		person.icon,
-		person.image
+		toSingle(person.icon),
+		toSingle(person.image)
 	].map(img =>
 		img == null
 			? Promise.resolve(null)
@@ -278,7 +294,7 @@ export async function createPerson(uri: string, resolver?: Resolver): Promise<IU
  * @param resolver Resolver
  * @param hint Hint of Person object (この値が正当なPersonの場合、Remote resolveをせずに更新に利用します)
  */
-export async function updatePerson(uri: string, resolver?: Resolver, hint?: object): Promise<void> {
+export async function updatePerson(uri: string, resolver?: Resolver, hint?: IApPerson): Promise<void> {
 	if (typeof uri !== 'string') throw 'uri is not string';
 
 	// URIがこのサーバーを指しているならスキップ
@@ -298,13 +314,7 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 
 	const object = hint || await resolver.resolve(uri) as any;
 
-	const err = validatePerson(object, uri);
-
-	if (err) {
-		throw err;
-	}
-
-	const person: IPerson = object;
+	const person = toPerson(object, uri);
 
 	logger.info(`Updating the Person: ${person.id}`);
 
@@ -325,8 +335,8 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 
 	// アイコンとヘッダー画像をフェッチ
 	const [avatar, banner] = (await Promise.all<IDriveFile>([
-		person.icon,
-		person.image
+		toSingle(person.icon),
+		toSingle(person.image)
 	].map(img =>
 		img == null
 			? Promise.resolve(null)
@@ -343,28 +353,41 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 
 	const { fields, services } = analyzeAttachments(person.attachment);
 
-	const tags = extractHashtags(person.tag).map(tag => tag.toLowerCase());
+	const tags = extractApHashtags(person.tag).map(tag => tag.toLowerCase()).splice(0, 64);
+
+	const movedToUserId = await resolveAnotherUser(uri, person.movedTo);
+	const alsoKnownAsUserIds = await resolveAnotherUsers(uri, person.alsoKnownAs);
+
+	const bday = person['vcard:bday']?.match(/^\d{4}-\d{2}-\d{2}/);
 
 	const updates = {
 		lastFetchedAt: new Date(),
 		inbox: person.inbox,
 		sharedInbox: person.sharedInbox || (person.endpoints ? person.endpoints.sharedInbox : undefined),
+		outbox: person.outbox,
 		featured: person.featured,
 		emojis: emojiNames,
-		description: fromHtml(person.summary),
+		description: htmlToMfm(person.summary, person.tag),
 		followersCount,
 		followingCount,
 		notesCount,
 		name: person.name,
-		url: person.url,
+		movedToUserId,
+		alsoKnownAsUserIds,
+		url: getOneApHrefNullable(person.url),
 		endpoints: person.endpoints,
 		fields,
 		...services,
 		tags,
+		profile: {
+			birthday: bday ? bday[0] : undefined,
+			location: person['vcard:Address'] || undefined,
+		},
 		isBot: object.type == 'Service',
+		isGroup: object.type == 'Group',
+		isOrganization: object.type == 'Organization',
 		isCat: (person as any).isCat === true,
 		isLocked: person.manuallyApprovesFollowers,
-		createdAt: Date.parse(person.published) || null,
 		publicKey: {
 			id: person.publicKey.id,
 			publicKeyPem: person.publicKey.publicKeyPem
@@ -389,8 +412,7 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 	});
 
 	// ハッシュタグ更新
-	for (const tag of tags) updateHashtag(exist, tag, true, true);
-	for (const tag of (exist.tags || []).filter(x => !tags.includes(x))) updateHashtag(exist, tag, true, false);
+	updateUsertags(exist, tags);
 
 	// 該当ユーザーが既にフォロワーになっていた場合はFollowingもアップデートする
 	await Following.update({
@@ -404,6 +426,10 @@ export async function updatePerson(uri: string, resolver?: Resolver, hint?: obje
 	});
 
 	await updateFeatured(exist._id).catch(err => logger.error(err));
+
+	registerOrFetchInstanceDoc(extractDbHost(uri)).then(i => {
+		UpdateInstanceinfo(i);
+	});
 }
 
 /**
@@ -425,18 +451,26 @@ export async function resolvePerson(uri: string, verifier?: string, resolver?: R
 
 	// リモートサーバーからフェッチしてきて登録
 	if (resolver == null) resolver = new Resolver();
-	return await createPerson(uri, resolver);
-}
 
-const isPropertyValue = (x: {
-		type: string,
-		name?: string,
-		value?: string
-	}) =>
-		x &&
-		x.type === 'PropertyValue' &&
-		typeof x.name === 'string' &&
-		typeof x.value === 'string';
+	let user: IUser | null = null;
+
+	try {
+		user = await createPerson(uri, resolver);
+	} catch (e) {
+		if (e.code === 'DUPLICATED_USERNAME') {
+			// uriからresolveしたユーザーを作成しようとしたら同じ @username@host が既に存在した場合にここに来る
+			const existUser = e.with as IRemoteUser;
+			logger.warn(`Duplicated username. input(uri=${uri}) exist(uri=${existUser.uri} username=${existUser.username}, host=${existUser.host})`);
+
+			// WebFinger(@username@host)からresync をトリガする (24時間以上古い場合)
+			resolveUser(existUser.username, existUser.host);
+		}
+
+		throw e;
+	}
+
+	return user;
+}
 
 const services: {
 		[x: string]: (id: string, username: string) => any
@@ -453,7 +487,7 @@ const $discord = (id: string, name: string) => {
 	return { id, username, discriminator };
 };
 
-function addService(target: { [x: string]: any }, source: IIdentifier) {
+function addService(target: { [x: string]: any }, source: IApPropertyValue) {
 	const service = services[source.name];
 
 	if (typeof source.value !== 'string')
@@ -465,22 +499,26 @@ function addService(target: { [x: string]: any }, source: IIdentifier) {
 		target[source.name.split(':')[2]] = service(id, username);
 }
 
-export function analyzeAttachments(attachments: ITag[]) {
+export function analyzeAttachments(attachments: IObject | IObject[] | undefined) {
+	attachments = toArray(attachments);
+
 	const fields: {
 		name: string,
 		value: string
 	}[] = [];
+
 	const services: { [x: string]: any } = {};
 
-	if (Array.isArray(attachments))
-		for (const attachment of attachments.filter(isPropertyValue))
-			if (isPropertyValue(attachment.identifier))
-				addService(services, attachment.identifier);
-			else
-				fields.push({
-					name: attachment.name,
-					value: fromHtml(attachment.value)
-				});
+	for (const attachment of attachments.filter(isPropertyValue)) {
+		if (isPropertyValue(attachment.identifier)) {
+			addService(services, attachment.identifier);
+		} else {
+			fields.push({
+				name: attachment.name,
+				value: fromHtml(attachment.value)
+			});
+		}
+	}
 
 	return { fields, services };
 }
@@ -500,14 +538,13 @@ export async function updateFeatured(userId: mongo.ObjectID) {
 
 	// Resolve to Object(may be Note) arrays
 	const unresolvedItems = isCollection(collection) ? collection.items : collection.orderedItems;
-	const items = await resolver.resolve(unresolvedItems);
-	if (!Array.isArray(items)) throw new Error(`Collection items is not an array`);
+	const items = await Promise.all(toArray(unresolvedItems).map(x => resolver.resolve(x)));
 
 	// Resolve and regist Notes
 	const limit = promiseLimit(2);
 	const featuredNotes = await Promise.all(items
 		.filter(item => item.type === 'Note')
-		.slice(0, 5)
+		.slice(0, 20)
 		.map(item => limit(() => resolveNote(item, resolver)) as Promise<INote>));
 
 	await User.update({ _id: user._id }, {
@@ -515,4 +552,69 @@ export async function updateFeatured(userId: mongo.ObjectID) {
 			pinnedNoteIds: featuredNotes.filter(note => note != null).map(note => note._id)
 		}
 	});
+}
+
+export async function fetchOutbox(user: IUser) {
+	if (!isRemoteUser(user)) return;
+	if (!user.outbox) {
+		logger.debug(`no outbox for ${user.username}@${user.host}`);
+		return;
+	}
+
+	logger.info(`Updating the outbox: ${user.outbox}`);
+
+	const resolver = new Resolver();
+
+	// Fetch activities from outbox (first page only)
+	let unresolvedActivities: (IObject | string)[];
+
+	const collection = await resolver.resolveCollection(user.outbox);
+	if (!isOrderedCollection(collection)) throw new Error(`Object is not an OrderedCollection`);
+
+	if (collection.orderedItems) {
+		unresolvedActivities = collection.orderedItems;
+	} else if (collection.first) {
+		const page = await resolver.resolveCollection(collection.first);
+		if (isOrderedCollectionPage(page)) {
+			unresolvedActivities = page.orderedItems;
+		}
+	}
+
+	if (!unresolvedActivities) throw new Error('Can not fetch outbox items');
+
+	// Process activities
+	let itemCount = 0;
+	for (const unresolvedActivity of unresolvedActivities) {
+		const activity = await resolver.resolve(unresolvedActivity);
+
+		if (isCreate(activity)) {
+			const object = await resolver.resolve(activity.object);
+			if (isPost(object)) {
+				// Note
+				if (object.inReplyTo) {
+					// skip reply
+				} else if (object._misskey_quote || object.quoteUrl) {
+					// skip quote
+				} else {
+					if (++itemCount > 10) break;
+					await resolveNote(object, resolver);
+				}
+			}
+		} else {
+			// skip Announce etc
+		}
+	}
+}
+
+async function resolveAnotherUser(selfUri: string, ids: ApObject | undefined) {
+	const users = await resolveAnotherUsers(selfUri, ids);
+	return users.length > 0 ? users[0] : undefined;
+}
+
+async function resolveAnotherUsers(selfUri: string, ids: ApObject | undefined) {
+	const users = await Promise.all(
+		getApIds(ids).map(uri => resolvePerson(uri).catch(() => null))
+	) as IRemoteUser[];
+
+	return users.filter(x => x != null && x.uri != selfUri).map(x => x._id);
 }

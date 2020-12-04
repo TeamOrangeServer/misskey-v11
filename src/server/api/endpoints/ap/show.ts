@@ -8,9 +8,9 @@ import Note, { pack as packNote, INote } from '../../../../models/note';
 import { createNote } from '../../../../remote/activitypub/models/note';
 import Resolver from '../../../../remote/activitypub/resolver';
 import { ApiError } from '../../error';
-import Instance from '../../../../models/instance';
-import { extractDbHost } from '../../../../misc/convert-host';
-import { validActor } from '../../../../remote/activitypub/type';
+import { extractApHost } from '../../../../misc/convert-host';
+import { isActor, isPost } from '../../../../remote/activitypub/type';
+import { isBlockedHost } from '../../../../misc/instance-info';
 
 export const meta = {
 	tags: ['federation'],
@@ -65,8 +65,7 @@ async function fetchAny(uri: string) {
 	}
 
 	// ブロックしてたら中断
-	const instance = await Instance.findOne({ host: extractDbHost(uri) });
-	if (instance && instance.isBlocked) return null;
+	if (await isBlockedHost(extractApHost(uri))) return null;
 
 	// URI(AP Object id)としてDB検索
 	{
@@ -79,9 +78,12 @@ async function fetchAny(uri: string) {
 		if (packed !== null) return packed;
 	}
 
+	// disableFederationならリモート解決しない
+	if (config.disableFederation) return null;
+
 	// リモートから一旦オブジェクトフェッチ
 	const resolver = new Resolver();
-	const object = await resolver.resolve(uri) as any;
+	const object = await resolver.resolve(uri);
 
 	// /@user のような正規id以外で取得できるURIが指定されていた場合、ここで初めて正規URIが確定する
 	// これはDBに存在する可能性があるため再度DB検索
@@ -107,7 +109,7 @@ async function fetchAny(uri: string) {
 	}
 
 	// それでもみつからなければ新規であるため登録
-	if (validActor.includes(object.type)) {
+	if (isActor(object)) {
 		const user = await createPerson(object.id);
 		return {
 			type: 'User',
@@ -115,7 +117,7 @@ async function fetchAny(uri: string) {
 		};
 	}
 
-	if (['Note', 'Question', 'Article'].includes(object.type)) {
+	if (isPost(object)) {
 		const note = await createNote(object.id, null, true);
 		return {
 			type: 'Note',

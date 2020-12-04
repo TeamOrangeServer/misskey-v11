@@ -1,3 +1,4 @@
+import { Schema } from '../../../misc/schema';
 
 export const schemas = {
 	Error: {
@@ -221,7 +222,7 @@ export const schemas = {
 			},
 			type: {
 				type: 'string',
-				enum: ['follow', 'receiveFollowRequest', 'mention', 'reply', 'renote', 'quote', 'reaction', 'poll_vote'],
+				enum: ['follow', 'receiveFollowRequest', 'mention', 'reply', 'renote', 'quote', 'reaction', 'poll_vote', 'poll_finished', 'highlight', '_missing_'],
 				description: 'The type of the notification.'
 			},
 		},
@@ -444,4 +445,99 @@ export const schemas = {
 			'attachedRemoteUsersCount',
 		]
 	},
+
+	Page: {
+		type: 'object' as const,
+		optional: false as const, nullable: false as const,
+		properties: {
+			id: {
+				type: 'string' as const,
+				optional: false as const, nullable: false as const,
+				format: 'id',
+				example: 'xxxxxxxxxx',
+			},
+			createdAt: {
+				type: 'string' as const,
+				optional: false as const, nullable: false as const,
+				format: 'date-time',
+			},
+			updatedAt: {
+				type: 'string' as const,
+				optional: false as const, nullable: false as const,
+				format: 'date-time',
+			},
+			title: {
+				type: 'string' as const,
+				optional: false as const, nullable: false as const,
+			},
+			name: {
+				type: 'string' as const,
+				optional: false as const, nullable: false as const,
+			},
+			summary: {
+				type: 'string' as const,
+				optional: false as const, nullable: true as const,
+			},
+			content: {
+				type: 'array' as const,
+				optional: false as const, nullable: false as const,
+			},
+			variables: {
+				type: 'array' as const,
+				optional: false as const, nullable: false as const,
+			},
+			userId: {
+				type: 'string' as const,
+				optional: false as const, nullable: false as const,
+				format: 'id',
+			},
+			user: {
+				type: 'object' as const,
+				ref: 'User',
+				optional: false as const, nullable: false as const,
+			},
+		}
+	},
+
+	XEmoji: {
+		type: 'object',
+		properties: {
+			name: {
+				type: 'string',
+				description: 'name',
+				example: 'name',
+			},
+			url: {
+				type: 'string',
+				description: 'url',
+				example: 'example.com',
+			},
+		},
+		required: [
+			'name',
+			'url',
+		]
+	},
 };
+
+export function convertSchemaToOpenApiSchema(schema: Schema) {
+	const res: any = schema;
+
+	if (schema.type === 'object' && schema.properties) {
+		res.required = Object.entries(schema.properties).filter(([k, v]) => !v.optional).map(([k]) => k);
+
+		for (const k of Object.keys(schema.properties)) {
+			res.properties[k] = convertSchemaToOpenApiSchema(schema.properties[k]);
+		}
+	}
+
+	if (schema.type === 'array' && schema.items) {
+		res.items = convertSchemaToOpenApiSchema(schema.items);
+	}
+
+	if (schema.ref) {
+		res.$ref = `#/components/schemas/${schema.ref}`;
+	}
+
+	return res;
+}

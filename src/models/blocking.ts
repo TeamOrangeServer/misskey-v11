@@ -24,10 +24,10 @@ export const packMany = (
 	return Promise.all(blockings.map(x => pack(x, me)));
 };
 
-export const pack = (
+export const pack = async (
 	blocking: any,
 	me?: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _blocking: any;
 
 	// Populate the blocking if 'blocking' is ID
@@ -52,5 +52,5 @@ export const pack = (
 		detail: true
 	});
 
-	resolve(_blocking);
-});
+	return _blocking;
+};

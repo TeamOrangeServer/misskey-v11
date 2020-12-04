@@ -16,11 +16,11 @@ import App from './app.vue';
 import checkForUpdate from './common/scripts/check-for-update';
 import MiOS from './mios';
 import { version, codename, lang, locale } from './config';
-import { builtinThemes, applyTheme, futureTheme } from './theme';
+import { builtinThemes, applyTheme, lightTheme } from './theme';
 import Dialog from './common/views/components/dialog.vue';
 
 if (localStorage.getItem('theme') == null) {
-	applyTheme(futureTheme);
+	applyTheme(lightTheme);
 }
 
 //#region FontAwesome
@@ -125,7 +125,8 @@ import {
 	faMapMarker,
 	faRobot,
 	faHourglassHalf,
-	faGavel
+	faGavel,
+	faUndoAlt,
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -258,7 +259,7 @@ library.add(
 	faRobot,
 	faHourglassHalf,
 	faGavel,
-
+	faUndoAlt,
 	farBell,
 	farEnvelope,
 	farComments,
@@ -389,7 +390,7 @@ export default (callback: (launch: (router: VueRouter) => [Vue, MiOS], os: MiOS)
 			});
 			//#endregion
 
-			/*// Reapply current theme
+			// Reapply current theme
 			try {
 				const themeName = os.store.state.device.darkmode ? os.store.state.device.darkTheme : os.store.state.device.lightTheme;
 				const themes = os.store.state.device.themes.concat(builtinThemes);
@@ -399,24 +400,10 @@ export default (callback: (launch: (router: VueRouter) => [Vue, MiOS], os: MiOS)
 				}
 			} catch (e) {
 				console.log(`Cannot reapply theme. ${e}`);
-			}*/
+			}
 
 			//#region line width
-			document.documentElement.style.setProperty('--lineWidth', `${os.store.state.device.lineWidth}px`);
-			os.store.watch(s => {
-				return s.device.lineWidth;
-			}, v => {
-				document.documentElement.style.setProperty('--lineWidth', `${os.store.state.device.lineWidth}px`);
-			});
-			//#endregion
-
-			//#region fontSize
-			document.documentElement.style.setProperty('--fontSize', `${os.store.state.device.fontSize}px`);
-			os.store.watch(s => {
-				return s.device.fontSize;
-			}, v => {
-				document.documentElement.style.setProperty('--fontSize', `${os.store.state.device.fontSize}px`);
-			});
+			document.documentElement.style.setProperty('--lineWidth', `1px`);
 			//#endregion
 
 			document.addEventListener('visibilitychange', () => {

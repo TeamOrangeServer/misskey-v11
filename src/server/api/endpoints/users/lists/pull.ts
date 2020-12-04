@@ -6,6 +6,7 @@ import { publishUserListStream } from '../../../../../services/stream';
 import define from '../../../define';
 import { ApiError } from '../../../error';
 import { getUser } from '../../../common/getters';
+import { publishFilterChanged } from '../../../../../services/create-event';
 
 export const meta = {
 	desc: {
@@ -17,7 +18,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'account-write',
+	kind: ['write:account', 'account-write', 'account/write'],
 
 	params: {
 		listId: {
@@ -75,4 +76,6 @@ export default define(meta, async (ps, me) => {
 	});
 
 	publishUserListStream(userList._id, 'userRemoved', await packUser(user));
+
+	publishFilterChanged(me._id);
 });

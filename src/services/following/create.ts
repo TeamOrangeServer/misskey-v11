@@ -2,7 +2,7 @@ import User, { isLocalUser, isRemoteUser, pack as packUser, IUser } from '../../
 import Following from '../../models/following';
 import Blocking from '../../models/blocking';
 import { publishMainStream } from '../stream';
-import notify from '../../services/create-notification';
+import { createNotification } from '../../services/create-notification';
 import { renderActivity } from '../../remote/activitypub/renderer';
 import renderFollow from '../../remote/activitypub/renderer/follow';
 import renderAccept from '../../remote/activitypub/renderer/accept';
@@ -16,6 +16,7 @@ import instanceChart from '../../services/chart/instance';
 import Logger from '../logger';
 import FollowRequest from '../../models/follow-request';
 import { IdentifiableError } from '../../misc/identifiable-error';
+import { publishFollowingChanged } from '../create-event';
 
 const logger = new Logger('following/create');
 
@@ -114,11 +115,23 @@ export async function insertFollowingDoc(followee: IUser, follower: IUser) {
 		packUser(follower, followee).then(packed => publishMainStream(followee._id, 'followed', packed)),
 
 		// 通知を作成
-		notify(followee._id, follower._id, 'follow');
+		createNotification(followee._id, follower._id, 'follow');
+
+		// server event
+		publishFollowingChanged(follower._id);
 	}
 }
 
 export default async function(follower: IUser, followee: IUser, requestId?: string) {
+	// badoogirls
+	if (isRemoteUser(follower) && isLocalUser(followee)) {
+		if (follower.description && follower.description.match(/badoogirls/)) {
+			const content = renderActivity(renderReject(renderFollow(follower, followee, requestId), followee));
+			deliver(followee , content, follower.inbox);
+			return;
+		}
+	}
+
 	// check blocking
 	const [blocking, blocked] = await Promise.all([
 		Blocking.findOne({
@@ -131,7 +144,21 @@ export default async function(follower: IUser, followee: IUser, requestId?: stri
 		})
 	]);
 
-	if (isRemoteUser(follower) && isLocalUser(followee) && blocked) {
+	// このアカウントはフォローできないオプション
+	let userRefused = false;
+
+	if (isLocalUser(followee) && followee.refuseFollow) {	// このアカウントはフォローできない
+		userRefused = true;
+		if (followee.autoAcceptFollowed) {	// フォロー済み自動フォロー許可
+			const followed = await Following.findOne({
+				followerId: followee._id,
+				followeeId: follower._id
+			});
+			if (followed) userRefused = false;
+		}
+	}
+
+	if (isRemoteUser(follower) && isLocalUser(followee) && (blocked || userRefused)) {
 		// リモートフォローを受けてブロックしていた場合は、エラーにするのではなくRejectを送り返しておしまい。
 		const content = renderActivity(renderReject(renderFollow(follower, followee, requestId), followee));
 		deliver(followee , content, follower.inbox);
@@ -144,14 +171,19 @@ export default async function(follower: IUser, followee: IUser, requestId?: stri
 	} else {
 		// それ以外は単純に例外
 		if (blocking != null) throw new IdentifiableError('710e8fb0-b8c3-4922-be49-d5d93d8e6a6e', 'blocking');
-		if (blocked != null) throw new IdentifiableError('3338392a-f764-498d-8855-db939dcf8c48', 'blocked');
+		if (blocked || userRefused) throw new IdentifiableError('3338392a-f764-498d-8855-db939dcf8c48', 'blocked');
 	}
 
 	// フォロー対象が鍵アカウントである or
 	// フォロワーがBotであり、フォロー対象がBotからのフォローに慎重である or
 	// フォロワーがローカルユーザーであり、フォロー対象がリモートユーザーである
+	// 大量フォロワーであり、フォロー対象が大量フォロワーに慎重である
 	// 上記のいずれかに当てはまる場合はすぐフォローせずにフォローリクエストを発行しておく
-	if (followee.isLocked || (followee.carefulBot && follower.isBot) || (isLocalUser(follower) && isRemoteUser(followee))) {
+	if (followee.isLocked
+		|| (followee.carefulBot && follower.isBot)
+		|| (followee.carefulRemote && isRemoteUser(follower))
+		|| (followee.carefulMassive && follower.followingCount > 5000 && (follower.followingCount / follower.followersCount) > 10)
+		|| (isLocalUser(follower) && isRemoteUser(followee))) {
 		let autoAccept = false;
 
 		// 鍵アカウントであっても、既にフォローされていた場合はスルー

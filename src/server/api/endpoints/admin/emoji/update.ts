@@ -2,7 +2,7 @@ import $ from 'cafy';
 import Emoji from '../../../../../models/emoji';
 import define from '../../../define';
 import ID from '../../../../../misc/cafy-id';
-import { detectUrlMine } from '../../../../../misc/detect-url-mine';
+import { detectUrlMime } from '../../../../../misc/detect-url-mime';
 
 export const meta = {
 	desc: {
@@ -23,6 +23,10 @@ export const meta = {
 			validator: $.str
 		},
 
+		category: {
+			validator: $.optional.str
+		},
+
 		url: {
 			validator: $.str
 		},
@@ -40,15 +44,17 @@ export default define(meta, async (ps) => {
 
 	if (emoji == null) throw new Error('emoji not found');
 
-	const type = await detectUrlMine(ps.url);
+	const { mime, md5 } = await detectUrlMime(ps.url);
 
 	await Emoji.update({ _id: emoji._id }, {
 		$set: {
 			updatedAt: new Date(),
 			name: ps.name,
+			category: ps.category,
 			aliases: ps.aliases,
 			url: ps.url,
-			type,
+			type: mime,
+			md5,
 		}
 	});
 

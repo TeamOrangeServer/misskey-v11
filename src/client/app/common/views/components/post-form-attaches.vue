@@ -16,7 +16,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import * as XDraggable from 'vuedraggable';
+import XDraggable from 'vuedraggable';
 import XMenu from '../../../common/views/components/menu.vue';
 import { faTimesCircle, faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons';
 import { faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
@@ -32,11 +32,11 @@ export default Vue.extend({
 
 	props: {
 		files: {
-			type: Object,
+			type: Array,
 			required: true
 		},
 		detachMediaFn: {
-			type: Object,
+			type: Function,
 			required: false
 		}
 	},

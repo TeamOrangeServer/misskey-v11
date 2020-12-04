@@ -7,7 +7,7 @@ import * as path from 'path';
 import * as showdown from 'showdown';
 import 'showdown-highlightjs-extension';
 import ms = require('ms');
-import * as Router from 'koa-router';
+import * as Router from '@koa/router';
 import * as send from 'koa-send';
 import * as glob from 'glob';
 import config from '../../config';
@@ -60,7 +60,7 @@ async function genVars(lang: string): Promise<{ [key: string]: any }> {
 const router = new Router();
 
 router.get('/assets/*', async ctx => {
-	await send(ctx as any, ctx.params[0], {
+	await send(ctx, ctx.params[0], {
 		root: `${__dirname}/../../docs/assets/`,
 		maxage: ms('1 days')
 	});
@@ -98,7 +98,7 @@ router.get('/*/*', async ctx => {
 		id: doc,
 		html: conv.makeHtml(md),
 		title: md.match(/^# (.+?)\r?\n/)[1],
-		src: `https://github.com/syuilo/misskey/tree/master/src/docs/${doc}.${lang}.md`
+		version: config.version
 	}, await genVars(lang)));
 
 	ctx.set('Cache-Control', 'public, max-age=300');

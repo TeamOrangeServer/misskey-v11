@@ -5,18 +5,27 @@ import { queueLogger } from '../../logger';
 import User from '../../../models/user';
 import DriveFile from '../../../models/drive-file';
 import deleteFile from '../../../services/drive/delete-file';
+import { DbUserJobData } from '../..';
 
 const logger = queueLogger.createSubLogger('delete-drive-files');
 
-export async function deleteDriveFiles(job: Bull.Job, done: any): Promise<void> {
+export async function deleteDriveFiles(job: Bull.Job<DbUserJobData>): Promise<string> {
 	logger.info(`Deleting drive files of ${job.data.user._id} ...`);
 
 	const user = await User.findOne({
 		_id: new mongo.ObjectID(job.data.user._id.toString())
 	});
 
+	if (user == null) {
+		return `skip: user not found`;
+	}
+
 	let deletedCount = 0;
 	let cursor: any = null;
+
+	const total = await DriveFile.count({
+		userId: user._id,
+	});
 
 	while (true) {
 		const files = await DriveFile.find({
@@ -41,13 +50,8 @@ export async function deleteDriveFiles(job: Bull.Job, done: any): Promise<void> 
 			deletedCount++;
 		}
 
-		const total = await DriveFile.count({
-			userId: user._id,
-		});
-
 		job.progress(deletedCount / total);
 	}
 
-	logger.succ(`All drive files (${deletedCount}) of ${user._id} has been deleted.`);
-	done();
+	return `ok: All drive files (${deletedCount}) of ${user._id} has been deleted.`;
 }

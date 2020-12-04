@@ -8,6 +8,12 @@ import { ParsedUrlQuery } from 'querystring';
 import authenticate from './authenticate';
 import { EventEmitter } from 'events';
 import config from '../../config';
+import rndstr from 'rndstr';
+import Logger from '../../services/logger';
+
+export const streamLogger = new Logger('stream', 'cyan');
+
+let connCount = 0;
 
 module.exports = (server: http.Server) => {
 	// Init websocket server
@@ -21,14 +27,25 @@ module.exports = (server: http.Server) => {
 
 		const connection = request.accept();
 
+		connCount++;
+		const connHash = rndstr(8);
+		const connPeer = `${connection?.remoteAddress}`;
+		const connUser = user ? `${user._id} (${user.username})` : 'anonymous';
+		streamLogger.info(`connect ${connHash} (${connPeer} ${connUser} total=${connCount}`);
+
 		let ev: EventEmitter;
 
 		if (config.redis) {
 			// Connect to Redis
 			const subscriber = redis.createClient(
-				config.redis.port, config.redis.host);
+				config.redis.port,
+				config.redis.host,
+				{
+					password: config.redis.pass
+				}
+			);
 
-			subscriber.subscribe('misskey');
+			subscriber.subscribe(config.host);
 
 			ev = new EventEmitter();
 
@@ -48,7 +65,7 @@ module.exports = (server: http.Server) => {
 
 		const main = new MainStreamConnection(connection, ev, user, app);
 
-		// 後方互換性のため
+		//#region 後方互換性のため
 		if (request.resourceURL.pathname !== '/streaming') {
 			main.sendMessageToWsOverride = (type: string, payload: any) => {
 				if (type == 'channel') {
@@ -74,8 +91,11 @@ module.exports = (server: http.Server) => {
 				main.connectChannel(Math.random().toString().substr(2, 8), null, 'main');
 			}
 		}
+		//#endregion 後方互換性のため
 
 		connection.once('close', () => {
+			connCount--;
+			streamLogger.info(`close ${connHash} (${connPeer} ${connUser}) total=${connCount}`);
 			ev.removeAllListeners();
 			main.dispose();
 		});
@@ -85,5 +105,5 @@ module.exports = (server: http.Server) => {
 				connection.send('pong');
 			}
 		});
-	});
+	});	// ws on request
 };

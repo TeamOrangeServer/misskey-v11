@@ -3,8 +3,8 @@
  */
 
 import * as Koa from 'koa';
-import * as Router from 'koa-router';
-import * as multer from 'koa-multer';
+import * as Router from '@koa/router';
+import * as multer from '@koa/multer';
 import * as bodyParser from 'koa-bodyparser';
 import * as cors from '@koa/cors';
 
@@ -18,9 +18,23 @@ import twitter from './service/twitter';
 import Instance from '../../models/instance';
 import { toApHost } from '../../misc/convert-host';
 import { unique } from '../../prelude/array';
+import config from '../../config';
 
 // Init app
 const app = new Koa();
+
+// Handle error
+app.use(async (ctx, next) => {
+	try {
+		await next();
+	} catch (err) {
+		if (err.code === 'LIMIT_FILE_SIZE') {
+			ctx.throw('File to large', 413);
+			return;
+		}
+		ctx.app.emit('error', err, ctx);
+	}
+});
 
 app.use(cors({
 	origin: '*'
@@ -39,7 +53,11 @@ app.use(bodyParser({
 
 // Init multer instance
 const upload = multer({
-	storage: multer.diskStorage({})
+	storage: multer.diskStorage({}),
+	limits: {
+		fileSize: config.maxFileSize || 262144000,
+		files: 1,
+	}
 });
 
 // Init router
@@ -57,6 +75,12 @@ for (const endpoint of endpoints) {
 			router.post(`/${endpoint.name.replace(/\-/g, '_')}`, handler.bind(null, endpoint));
 		}
 		router.post(`/${endpoint.name}`, handler.bind(null, endpoint));
+
+		if (endpoint.meta.allowGet) {
+			router.get(`/${endpoint.name}`, handler.bind(null, endpoint));
+		} else {
+			router.get(`/${endpoint.name}`, async ctx => { ctx.status = 405; });
+		}
 	}
 }
 
@@ -68,6 +92,8 @@ router.use(github.routes());
 router.use(twitter.routes());
 
 router.get('/v1/instance/peers', async ctx => {
+	if (config.disableFederation) ctx.throw(404);
+
 	const instances = await Instance.find({
 		}, {
 			host: 1
@@ -76,6 +102,7 @@ router.get('/v1/instance/peers', async ctx => {
 	const punyCodes = unique(instances.map(instance => toApHost(instance.host)));
 
 	ctx.body = punyCodes;
+	ctx.set('Cache-Control', 'public, max-age=600');
 });
 
 // Return 404 for unknown API

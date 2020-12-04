@@ -4,6 +4,7 @@ import NoteReaction, { pack } from '../../../../models/note-reaction';
 import define from '../../define';
 import { getNote } from '../../common/getters';
 import { ApiError } from '../../error';
+import { toDbReaction, toDbReactionNoResolve } from '../../../../misc/reaction-lib';
 
 export const meta = {
 	desc: {
@@ -23,6 +24,10 @@ export const meta = {
 				'ja-JP': '対象の投稿のID',
 				'en-US': 'The ID of the target note'
 			}
+		},
+
+		type: {
+			validator: $.optional.nullable.str,
 		},
 
 		limit: {
@@ -63,7 +68,7 @@ export const meta = {
 };
 
 export default define(meta, async (ps, user) => {
-	const note = await getNote(ps.noteId).catch(e => {
+	const note = await getNote(ps.noteId, user, true).catch(e => {
 		if (e.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 		throw e;
 	});
@@ -85,6 +90,16 @@ export default define(meta, async (ps, user) => {
 		query._id = {
 			$lt: ps.untilId
 		};
+	}
+
+	if (ps.type) {
+		const type = await toDbReactionNoResolve(ps.type);
+		//console.log(`${ps.type} => ${type}`);
+		query.reaction = type;
+
+		if (query.reaction === '🍮' || query.reaction === 'pudding') {
+			query.reaction = { $in: [ '🍮', 'pudding' ] };
+		}
 	}
 
 	const reactions = await NoteReaction.find(query, {

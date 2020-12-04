@@ -4,6 +4,8 @@ import Mute from '../../../../models/mute';
 import define from '../../define';
 import { ApiError } from '../../error';
 import { getUser } from '../../common/getters';
+import { getMute } from '../../../../models/user';
+import { publishMutingChanged } from '../../../../services/create-event';
 
 export const meta = {
 	desc: {
@@ -11,11 +13,11 @@ export const meta = {
 		'en-US': 'Mute a user'
 	},
 
-	tags: ['mute', 'users'],
+	tags: ['account'],
 
 	requireCredential: true,
 
-	kind: 'account/write',
+	kind: ['write:mutes', 'write:account', 'account-write', 'account/write'],
 
 	params: {
 		userId: {
@@ -64,10 +66,7 @@ export default define(meta, async (ps, user) => {
 	});
 
 	// Check if already muting
-	const exist = await Mute.findOne({
-		muterId: muter._id,
-		muteeId: mutee._id
-	});
+	const exist = await getMute(muter._id, mutee._id);
 
 	if (exist !== null) {
 		throw new ApiError(meta.errors.alreadyMuting);
@@ -79,6 +78,8 @@ export default define(meta, async (ps, user) => {
 		muterId: muter._id,
 		muteeId: mutee._id,
 	});
+
+	publishMutingChanged(muter._id);
 
 	return;
 });

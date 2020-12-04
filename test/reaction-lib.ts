@@ -2,13 +2,12 @@
  * Tests of MFM
  *
  * How to run the tests:
- * > mocha test/reaction-lib.ts --require ts-node/register
+ * > TS_NODE_FILES=true mocha test/reaction-lib.ts --require ts-node/register
  *
  * To specify test:
- * > mocha test/reaction-lib.ts --require ts-node/register -g 'test name'
+ * > TS_NODE_FILES=true mocha test/reaction-lib.ts --require ts-node/register -g 'test name'
  */
 
-/*
 import * as assert from 'assert';
 
 import { toDbReaction } from '../src/misc/reaction-lib';
@@ -75,19 +74,18 @@ describe('toDbReaction', async () => {
 	});
 
 	it('fallback - undefined', async () => {
-		assert.strictEqual(await toDbReaction(undefined), 'like');
+		assert.strictEqual(await toDbReaction(undefined), '⭐');
 	});
 
 	it('fallback - null', async () => {
-		assert.strictEqual(await toDbReaction(null), 'like');
+		assert.strictEqual(await toDbReaction(null), '⭐');
 	});
 
 	it('fallback - empty', async () => {
-		assert.strictEqual(await toDbReaction(''), 'like');
+		assert.strictEqual(await toDbReaction(''), '⭐');
 	});
 
 	it('fallback - unknown', async () => {
-		assert.strictEqual(await toDbReaction('unknown'), 'like');
+		assert.strictEqual(await toDbReaction('unknown'), '⭐');
 	});
 });
-*/

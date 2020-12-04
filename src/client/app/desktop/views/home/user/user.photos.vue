@@ -35,18 +35,14 @@ export default Vue.extend({
 		};
 	},
 	mounted() {
-		const image = [
-			'image/jpeg',
-			'image/png',
-			'image/gif'
-		];
+		const image = ['image/jpeg','image/png','image/apng','image/gif','image/webp'];
 
 		this.$root.api('users/notes', {
 			userId: this.user.id,
 			fileType: image,
 			excludeNsfw: !this.$store.state.device.alwaysShowNsfw,
 			limit: 9,
-			untilDate: new Date().getTime() + 1000 * 86400 * 365
+			untilDate: new Date().getTime() + 1000 * 86400 * 30
 		}).then(notes => {
 			for (const note of notes) {
 				for (const file of note.files) {

@@ -3,8 +3,10 @@
 	<template #header>
 		<fa v-if="column.type == 'home'" icon="home"/>
 		<fa v-if="column.type == 'local'" :icon="['far', 'comments']"/>
+		<fa v-if="column.type == 'locao'" icon="heart"/>
 		<fa v-if="column.type == 'hybrid'" icon="share-alt"/>
 		<fa v-if="column.type == 'global'" icon="globe"/>
+		<fa v-if="column.type == 'hot'" :icon="faThumbsUp"/>
 		<fa v-if="column.type == 'list'" icon="list"/>
 		<fa v-if="column.type == 'hashtag'" icon="hashtag"/>
 		<span>{{ name }}</span>
@@ -12,11 +14,15 @@
 
 	<div class="editor" style="padding:12px" v-if="edit">
 		<ui-switch v-model="column.isMediaOnly" @change="onChangeSettings">{{ $t('is-media-only') }}</ui-switch>
+		<ui-switch v-model="column.sfwMediaOnly" @change="onChangeSettings">{{ $t('is-sfw-media-only') }}</ui-switch>
+		<ui-switch v-model="column.nsfwMediaOnly" @change="onChangeSettings">{{ $t('is-nsfw-media-only') }}</ui-switch>
 	</div>
 
 	<x-list-tl v-if="column.type == 'list'"
 		:list="column.list"
 		:media-only="column.isMediaOnly"
+		:sfwMediaOnly="column.sfwMediaOnly"
+		:nsfwMediaOnly="column.nsfwMediaOnly"
 		ref="tl"
 	/>
 	<x-hashtag-tl v-else-if="column.type == 'hashtag'"
@@ -27,6 +33,8 @@
 	<x-tl v-else
 		:src="column.type"
 		:media-only="column.isMediaOnly"
+		:sfwMediaOnly="column.sfwMediaOnly"
+		:nsfwMediaOnly="column.nsfwMediaOnly"
 		ref="tl"
 	/>
 </x-column>
@@ -39,6 +47,7 @@ import XColumn from './deck.column.vue';
 import XTl from './deck.tl.vue';
 import XListTl from './deck.list-tl.vue';
 import XHashtagTl from './deck.hashtag-tl.vue';
+import { faThumbsUp } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('deck/deck.tl-column.vue'),
@@ -65,11 +74,12 @@ export default Vue.extend({
 			edit: false,
 			menu: [{
 				icon: 'cog',
-				text: this.$t('edit'),
+				text: this.$t('@.edit'),
 				action: () => {
 					this.edit = !this.edit;
 				}
-			}]
+			}],
+			faThumbsUp
 		}
 	},
 
@@ -80,8 +90,10 @@ export default Vue.extend({
 			switch (this.column.type) {
 				case 'home': return this.$t('@deck.home');
 				case 'local': return this.$t('@deck.local');
+				case 'locao': return this.$t('@deck.locao');
 				case 'hybrid': return this.$t('@deck.hybrid');
 				case 'global': return this.$t('@deck.global');
+				case 'hot': return this.$t('@deck.reacted');
 				case 'list': return this.column.list.title;
 				case 'hashtag': return this.$store.state.settings.tagTimelines.find(x => x.id == this.column.tagTlId).title;
 			}

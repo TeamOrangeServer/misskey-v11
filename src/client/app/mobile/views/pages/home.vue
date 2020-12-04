@@ -5,8 +5,10 @@
 			<span :class="$style.title">
 				<span v-if="src == 'home'"><fa icon="home"/>{{ $t('home') }}</span>
 				<span v-if="src == 'local'"><fa :icon="['far', 'comments']"/>{{ $t('local') }}</span>
+				<span v-if="src == 'locao'"><fa icon="heart"/>{{ $t('locao') }}</span>
 				<span v-if="src == 'hybrid'"><fa icon="share-alt"/>{{ $t('hybrid') }}</span>
 				<span v-if="src == 'global'"><fa icon="globe"/>{{ $t('global') }}</span>
+				<span v-if="src == 'hot'"><fa :icon="faThumbsUp"/>{{ $t('reacted') }}</span>
 				<span v-if="src == 'mentions'"><fa icon="at"/>{{ $t('mentions') }}</span>
 				<span v-if="src == 'messages'"><fa :icon="['far', 'envelope']"/>{{ $t('messages') }}</span>
 				<span v-if="src == 'list'"><fa icon="list"/>{{ list.title }}</span>
@@ -35,6 +37,8 @@
 					<span :data-active="src == 'hybrid'" @click="src = 'hybrid'" v-if="enableLocalTimeline"><fa icon="share-alt"/> {{ $t('hybrid') }}</span>
 					<span :data-active="src == 'global'" @click="src = 'global'" v-if="enableGlobalTimeline"><fa icon="globe"/> {{ $t('global') }}</span>
 					<div class="hr"></div>
+					<span :data-active="src == 'hot'" @click="src = 'hot'" v-if="enableGlobalTimeline"><fa :icon="faThumbsUp"/> {{ $t('reacted') }}</span>
+					<span :data-active="src == 'locao'" @click="src = 'locao'" v-if="enableLocalTimeline"><fa icon="heart"/> {{ $t('locao') }}</span>
 					<span :data-active="src == 'mentions'" @click="src = 'mentions'"><fa icon="at"/> {{ $t('mentions') }}<i class="badge" v-if="$store.state.i.hasUnreadMentions"><fa icon="circle"/></i></span>
 					<span :data-active="src == 'messages'" @click="src = 'messages'"><fa :icon="['far', 'envelope']"/> {{ $t('messages') }}<i class="badge" v-if="$store.state.i.hasUnreadSpecifiedNotes"><fa icon="circle"/></i></span>
 					<template v-if="lists">
@@ -46,12 +50,16 @@
 				</div>
 			</div>
 		</div>
+	
+		<mk-post-form class="form" :inside="true" v-if="$store.state.settings.showPostFormOnTopOfTlMobile"/>
 
 		<div class="tl">
 			<x-tl v-if="src == 'home'" ref="tl" key="home" src="home"/>
 			<x-tl v-if="src == 'local'" ref="tl" key="local" src="local"/>
+			<x-tl v-if="src == 'locao'" ref="tl" key="locao" src="locao"/>
 			<x-tl v-if="src == 'hybrid'" ref="tl" key="hybrid" src="hybrid"/>
 			<x-tl v-if="src == 'global'" ref="tl" key="global" src="global"/>
+			<x-tl v-if="src == 'hot'" ref="tl" key="hot" src="hot"/>
 			<x-tl v-if="src == 'mentions'" ref="tl" key="mentions" src="mentions"/>
 			<x-tl v-if="src == 'messages'" ref="tl" key="messages" src="messages"/>
 			<x-tl v-if="src == 'tag'" ref="tl" key="tag" src="tag" :tag-tl="tagTl"/>
@@ -66,6 +74,7 @@ import Vue from 'vue';
 import i18n from '../../../i18n';
 import Progress from '../../../common/scripts/loading';
 import XTl from './home.timeline.vue';
+import { faThumbsUp } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/pages/home.vue'),
@@ -83,6 +92,7 @@ export default Vue.extend({
 			showNav: false,
 			enableLocalTimeline: false,
 			enableGlobalTimeline: false,
+			faThumbsUp
 		};
 	},
 
@@ -116,10 +126,10 @@ export default Vue.extend({
 	created() {
 		this.$root.getMeta().then((meta: Record<string, any>) => {
 			if (!(
-				this.enableGlobalTimeline = !meta.disableGlobalTimeline || this.$store.state.i.isModerator || this.$store.state.i.isAdmin
+				this.enableGlobalTimeline = !meta.disableGlobalTimeline
 			) && this.src === 'global') this.src = 'local';
 			if (!(
-				this.enableLocalTimeline = !meta.disableLocalTimeline || this.$store.state.i.isModerator || this.$store.state.i.isAdmin
+				this.enableLocalTimeline = !meta.disableLocalTimeline
 			) && ['local', 'hybrid'].includes(this.src)) this.src = 'home';
 		});
 

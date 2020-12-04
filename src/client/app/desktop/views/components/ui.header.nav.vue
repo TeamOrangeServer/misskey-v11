@@ -1,5 +1,5 @@
 <template>
-<div class="nav">
+<div class="nav" :class="navbar">
 	<ul>
 		<li class="timeline" :class="{ active: $route.name == 'index' }" @click="goToTop">
 			<router-link to="/"><fa icon="home"/><p>{{ $t('@.timeline') }}</p></router-link>
@@ -8,7 +8,7 @@
 			<router-link to="/featured"><fa :icon="faNewspaper"/><p>{{ $t('@.featured-notes') }}</p></router-link>
 		</li>
 		<li class="explore" :class="{ active: $route.name == 'explore' || $route.name == 'explore-tag' }">
-			<router-link to="/explore"><fa :icon="faHashtag"/><p>{{ $t('@.explore') }}</p></router-link>
+			<router-link to="/explore"><fa :icon="faUsers"/><p>{{ $t('@.explore') }}</p></router-link>
 		</li>
 		<li class="game">
 			<a @click="game">
@@ -25,7 +25,7 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import MkGameWindow from './game-window.vue';
-import { faNewspaper, faHashtag } from '@fortawesome/free-solid-svg-icons';
+import { faNewspaper, faUsers } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('desktop/views/components/ui.header.nav.vue'),
@@ -33,8 +33,13 @@ export default Vue.extend({
 		return {
 			hasGameInvitations: false,
 			connection: null,
-			faNewspaper, faHashtag
+			faNewspaper, faUsers
 		};
+	},
+	computed: {
+		navbar(): string {
+			return this.$store.state.device.navbar;
+		},
 	},
 	mounted() {
 		if (this.$store.getters.isSignedIn) {
@@ -80,6 +85,21 @@ export default Vue.extend({
 	line-height 3rem
 	vertical-align top
 
+	&.top
+		> ul
+			> li
+				&.active
+					> a
+						border-bottom solid 3px var(--primary)
+
+	&.bottom
+		> ul
+			> li
+				&.active
+					> a
+						border-top solid 3px var(--primary)
+						line-height calc(48px - 6px)
+
 	> ul
 		display inline-block
 		margin 0
@@ -93,10 +113,6 @@ export default Vue.extend({
 			vertical-align top
 			height 48px
 			line-height 48px
-
-			&.active
-				> a
-					border-bottom solid 3px var(--primary)
 
 			> a
 				display inline-block

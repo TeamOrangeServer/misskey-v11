@@ -4,9 +4,11 @@
 	<div class="main" ref="main">
 		<mk-post-form ref="form"
 			:reply="reply"
+			:airReply="airReply"
 			:renote="renote"
 			:mention="mention"
 			:initial-text="initialText"
+			:initial-note="initialNote"
 			:instant="instant"
 			@posted="onPosted"
 			@cancel="onCanceled"/>
@@ -24,6 +26,10 @@ export default Vue.extend({
 			type: Object,
 			required: false
 		},
+		airReply: {
+			type: Object,
+			required: false
+		},
 		renote: {
 			type: Object,
 			required: false
@@ -34,6 +40,10 @@ export default Vue.extend({
 		},
 		initialText: {
 			type: String,
+			required: false
+		},
+		initialNote: {
+			type: Object,
 			required: false
 		},
 		instant: {

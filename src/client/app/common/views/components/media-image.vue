@@ -1,5 +1,5 @@
 <template>
-<div class="qjewsnkgzzxlxtzncydssfbgjibiehcy" v-if="image.isSensitive && hide && !$store.state.device.alwaysShowNsfw" @click="hide = false">
+<div class="qjewsnkgzzxlxtzncydssfbgjibiehcy" v-if="image.isSensitive && hide" @click="hide = false">
 	<div>
 		<b><fa icon="exclamation-triangle"/> {{ $t('sensitive') }}</b>
 		<span>{{ $t('click-to-show') }}</span>
@@ -11,14 +11,12 @@
 	:title="image.name"
 	@click.prevent="onClick"
 >
-	<div v-if="image.type === 'image/gif'">GIF</div>
 </a>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import ImageViewer from './image-viewer.vue';
 import { getStaticImageUrl } from '../../../common/scripts/get-static-image-url';
 
 export default Vue.extend({
@@ -28,40 +26,29 @@ export default Vue.extend({
 			type: Object,
 			required: true
 		},
-		raw: {
-			default: false
+		hide: {
+			type: Boolean,
+			required: false,
+			default: true
 		}
 	},
-	data() {
-		return {
-			hide: true
-		};
-	}
 	computed: {
 		style(): any {
 			let url = `url(${
 				this.$store.state.device.disableShowingAnimatedImages
-					? getStaticImageUrl(this.image.thumbnailUrl)
+					? getStaticImageUrl(this.image.thumbnailUrl, this.image.type, this.image.animation)
 					: this.image.thumbnailUrl
 			})`;
 
-			if (this.$store.state.device.loadRemoteMedia || this.$store.state.device.lightmode) {
-				url = null;
-			} else if (this.raw || this.$store.state.device.loadRawImages) {
-				url = `url(${this.image.url})`;
-			}
-
 			return {
-				'background-color': this.image.properties.avgColor && this.image.properties.avgColor.length == 3 ? `rgb(${this.image.properties.avgColor.join(',')})` : 'transparent',
+				'background-color': `var(--face)`,
 				'background-image': url
 			};
 		}
 	},
 	methods: {
 		onClick() {
-			this.$root.new(ImageViewer, {
-				image: this.image
-			});
+			this.$emit('imageClick');
 		}
 	}
 });
@@ -77,20 +64,6 @@ export default Vue.extend({
 	background-position center
 	background-size contain
 	background-repeat no-repeat
-
-	> div
-		background-color var(--text)
-		border-radius 6px
-		color var(--secondary)
-		display inline-block
-		font-size 14px
-		font-weight bold
-		left 12px
-		opacity .5
-		padding 0 6px
-		text-align center
-		top 12px
-		pointer-events none
 
 .qjewsnkgzzxlxtzncydssfbgjibiehcy
 	display flex

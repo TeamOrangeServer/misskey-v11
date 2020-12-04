@@ -9,7 +9,6 @@ import VueRouter from 'vue-router';
 import './style.styl';
 
 import init from '../init';
-import fuckAdBlock from '../common/scripts/fuck-ad-block';
 import composeNotification from '../common/scripts/compose-notification';
 
 import MkHome from './views/home/home.vue';
@@ -63,8 +62,12 @@ init(async (launch, os) => {
 				} else {
 					const vm = this.$root.new(PostFormWindow, {
 						reply: o.reply,
+						airReply: o.airReply,
 						mention: o.mention,
-						animation: o.animation == null ? true : o.animation
+						animation: o.animation == null ? true : o.animation,
+						initialText: o.initialText,
+						instant: o.instant,
+						initialNote: o.initialNote
 					});
 					if (o.cb) vm.$once('closed', o.cb);
 				}
@@ -77,6 +80,7 @@ init(async (launch, os) => {
 					if (document.body.clientWidth > 800) {
 						const w = this.$root.new(MkChooseFileFromDriveWindow, {
 							title: o.title,
+							type: o.type,
 							multiple: o.multiple,
 							initFolder: o.currentFolder
 						});
@@ -140,7 +144,10 @@ init(async (launch, os) => {
 					{ path: '/featured', name: 'featured', component: () => import('../common/views/deck/deck.featured-column.vue').then(m => m.default) },
 					{ path: '/explore', name: 'explore', component: () => import('../common/views/deck/deck.explore-column.vue').then(m => m.default) },
 					{ path: '/explore/tags/:tag', name: 'explore-tag', props: true, component: () => import('../common/views/deck/deck.explore-column.vue').then(m => m.default) },
-					{ path: '/i/favorites', component: () => import('../common/views/deck/deck.favorites-column.vue').then(m => m.default) }
+					{ path: '/i/favorites', component: () => import('../common/views/deck/deck.favorites-column.vue').then(m => m.default) },
+					{ path: '/i/reactions', component: () => import('../common/views/deck/deck.reactions-column.vue').then(m => m.default) },
+					{ path: '/i/pages', component: () => import('../common/views/pages/pages.vue').then(m => m.default) },
+					{ path: '/@:username/pages/:pageName', name: 'page', props: true, component: () => import('../common/views/deck/deck.page-column.vue').then(m => m.default) },
 				]}
 				: { path: '/', component: MkHome, children: [
 					{ path: '', name: 'index', component: MkHomeTimeline },
@@ -156,15 +163,27 @@ init(async (launch, os) => {
 					{ path: '/explore', name: 'explore', component: () => import('../common/views/pages/explore.vue').then(m => m.default) },
 					{ path: '/explore/tags/:tag', name: 'explore-tag', props: true, component: () => import('../common/views/pages/explore.vue').then(m => m.default) },
 					{ path: '/i/favorites', component: () => import('./views/home/favorites.vue').then(m => m.default) },
+					{ path: '/i/reactions', component: () => import('./views/home/reactions.vue').then(m => m.default) },
+					{ path: '/i/pages', component: () => import('../common/views/pages/pages.vue').then(m => m.default) },
+					{ path: '/i/pages/new', component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default) },
+					{ path: '/i/pages/edit/:pageId', component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default), props: route => ({ initPageId: route.params.pageId }) },
+					{ path: '/@:user/pages/:page', component: () => import('../common/views/pages/page.vue').then(m => m.default), props: route => ({ pageName: route.params.page, username: route.params.user }) },
+					{ path: '/@:user/pages/:pageName/view-source', component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default), props: route => ({ initUser: route.params.user, initPageName: route.params.pageName }) },
 				]},
+			{ path: '/i/pages/new', component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default) },
+			{ path: '/i/pages/edit/:pageId', component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default), props: route => ({ initPageId: route.params.pageId }) },
+			{ path: '/@:user/pages/:pageName/view-source', component: () => import('../common/views/pages/page-editor/page-editor.vue').then(m => m.default), props: route => ({ initUser: route.params.user, initPageName: route.params.pageName }) },
 			{ path: '/i/messaging/:user', component: MkMessagingRoom },
 			{ path: '/i/drive', component: MkDrive },
 			{ path: '/i/drive/folder/:folder', component: MkDrive },
-			{ path: '/i/settings', component: MkSettings },
+			{ path: '/i/settings', redirect: '/i/settings/profile' },
+			{ path: '/i/settings/:page', component: MkSettings },
 			{ path: '/selectdrive', component: MkSelectDrive },
+			{ path: '/@:acct/room', props: true, component: () => import('../common/views/pages/room/room.vue').then(m => m.default) },
 			{ path: '/share', component: MkShare },
 			{ path: '/games/reversi/:game?', component: MkReversi },
 			{ path: '/authorize-follow', component: MkFollow },
+			{ path: '/mfm-cheat-sheet', component: () => import('../common/views/pages/mfm-cheat-sheet.vue').then(m => m.default) },
 			{ path: '/deck', redirect: '/' },
 			{ path: '*', component: MkNotFound }
 		],
@@ -175,13 +194,6 @@ init(async (launch, os) => {
 
 	// Launch the app
 	const [app, _] = launch(router);
-
-	if (os.store.getters.isSignedIn) {
-		/**
-		 * Fuck AD Block
-		 */
-		fuckAdBlock(app);
-	}
 
 	/**
 	 * Init Notification

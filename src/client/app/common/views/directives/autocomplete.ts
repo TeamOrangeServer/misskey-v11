@@ -24,6 +24,10 @@ class Autocomplete {
 	private currentType: string;
 	private opts: {
 		model: string;
+		noZwsp?: boolean;
+		userOnly?: boolean;
+		localOnly?: boolean;
+		noEmoji?: boolean;
 	};
 	private opening: boolean;
 
@@ -96,23 +100,23 @@ class Autocomplete {
 
 		if (isMention) {
 			const username = text.substr(mentionIndex + 1);
-			if (username != '' && username.match(/^[a-zA-Z0-9_]+$/)) {
+			if (username.match(/^[\w-]+$/)) {
 				this.open('user', username);
 				opened = true;
 			}
 		}
 
-		if (isHashtag && opened == false) {
+		if (isHashtag && opened == false && !this.opts.userOnly) {
 			const hashtag = text.substr(hashtagIndex + 1);
-			if (!hashtag.includes(' ')) {
+			if (hashtag === '' || hashtag.match(/^[^\s.,!?'"#:/[]]+$/)) {
 				this.open('hashtag', hashtag);
 				opened = true;
 			}
 		}
 
-		if (isEmoji && opened == false) {
+		if (isEmoji && opened == false && !this.opts.userOnly && !this.opts.noEmoji) {
 			const emoji = text.substr(emojiIndex + 1);
-			if (!emoji.includes(' ')) {
+			if (emoji === '' || emoji.match(/^[\w+-]+$/)) {
 				this.open('emoji', emoji);
 				opened = true;
 			}
@@ -161,6 +165,7 @@ class Autocomplete {
 					close: this.close,
 					type: type,
 					q: q,
+					localOnly: this.opts.localOnly,
 					x,
 					y
 				}
@@ -235,12 +240,13 @@ class Autocomplete {
 			const after = source.substr(caret);
 
 			// 挿入
-			this.text = trimmedBefore + value + after;
+			const sep = (value.startsWith(':') && !this.opts.noZwsp) ? String.fromCharCode(0x200B) : '';
+			this.text = trimmedBefore + value + sep + after;
 
 			// キャレットを戻す
 			this.vm.$nextTick(() => {
 				this.textarea.focus();
-				const pos = trimmedBefore.length + (value.startsWith(':') ? value.length : 1);
+				const pos = trimmedBefore.length + (value.startsWith(':') ? value.length + 1 : value.length);
 				this.textarea.setSelectionRange(pos, pos);
 			});
 		}

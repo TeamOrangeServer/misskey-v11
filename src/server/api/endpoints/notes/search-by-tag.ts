@@ -5,6 +5,8 @@ import { getFriendIds } from '../../common/get-friends';
 import { packMany } from '../../../../models/note';
 import define from '../../define';
 import { getHideUserIds } from '../../common/get-hide-users';
+import User from '../../../../models/user';
+import { toDbHost } from '../../../../misc/convert-host';
 
 export const meta = {
 	desc: {
@@ -126,21 +128,54 @@ export default define(meta, async (ps, me) => {
 		visibleUserIds: { $in: [ me._id ] }
 	}];
 
+	const push = (x: any) => q.$and.push(x);
+
 	const q: any = {
-		$and: [ps.tag ? {
-			tagsLower: ps.tag.toLowerCase()
-		} : {
-			$or: ps.query.map(tags => ({
-				$and: tags.map(t => ({
-					tagsLower: t.toLowerCase()
-				}))
-			}))
-		}],
+		$and: [],
 		deletedAt: { $exists: false },
 		$or: visibleQuery
 	};
 
-	const push = (x: any) => q.$and.push(x);
+	if (ps.tag) {
+		const tokens = ps.tag.trim().split(/\s+/);
+
+		const tag = tokens.shift();
+
+		push({
+			tagsLower: tag.toLowerCase()
+		});
+
+		for (const token of tokens) {
+			// from
+			const matchFrom = token.match(/^from:@?([\w-]+)(?:@([\w.-]+))?$/);
+			if (matchFrom) {
+				const user = await User.findOne({
+					usernameLower: matchFrom[1].toLowerCase(),
+					host: toDbHost(matchFrom[2]),
+				});
+
+				if (!user) {
+					return [];
+				}
+
+				push({
+					userId: user._id
+				});
+
+				continue;
+			}
+		}
+	} else if (ps.query) {
+		push({
+			$or: ps.query.map((tags: string[]) => ({
+				$and: tags.map((t: string) => ({
+					tagsLower: t.toLowerCase()
+				}))
+			}))
+		});
+	} else {
+		throw 'tag or query required';	// TODO
+	}
 
 	if (ps.following != null && me != null) {
 		const ids = await getFriendIds(me._id, false);
@@ -154,7 +189,7 @@ export default define(meta, async (ps, me) => {
 	}
 
 	if (me != null) {
-		const hideUserIds = await getHideUserIds(me);
+		const hideUserIds = await getHideUserIds(me, false);
 
 		switch (ps.mute) {
 			case 'mute_all':

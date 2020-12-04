@@ -11,12 +11,14 @@
     "sourceMap": true,
     "target": "es2017",
     "module": "commonjs",
+    "moduleResolution": "node",
     "removeComments": false,
     "noLib": false,
     "strict": true,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "experimentalDecorators": true,
-    "resolveJsonModule": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
     "typeRoots": [
       "node_modules/@types",
       "src/@types"

@@ -11,12 +11,13 @@
 		<x-drive
 			ref="browser"
 			class="browser"
+			:type="type"
 			:multiple="multiple"
 			@selected="onSelected"
 			@change-selection="onChangeSelection"
 		/>
 		<div class="footer">
-			<button class="upload" :title="$t('title')" @click="upload"><fa icon="upload"/></button>
+			<button class="upload" :title="$t('upload')" @click="upload"><fa icon="upload"/></button>
 			<ui-button inline @click="cancel" style="margin-right:16px;">{{ $t('cancel') }}</ui-button>
 			<ui-button inline primary :disabled="multiple && files.length == 0" @click="ok">{{ $t('ok') }}</ui-button>
 		</div>
@@ -33,6 +34,11 @@ export default Vue.extend({
 		XDrive: () => import('./drive.vue').then(m => m.default),
 	},
 	props: {
+		type: {
+			type: String,
+			required: false,
+			default: undefined 
+		},
 		multiple: {
 			default: false
 		}

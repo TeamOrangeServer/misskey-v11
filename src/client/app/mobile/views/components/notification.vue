@@ -4,29 +4,29 @@
 		<mk-avatar class="avatar" :user="notification.user"/>
 		<div>
 			<header>
-				<mk-reaction-icon :reaction="notification.reaction"/>
-				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
+				<mk-reaction-icon :reaction="notification.reaction" :custom-emojis="notification.note.emojis"/>
+				<router-link class="name" :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
 			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
 				<fa icon="quote-left"/>
-					<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+					<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.emojis"/>
 				<fa icon="quote-right"/>
 			</router-link>
 		</div>
 	</div>
 
-	<div class="notification renote" v-if="notification.type == 'renote'">
+	<div class="notification renote" v-if="notification.type == 'renote' && notification.note">
 		<mk-avatar class="avatar" :user="notification.user"/>
 		<div>
 			<header>
 				<fa icon="retweet"/>
-				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
+				<router-link class="name" :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
-			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note.renote)">
+			<router-link v-if="notification.note.renote" class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note.renote)">
 				<fa icon="quote-left"/>
-					<mfm :text="getNoteSummary(notification.note.renote)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.renote.emojis"/>
+					<mfm :text="getNoteSummary(notification.note.renote)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.renote.emojis"/>
 				<fa icon="quote-right"/>
 			</router-link>
 		</div>
@@ -37,7 +37,7 @@
 		<div>
 			<header>
 				<fa icon="user-plus"/>
-				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
+				<router-link class="name" :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
 		</div>
@@ -48,38 +48,70 @@
 		<div>
 			<header>
 				<fa icon="user-clock"/>
-				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
+				<router-link class="name" :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
 		</div>
 	</div>
 
-	<div class="notification poll_vote" v-if="notification.type == 'poll_vote'">
+	<div class="notification pollVote" v-if="notification.type == 'poll_vote'">
 		<mk-avatar class="avatar" :user="notification.user"/>
 		<div>
 			<header>
 				<fa icon="chart-pie"/>
-				<router-link :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
+				<router-link class="name" :to="notification.user | userPage"><mk-user-name :user="notification.user"/></router-link>
 				<mk-time :time="notification.createdAt"/>
 			</header>
 			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
 				<fa icon="quote-left"/>
-					<mfm :text="getNoteSummary(notification.note)" :should-break="false" :plain-text="true" :custom-emojis="notification.note.emojis"/>
+					<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.emojis"/>
 				<fa icon="quote-right"/>
 			</router-link>
 		</div>
 	</div>
 
+	<div class="notification pollFinished" v-if="notification.type == 'poll_finished'">
+		<mk-avatar class="avatar" :user="notification.user"/>
+		<div>
+			<header>
+				<fa icon="chart-pie"/>
+				<span>{{ $t('@.poll_finished') }}</span>
+				<mk-time :time="notification.createdAt"/>
+			</header>
+			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
+				<fa icon="quote-left"/>
+					<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :nowrap="true" :custom-emojis="notification.note.emojis"/>
+				<fa icon="quote-right"/>
+			</router-link>
+		</div>
+	</div>
+
+	<div class="notification highlight" v-if="notification.type == 'highlight'">
+		<mk-avatar class="avatar" :user="notification.user"/>
+		<div>
+			<header>
+				<fa :icon="faLightbulb"/>
+				<router-link class="name" :to="notification.user | userPage">
+					<mk-user-name :user="notification.user"/>
+				</router-link>
+				<mk-time :time="notification.createdAt"/>
+			</header>
+			<router-link class="note-ref" :to="notification.note | notePage" :title="getNoteSummary(notification.note)">
+				<mfm :text="getNoteSummary(notification.note)" :plain="true" :extra="true" :custom-emojis="notification.note.emojis"/>
+			</router-link>
+		</div>
+	</div>
+
 	<template v-if="notification.type == 'quote'">
-		<mk-note :note="notification.note" @update:note="onNoteUpdated"/>
+		<mk-note :note="notification.note"/>
 	</template>
 
 	<template v-if="notification.type == 'reply'">
-		<mk-note :note="notification.note" @update:note="onNoteUpdated"/>
+		<mk-note :note="notification.note"/>
 	</template>
 
 	<template v-if="notification.type == 'mention'">
-		<mk-note :note="notification.note" @update:note="onNoteUpdated"/>
+		<mk-note :note="notification.note"/>
 	</template>
 </div>
 </template>
@@ -87,25 +119,16 @@
 <script lang="ts">
 import Vue from 'vue';
 import getNoteSummary from '../../../../../misc/get-note-summary';
+import { faLightbulb } from '@fortawesome/free-regular-svg-icons';
 
 export default Vue.extend({
 	props: ['notification'],
 	data() {
 		return {
-			getNoteSummary
+			getNoteSummary,
+			faLightbulb,
 		};
 	},
-	methods: {
-		onNoteUpdated(note) {
-			switch (this.notification.type) {
-				case 'quote':
-				case 'reply':
-				case 'mention':
-					Vue.set(this.notification, 'note', note);
-					break;
-			}
-		}
-	}
 });
 </script>
 
@@ -115,6 +138,7 @@ export default Vue.extend({
 		padding 16px
 		font-size 12px
 		overflow-wrap break-word
+		box-shadow 0 1px 8px rgba(0, 0, 0, 0.2)
 
 		&:after
 			content ""
@@ -141,6 +165,12 @@ export default Vue.extend({
 				[data-icon], .mk-reaction-icon
 					margin-right 4px
 
+				> .name
+					text-overflow ellipsis
+					white-space nowrap
+					min-width 0
+					overflow hidden
+
 				> .mk-time
 					margin-left auto
 					color var(--noteHeaderInfo)
@@ -164,6 +194,10 @@ export default Vue.extend({
 					display inline-block
 					margin-right 3px
 
+		&.reaction
+			> div > header
+				align-items normal
+
 		&.renote
 			> div > header [data-icon]
 				color #77B255
@@ -176,4 +210,21 @@ export default Vue.extend({
 			> div > header [data-icon]
 				color #888
 
+		&.reply, &.mention, &.highlight
+			> div > header [data-icon]
+				color #555
+
+		&.pollVote, &.pollFinished
+			> div > header
+				color var(--text)
+				align-items center
+
+		&.pollFinished
+			> .avatar
+				display none
+
+			> div
+				float none
+				width auto
+				padding 0
 </style>

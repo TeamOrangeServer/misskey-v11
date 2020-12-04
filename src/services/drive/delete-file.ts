@@ -1,33 +1,45 @@
-import * as Minio from 'minio';
 import DriveFile, { DriveFileChunk, IDriveFile } from '../../models/drive-file';
 import DriveFileThumbnail, { DriveFileThumbnailChunk } from '../../models/drive-file-thumbnail';
-import config from '../../config';
 import driveChart from '../../services/chart/drive';
 import perUserDriveChart from '../../services/chart/per-user-drive';
 import instanceChart from '../../services/chart/instance';
 import DriveFileWebpublic, { DriveFileWebpublicChunk } from '../../models/drive-file-webpublic';
 import Instance from '../../models/instance';
 import { isRemoteUser } from '../../models/user';
+import { getDriveConfig } from '../../misc/get-drive-config';
+import { getS3 } from './s3';
+import { InternalStorage } from './internal-storage';
 
 export default async function(file: IDriveFile, isExpired = false) {
+	const drive = getDriveConfig(file.metadata && file.metadata.uri != null);
+
 	if (file.metadata.storage == 'minio') {
-		const minio = new Minio.Client(config.drive.config);
+		const s3 = getS3(drive);
 
 		// 後方互換性のため、file.metadata.storageProps.key があるかどうかチェックしています。
 		// 将来的には const obj = file.metadata.storageProps.key; とします。
-		const obj = file.metadata.storageProps.key ? file.metadata.storageProps.key : `${config.drive.prefix}/${file.metadata.storageProps.id}`;
-		await minio.removeObject(config.drive.bucket, obj);
+		const obj = file.metadata.storageProps.key ? file.metadata.storageProps.key : `${drive.prefix}/${file.metadata.storageProps.id}`;
+		await s3.deleteObject({
+			Bucket: drive.bucket,
+			Key: obj
+		}).promise();
 
 		if (file.metadata.thumbnailUrl) {
 			// 後方互換性のため、file.metadata.storageProps.thumbnailKey があるかどうかチェックしています。
 			// 将来的には const thumbnailObj = file.metadata.storageProps.thumbnailKey; とします。
-			const thumbnailObj = file.metadata.storageProps.thumbnailKey ? file.metadata.storageProps.thumbnailKey : `${config.drive.prefix}/${file.metadata.storageProps.id}-thumbnail`;
-			await minio.removeObject(config.drive.bucket, thumbnailObj);
+			const thumbnailObj = file.metadata.storageProps.thumbnailKey ? file.metadata.storageProps.thumbnailKey : `${drive.prefix}/${file.metadata.storageProps.id}-thumbnail`;
+			await s3.deleteObject({
+				Bucket: drive.bucket,
+				Key: thumbnailObj
+			}).promise();
 		}
 
 		if (file.metadata.webpublicUrl) {
-			const webpublicObj = file.metadata.storageProps.webpublicKey ? file.metadata.storageProps.webpublicKey : `${config.drive.prefix}/${file.metadata.storageProps.id}-original`;
-			await minio.removeObject(config.drive.bucket, webpublicObj);
+			const webpublicObj = file.metadata.storageProps.webpublicKey ? file.metadata.storageProps.webpublicKey : `${drive.prefix}/${file.metadata.storageProps.id}-original`;
+			await s3.deleteObject({
+				Bucket: drive.bucket,
+				Key: webpublicObj
+			}).promise();
 		}
 	}
 
@@ -35,6 +47,13 @@ export default async function(file: IDriveFile, isExpired = false) {
 	await DriveFileChunk.remove({
 		files_id: file._id
 	});
+
+	// fs削除
+	if (file.metadata?.fileSystem) {
+		if (file.metadata?.storageProps?.key) InternalStorage.del(file.metadata?.storageProps?.key);
+		if (file.metadata?.storageProps?.thumbnailKey) InternalStorage.del(file.metadata?.storageProps?.thumbnailKey);
+		if (file.metadata?.storageProps?.webpublicKey) InternalStorage.del(file.metadata?.storageProps?.webpublicKey);
+	}
 
 	const set = {
 		metadata: {

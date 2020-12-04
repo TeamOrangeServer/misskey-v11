@@ -14,23 +14,29 @@
 		<header :style="bannerStyle">
 			<div>
 				<button class="menu" @click="menu" ref="menu"><fa icon="ellipsis-h"/></button>
-				<mk-follow-button v-if="$store.getters.isSignedIn && user.id != $store.state.i.id" :user="user" class="follow" mini/>
-				<mk-avatar class="avatar" :user="user" :disable-preview="true" :key="user.id"/>
+				<button class="listMenu" @click="listMenu" ref="listMenu"><fa :icon="['fas', 'list']"/></button>
+				<mk-follow-button v-if="$store.getters.isSignedIn && user.id != $store.state.i.id" :user="user" :key="`${user.id}-follow`" class="follow" mini/>
+				<mk-avatar class="avatar" :user="user" :disable-preview="true" :disable-link="true" :key="`${user.id}-avatar`" @click="onAvatarClick()" style="cursor: pointer"/>
 				<router-link class="name" :to="user | userPage()">
-					<mk-user-name :user="user" :key="user.id"/>
+					<mk-user-name :user="user" :key="user.id" :nowrap="false"/>
 				</router-link>
-				<span class="acct">@{{ user | acct }} <fa v-if="user.isLocked == true" class="locked" icon="lock" fixed-width/></span>
+				<span class="acct">@{{ user | acct }} 
+					<fa v-if="user.isLocked == true" class="locked" icon="lock" fixed-width/>
+					<fa v-if="user.refuseFollow == true" class="refuseFollow" icon="ban" fixed-width/>
+				</span>
+				<span class="moved" v-if="user.movedToUser != null">Moved to <router-link :to="user.movedToUser | userPage()"><mk-acct :user="user.movedToUser" :detail="true"/></router-link></span>
 				<span class="followed" v-if="user.isFollowed">{{ $t('follows-you') }}</span>
 			</div>
 		</header>
 		<div class="info">
 			<div class="description">
 				<mfm v-if="user.description" :text="user.description" :is-note="false" :author="user" :i="$store.state.i" :custom-emojis="user.emojis" :key="user.id"/>
+				<x-integrations :user="user" style="margin-right: -10px;"/>
 			</div>
-			<div class="fields" v-if="user.fields">
+			<div class="fields" v-if="user.fields" :key="user.id">
 				<dl class="field" v-for="(field, i) in user.fields" :key="i">
 					<dt class="name">
-						<mfm :text="field.name" :should-break="false" :plain-text="true" :custom-emojis="user.emojis"/>
+						<mfm :text="field.name" :plain="true" :custom-emojis="user.emojis"/>
 					</dt>
 					<dd class="value">
 						<mfm :text="field.value" :author="user" :i="$store.state.i" :custom-emojis="user.emojis"/>
@@ -38,7 +44,13 @@
 				</dl>
 			</div>
 			<div class="counts">
-				<div>
+				<div v-if="isPostsPage">
+					<a @click="scrollToTL()">
+						<b>{{ user.notesCount | number }}</b>
+						<span>{{ $t('posts') }}</span>
+					</a>
+				</div>
+				<div v-else>
 					<router-link :to="user | userPage()">
 						<b>{{ user.notesCount | number }}</b>
 						<span>{{ $t('posts') }}</span>
@@ -57,6 +69,9 @@
 					</router-link>
 				</div>
 			</div>
+			<div class="usertags">
+				<a class="usertag" v-for="usertag in user.usertags" :key="usertag" @click="removeUsertag(usertag)"><fa :icon="faUserTag"/>{{ usertag }}</a>
+			</div>
 		</div>
 		<router-view :user="user"></router-view>
 	</div>
@@ -69,21 +84,29 @@ import i18n from '../../../i18n';
 import parseAcct from '../../../../../misc/acct/parse';
 import XColumn from './deck.column.vue';
 import XUserMenu from '../../../common/views/components/user-menu.vue';
+import XListMenu from '../../../common/views/components/list-menu.vue';
+import XIntegrations from '../../../common/views/components/integrations.vue';
+import ImageViewer from '../../../common/views/components/image-viewer.vue';
+import { faUserTag } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('deck/deck.user-column.vue'),
 	components: {
-		XColumn,
+		XColumn, XIntegrations
 	},
 
 	data() {
 		return {
 			user: null,
 			fetching: true,
+			faUserTag
 		};
 	},
 
 	computed: {
+		isPostsPage(): boolean {
+			return this.$route.path.match(/@[^/]+$/);
+		},
 		bannerStyle(): any {
 			if (this.user == null) return {};
 			if (this.user.bannerUrl == null) return {};
@@ -111,12 +134,70 @@ export default Vue.extend({
 			});
 		},
 
+		onAvatarClick() {
+			if (!this.user.avatarUrl) return;
+			const viewer = this.$root.new(ImageViewer, {
+				image: {
+					url: this.user.avatarUrl
+				}
+			});
+			this.$once('hook:beforeDestroy', () => {
+				viewer.close();
+			});
+		},
+
+		scrollToTL() {
+			const el = document.getElementById('user_timeline_53');
+			if (el) {
+				el.scrollIntoView();
+			}
+		},
+
 		menu() {
-			this.$root.new(XUserMenu, {
+			const w = this.$root.new(XUserMenu, {
 				source: this.$refs.menu,
 				user: this.user
 			});
-		}
+			this.$once('hook:beforeDestroy', () => {
+				w.destroyDom();
+			});
+		},
+
+		listMenu() {
+			const w = this.$root.new(XListMenu, {
+				source: this.$refs.listMenu,
+				user: this.user
+			});
+			this.$once('hook:beforeDestroy', () => {
+				w.destroyDom();
+			});
+		},
+
+
+		async removeUsertag(usertag: string) {
+			const { canceled } = await this.$root.dialog({
+				type: 'warning',
+				title: this.$t('@.removeUsertagConfirm'),
+				showCancelButton: true,
+			});
+
+			if (canceled) return;
+
+			this.$root.api('usertags/remove', {
+				targetId: this.user.id,
+				tag: usertag
+			}).then(() => {
+				this.$root.dialog({
+					type: 'success',
+					splash: true
+				});
+			}, (e: any) => {
+				this.$root.dialog({
+					type: 'error',
+					text: e
+				});
+			});
+		},
 	}
 });
 </script>
@@ -155,6 +236,14 @@ export default Vue.extend({
 				font-size 16px
 				text-shadow 0 0 8px #000
 
+			> .listMenu
+				position absolute
+				top 8px
+				left 40px
+				padding 8px
+				font-size 16px
+				text-shadow 0 0 8px #000
+
 			> .follow
 				position absolute
 				top 16px
@@ -173,7 +262,7 @@ export default Vue.extend({
 				text-shadow 0 0 8px #000
 				color #fff
 
-			> .acct
+			> .acct, .moved
 				display block
 				font-size 14px
 				opacity 0.7
@@ -242,7 +331,6 @@ export default Vue.extend({
 			display grid
 			grid-template-columns 2fr 2fr 2fr
 			margin-top 8px
-			border-top solid var(--lineWidth) var(--faceDivider)
 
 			> div
 				padding 8px 8px 0 8px
@@ -260,4 +348,10 @@ export default Vue.extend({
 						font-size 80%
 						opacity 0.7
 
+		> .usertags
+			margin-left -0.5em
+
+			> .usertag
+				margin-left 0.5em
+				color var(--text)
 </style>

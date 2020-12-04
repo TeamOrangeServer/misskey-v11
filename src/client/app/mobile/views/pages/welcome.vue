@@ -3,10 +3,9 @@
 	<div class="banner" :style="{ backgroundImage: banner ? `url(${banner})` : null }"></div>
 
 	<div>
-		<img svg-inline src="../../../../assets/title.svg" :alt="name">
-		<p class="host">{{ host }}</p>
 		<div class="about">
 			<h2>{{ name }}</h2>
+			<small>{{ host }}</small>
 			<p v-html="description || this.$t('@.about')"></p>
 			<router-link class="signup" to="/signup">{{ $t('@.signup') }}</router-link>
 		</div>
@@ -27,39 +26,11 @@
 			<span><fa icon="pencil-alt"/> {{ stats.originalNotesCount | number }}</span>
 		</div>
 		<div class="announcements" v-if="announcements && announcements.length > 0">
-			<article v-for="announcement in announcements">
+			<article v-for="(announcement, i) in announcements" :key="i">
 				<span class="title" v-html="announcement.title"></span>
 				<div v-html="announcement.text"></div>
 			</article>
 		</div>
-		<article class="about-misskey">
-			<h1>{{ $t('@.intro.title') }}</h1>
-			<p v-html="this.$t('@.intro.about')"></p>
-			<section>
-				<h2>{{ $t('@.intro.features') }}</h2>
-				<section>
-					<h3>{{ $t('@.intro.rich-contents') }}</h3>
-					<div class="image"><img src="/assets/about/post.png" alt=""></div>
-					<p v-html="this.$t('@.intro.rich-contents-desc')"></p>
-				</section>
-				<section>
-					<h3>{{ $t('@.intro.reaction') }}</h3>
-					<div class="image"><img src="/assets/about/reaction.png" alt=""></div>
-					<p v-html="this.$t('@.intro.reaction-desc')"></p>
-				</section>
-				<section>
-					<h3>{{ $t('@.intro.ui') }}</h3>
-					<div class="image"><img src="/assets/about/ui.png" alt=""></div>
-					<p v-html="this.$t('@.intro.ui-desc')"></p>
-				</section>
-				<section>
-					<h3>{{ $t('@.intro.drive') }}</h3>
-					<div class="image"><img src="/assets/about/drive.png" alt=""></div>
-					<p v-html="this.$t('@.intro.drive-desc')"></p>
-				</section>
-			</section>
-			<p v-html="this.$t('@.intro.outro')"></p>
-		</article>
 		<div class="info" v-if="meta">
 			<p>Version: <b>{{ meta.version }}</b></p>
 			<p>Maintainer: <b><a :href="'mailto:' + meta.maintainer.email" target="_blank">{{ meta.maintainer.name }}</a></b></p>
@@ -74,7 +45,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import { copyright, host } from '../../../config';
+import { constants, host } from '../../../config';
 import { concat } from '../../../../../prelude/array';
 import { toUnicode } from 'punycode';
 
@@ -83,7 +54,7 @@ export default Vue.extend({
 	data() {
 		return {
 			meta: null,
-			copyright,
+			copyright: constants.copyright,
 			stats: null,
 			banner: null,
 			host: toUnicode(host),
@@ -94,7 +65,7 @@ export default Vue.extend({
 		};
 	},
 	created() {
-		this.$root.getMeta().then(meta => {
+		this.$root.getMeta().then((meta: any) => {
 			this.meta = meta;
 			this.name = meta.name;
 			this.description = meta.description;
@@ -102,21 +73,19 @@ export default Vue.extend({
 			this.banner = meta.bannerUrl;
 		});
 
-		this.$root.api('stats').then(stats => {
+		this.$root.api('stats', {}, false, true).then((stats: any) => {
 			this.stats = stats;
 		});
 
-		const image = [
-			'image/jpeg',
-			'image/png',
-			'image/gif'
-		];
+		const image = ['image/jpeg','image/png','image/apng','image/gif','image/webp'];
 
-		this.$root.api('notes/local-timeline', {
+		this.$root.api('notes/featured', {
 			fileType: image,
+			limit: 6,
+			days: 2,
 			excludeNsfw: true,
-			limit: 6
-		}).then((notes: any[]) => {
+		}, false, true).then((notes: any[]) => {
+			notes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 			const files = concat(notes.map((n: any): any[] => n.files));
 			this.photos = files.filter(f => image.includes(f.type)).slice(0, 6);
 		});
@@ -160,22 +129,6 @@ export default Vue.extend({
 		margin 0 auto
 		max-width 500px
 
-		> svg
-			display block
-			width 200px
-			height 50px
-			margin 0 auto
-
-		> .host
-			display block
-			text-align center
-			padding 6px 12px
-			line-height 32px
-			font-weight bold
-			color #333
-			background rgba(#000, 0.035)
-			border-radius 6px
-
 		> .about
 			margin-top 16px
 			padding 16px
@@ -185,6 +138,9 @@ export default Vue.extend({
 
 			> h2
 				margin 0
+
+			> small
+				opacity 0.7
 
 			> p
 				margin 8px

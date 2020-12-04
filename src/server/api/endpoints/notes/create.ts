@@ -34,14 +34,14 @@ export const meta = {
 		max: 300
 	},
 
-	kind: 'note-write',
+	kind: ['write:notes', 'note-write'],
 
 	params: {
 		visibility: {
 			validator: $.optional.str.or(['public', 'home', 'followers', 'specified', 'private']),
-			default: 'public',
+			default: undefined as any,
 			desc: {
-				'ja-JP': '投稿の公開範囲'
+				'ja-JP': '投稿の公開範囲。未指定の場合は、renoteId が指定されている場合は home に、指定されていなければ public になります。'
 			}
 		},
 
@@ -55,7 +55,7 @@ export const meta = {
 
 		text: {
 			validator: $.optional.nullable.str.pipe(text =>
-				length(text.trim()) <= maxNoteTextLength && text.trim() != ''
+				length(text.trim()) <= maxNoteTextLength
 			),
 			default: null as any,
 			desc: {
@@ -86,6 +86,14 @@ export const meta = {
 			}
 		},
 
+		copyOnce: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'copyOnce'
+			}
+		},
+
 		noExtractMentions: {
 			validator: $.optional.bool,
 			default: false,
@@ -107,6 +115,14 @@ export const meta = {
 			default: false,
 			desc: {
 				'ja-JP': '本文からカスタム絵文字を展開しないか否か。'
+			}
+		},
+
+		preview: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'preview'
 			}
 		},
 
@@ -165,7 +181,7 @@ export const meta = {
 				choices: $.arr($.str)
 					.unique()
 					.range(2, 10)
-					.each(c => c.length > 0 && c.length < 50),
+					.each(c => c.length > 0 && c.length <= 128),
 				multiple: $.optional.bool,
 				expiresAt: $.optional.nullable.num.int(),
 				expiredAfter: $.optional.nullable.num.int().min(1)
@@ -227,6 +243,12 @@ export const meta = {
 };
 
 export default define(meta, async (ps, user, app) => {
+	if (ps.text?.trim() === '') ps.text = null;
+
+	if (ps.visibility == null) {
+		ps.visibility = ps.renoteId ? 'home' : 'public';
+	}
+
 	let visibleUsers: IUser[] = [];
 	if (ps.visibleUserIds) {
 		visibleUsers = await Promise.all(ps.visibleUserIds.map(id => User.findOne({
@@ -305,6 +327,7 @@ export default define(meta, async (ps, user, app) => {
 
 	// 投稿を作成
 	const note = await create(user, {
+		preview: ps.preview,
 		createdAt: new Date(),
 		files: files,
 		poll: ps.poll ? {
@@ -319,6 +342,7 @@ export default define(meta, async (ps, user, app) => {
 		app,
 		viaMobile: ps.viaMobile,
 		localOnly: ps.localOnly,
+		copyOnce: ps.copyOnce,
 		visibility: ps.visibility,
 		visibleUsers,
 		apMentions: ps.noExtractMentions ? [] : undefined,

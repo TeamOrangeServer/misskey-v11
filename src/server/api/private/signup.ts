@@ -1,6 +1,5 @@
-import * as Koa from 'koa';
+import * as Router from '@koa/router';
 import * as bcrypt from 'bcryptjs';
-import { generate as generateKeypair } from '../../../crypto_key';
 import User, { IUser, validateUsername, validatePassword, pack } from '../../../models/user';
 import generateUserToken from '../common/generate-native-user-token';
 import config from '../../../config';
@@ -8,26 +7,20 @@ import Meta from '../../../models/meta';
 import RegistrationTicket from '../../../models/registration-tickets';
 import usersChart from '../../../services/chart/users';
 import fetchMeta from '../../../misc/fetch-meta';
-import * as recaptcha from 'recaptcha-promise';
+import { verifyRecaptcha } from '../../../misc/captcha';
+import { genRsaKeyPair } from '../../../misc/gen-key-pair';
 
-export default async (ctx: Koa.BaseContext) => {
-	const body = ctx.request.body as any;
+export default async (ctx: Router.RouterContext) => {
+	const body = ctx.request.body;
 
 	const instance = await fetchMeta();
 
 	// Verify recaptcha
 	// ただしテスト時はこの機構は障害となるため無効にする
-	if (process.env.NODE_ENV !== 'test' && instance.enableRecaptcha) {
-		recaptcha.init({
-			secret_key: instance.recaptchaSecretKey
+	if (process.env.NODE_ENV !== 'test' && instance.enableRecaptcha && instance.recaptchaSecretKey) {
+		await verifyRecaptcha(instance.recaptchaSecretKey, body['g-recaptcha-response']).catch(e => {
+			ctx.throw(400, e);
 		});
-
-		const success = await recaptcha(body['g-recaptcha-response']);
-
-		if (!success) {
-			ctx.throw(400, 'recaptcha-failed');
-			return;
-		}
 	}
 
 	const username = body['username'];
@@ -90,6 +83,8 @@ export default async (ctx: Koa.BaseContext) => {
 	// Generate secret
 	const secret = generateUserToken();
 
+	const keyPair = await genRsaKeyPair();
+
 	// Create account
 	const account: IUser = await User.insert({
 		avatarId: null,
@@ -103,10 +98,12 @@ export default async (ctx: Koa.BaseContext) => {
 		username: username,
 		usernameLower: username.toLowerCase(),
 		host: null,
-		keypair: generateKeypair(),
+		keypair: keyPair.privateKey,
 		token: secret,
 		password: hash,
 		isAdmin: config.autoAdmin && usersCount === 0,
+		carefulMassive: true,
+		refuseFollow: false,
 		autoAcceptFollowed: true,
 		profile: {
 			bio: null,

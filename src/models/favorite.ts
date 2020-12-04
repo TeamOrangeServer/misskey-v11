@@ -27,10 +27,10 @@ export const packMany = (
 /**
  * Pack a favorite for API response
  */
-export const pack = (
+export const pack = async (
 	favorite: any,
 	me: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _favorite: any;
 
 	// Populate the favorite if 'favorite' is ID
@@ -58,8 +58,8 @@ export const pack = (
 	// (データベースの不具合などで)投稿が見つからなかったら
 	if (_favorite.note == null) {
 		dbLogger.warn(`[DAMAGED DB] (missing) pkg: favorite -> note :: ${_favorite.id} (note ${_favorite.noteId})`);
-		return resolve(null);
+		return null;
 	}
 
-	resolve(_favorite);
-});
+	return _favorite;
+};

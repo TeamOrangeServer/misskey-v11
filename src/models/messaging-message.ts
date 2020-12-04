@@ -19,6 +19,7 @@ export interface IMessagingMessage {
 	recipientId: mongo.ObjectID;
 	isRead: boolean;
 	fileId: mongo.ObjectID;
+	uri?: string;
 }
 
 export function isValidText(text: string): boolean {
@@ -28,13 +29,13 @@ export function isValidText(text: string): boolean {
 /**
  * Pack a messaging message for API response
  */
-export const pack = (
+export const pack = async (
 	message: any,
 	me?: any,
 	options?: {
 		populateRecipient: boolean
 	}
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	const opts = options || {
 		populateRecipient: true
 	};
@@ -71,5 +72,5 @@ export const pack = (
 		_message.recipient = await packUser(_message.recipientId, me);
 	}
 
-	resolve(_message);
-});
+	return _message;
+};

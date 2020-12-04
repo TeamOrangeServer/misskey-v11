@@ -3,11 +3,12 @@
 	<template v-for="media in mediaList.filter(media => !previewable(media))">
 		<x-banner :media="media" :key="media.id"/>
 	</template>
-	<div v-if="mediaList.filter(media => previewable(media)).length > 0" class="gird-container">
-		<div :data-count="mediaList.filter(media => previewable(media)).length" ref="grid">
-			<template v-for="media in mediaList">
+	<div v-if="previewables.length > 0" class="gird-container">
+		<div :data-count="previewables.length" ref="grid">
+			<template v-for="(media, i) in previewables">
 				<mk-media-video :video="media" :key="media.id" v-if="media.type.startsWith('video')"/>
-				<x-image :image="media" :key="media.id" v-else-if="media.type.startsWith('image')" :raw="raw"/>
+				<x-image :image="media" :key="media.id" v-else-if="media.type.startsWith('image')" :hide="hide" 
+					@imageClick="showImage(i - [...previewables].splice(0, i).filter(isVideo).length)"/>
 			</template>
 		</div>
 	</div>
@@ -18,6 +19,7 @@
 import Vue from 'vue';
 import XBanner from './media-banner.vue';
 import XImage from './media-image.vue';
+import ImageViewer from './image-viewer.vue';
 
 export default Vue.extend({
 	components: {
@@ -28,21 +30,64 @@ export default Vue.extend({
 		mediaList: {
 			required: true
 		},
-		raw: {
-			default: false
+		hide: {
+			type: Boolean,
+			required: false,
+			default: true
+		}
+	},
+	data() {
+		return {
+			index: null,
+			bgcolor: "rgba(51, 51, 51, .9)",
+		}
+	},
+	computed: {
+		imgList(): any[] {
+			return this.images
+				.map(x => ({
+					imageUrl: x.url,
+					thumbUrl: x.thumbnailUrl,
+					caption: x.nane,
+				}));
+		},
+		images(): any[] {
+			return (this.mediaList as { type: string }[]).filter(this.isImage);
+		},
+		previewables(): any[] {
+			return (this.mediaList as { type: string }[]).filter(this.previewable);
+		},
+		count(): number {
+			return (this.mediaList as { type: string }[]).filter(this.previewable).length;
 		}
 	},
 	mounted() {
 		//#region for Safari bug
 		if (this.$refs.grid) {
-			this.$refs.grid.style.height = this.$refs.grid.clientHeight ? `${this.$refs.grid.clientHeight}px` : '128px';
+			this.$refs.grid.style.height = this.$refs.grid.clientHeight ? `${this.$refs.grid.clientHeight}px`
+				: (this.$store.state.device.inDeckMode ? '120px' : this.$root.isMobile ? '135px' : '255px');
 		}
 		//#endregion
 	},
 	methods: {
-		previewable(file) {
-			return file.type.startsWith('video') || file.type.startsWith('image');
-		}
+		showImage(i: number) {
+			const viewer = this.$root.new(ImageViewer, {
+				images: this.images,
+				index: i,
+			});
+			this.$once('hook:beforeDestroy', () => {
+				viewer.close();
+			});
+		},
+		isImage(file: { type: string }) {
+			return file.type.startsWith('image');
+		},
+		isVideo(file: { type: string }) {
+			return file.type.startsWith('video');
+		},
+		previewable(file: { type: string }) {
+			return this.isImage(file) || this.isVideo(file);
+		},
 	}
 });
 </script>
@@ -56,7 +101,7 @@ export default Vue.extend({
 		&:before
 			content ''
 			display block
-			padding-top 56.25% // 16:9
+			padding-top 50%
 
 		> div
 			position absolute

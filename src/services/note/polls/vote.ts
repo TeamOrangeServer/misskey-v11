@@ -3,7 +3,7 @@ import Note, { INote } from '../../../models/note';
 import Watching from '../../../models/note-watching';
 import watch from '../../../services/note/watch';
 import { publishNoteStream } from '../../stream';
-import notify from '../../../services/create-notification';
+import { createNotification } from '../../../services/create-notification';
 import { isLocalUser, IUser } from '../../../models/user';
 
 export default (user: IUser, note: INote, choice: number) => new Promise(async (res, rej) => {
@@ -46,7 +46,7 @@ export default (user: IUser, note: INote, choice: number) => new Promise(async (
 	});
 
 	// Notify
-	notify(note.userId, user._id, 'poll_vote', {
+	createNotification(note.userId, user._id, 'poll_vote', {
 		noteId: note._id,
 		choice: choice
 	});
@@ -65,7 +65,7 @@ export default (user: IUser, note: INote, choice: number) => new Promise(async (
 		})
 		.then(watchers => {
 			for (const watcher of watchers) {
-				notify(watcher.userId, user._id, 'poll_vote', {
+				createNotification(watcher.userId, user._id, 'poll_vote', {
 					noteId: note._id,
 					choice: choice
 				});

@@ -10,6 +10,8 @@ import readNote from '../../../services/note/read';
 import Channel from './channel';
 import channels from './channels';
 import { EventEmitter } from 'events';
+import { ApiError } from '../error';
+import { getHideUserIdsById } from '../common/get-hide-users';
 
 /**
  * Main stream connection
@@ -22,6 +24,7 @@ export default class Connection {
 	private channels: Channel[] = [];
 	private subscribingNotes: any = {};
 	public sendMessageToWsOverride: any = null; // 後方互換性のため
+	public muting: string[] = [];
 
 	constructor(
 		wsConnection: websocket.connection,
@@ -35,6 +38,11 @@ export default class Connection {
 		this.subscriber = subscriber;
 
 		this.wsConnection.on('message', this.onWsConnectionMessage);
+
+		if (this.user) {
+			this.updateMuting();
+			this.subscriber.on(`serverEvent:${this.user._id}`, this.onServerEvent);
+		}
 	}
 
 	/**
@@ -42,6 +50,9 @@ export default class Connection {
 	 */
 	@autobind
 	private async onWsConnectionMessage(data: websocket.IMessage) {
+		if (data.utf8Data == null) return;
+		if (data.utf8Data === 'ping') return;
+
 		const { type, body } = JSON.parse(data.utf8Data);
 
 		switch (type) {
@@ -71,15 +82,23 @@ export default class Connection {
 		// 呼び出し
 		call(endpoint, user, this.app, payload.data).then(res => {
 			this.sendMessageToWs(`api:${payload.id}`, { res });
-		}).catch(e => {
-			this.sendMessageToWs(`api:${payload.id}`, { e });
+		}).catch((e: ApiError) => {
+			this.sendMessageToWs(`api:${payload.id}`, {
+				error: {
+					message: e.message,
+					code: e.code,
+					id: e.id,
+					kind: e.kind,
+					...(e.info ? { info: e.info } : {})
+				}
+			});
 		});
 	}
 
 	@autobind
 	private onReadNotification(payload: any) {
 		if (!payload.id) return;
-		readNotification(this.user._id, payload.id);
+		readNotification(this.user!._id, payload.id);
 	}
 
 	/**
@@ -100,7 +119,7 @@ export default class Connection {
 		}
 
 		if (payload.read) {
-			readNote(this.user._id, payload.id);
+			readNote(this.user!._id, payload.id);
 		}
 	}
 
@@ -166,11 +185,6 @@ export default class Connection {
 			return;
 		}
 
-		// 共有可能チャンネルに接続しようとしていて、かつそのチャンネルに既に接続していたら無意味なので無視
-		if ((channels as any)[channel].shouldShare && this.channels.some(c => c.chName === channel)) {
-			return;
-		}
-
 		const ch: Channel = new (channels as any)[channel](id, this);
 		this.channels.push(ch);
 		ch.init(params);
@@ -208,6 +222,24 @@ export default class Connection {
 		}
 	}
 
+	@autobind
+	private async onServerEvent(data: any) {
+		if (data.type === 'mutingChanged') {
+			this.updateMuting();
+		}
+
+		if (data.type === 'terminate') {
+			this.wsConnection.close();
+			this.dispose();
+		}
+	}
+
+	@autobind
+	private async updateMuting() {
+		const hides = await getHideUserIdsById(this.user?._id, true, false);
+		this.muting = hides.map(x => `${x}`);
+	}
+
 	/**
 	 * ストリームが切れたとき
 	 */
@@ -216,5 +248,6 @@ export default class Connection {
 		for (const c of this.channels.filter(c => c.dispose)) {
 			c.dispose();
 		}
+		this.subscriber.off(`serverEvent:${this.user!._id}`, this.onServerEvent);
 	}
 }

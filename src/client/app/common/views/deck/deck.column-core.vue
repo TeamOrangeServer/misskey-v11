@@ -3,8 +3,10 @@
 <x-notifications-column v-else-if="column.type == 'notifications'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-tl-column v-else-if="column.type == 'home'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-tl-column v-else-if="column.type == 'local'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
+<x-tl-column v-else-if="column.type == 'locao'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-tl-column v-else-if="column.type == 'hybrid'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-tl-column v-else-if="column.type == 'global'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
+<x-tl-column v-else-if="column.type == 'hot'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-tl-column v-else-if="column.type == 'list'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-tl-column v-else-if="column.type == 'hashtag'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>
 <x-mentions-column v-else-if="column.type == 'mentions'" :column="column" :is-stacked="isStacked" v-on="$listeners"/>

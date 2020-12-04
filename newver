@@ -1,0 +1,38 @@
+#! /usr/bin/env perl
+
+use strict;
+use POSIX qw(strftime);
+
+my $file = 'package.json';
+
+# read
+open my $FH, $file or die $!;
+my @lines = <$FH>;
+close $FH;
+
+my $newver;
+
+for my $line (@lines) {
+	if ($line =~ /^(\s*"version"\s*:\s*")(\d+)[.](\d+)[.](\d+)/) {
+		print "old: $line";
+
+		my $postfix = strftime('m%y%m%d%H%M%S', localtime(time));
+		$newver = $2 . '.' . $3 . '.' . ($4 + 1) . '-m544';
+		$line = "$1$newver\",\n";
+
+		print "new: $line\n";
+
+		print "git add package.json && git commit -m $newver\n";
+    print "git tag -a $newver -m $newver\n";
+		print "\n";
+	}
+}
+
+if ($newver) {
+	# save
+	open my $FH, '>', $file or die;
+	for my $line (@lines) {
+		print {$FH} $line;
+	}
+	close $FH;
+}

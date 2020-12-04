@@ -24,10 +24,10 @@ export const packMany = (
 	return Promise.all(mutes.map(x => pack(x, me)));
 };
 
-export const pack = (
+export const pack = async (
 	mute: any,
 	me?: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _mute: any;
 
 	// Populate the mute if 'mute' is ID
@@ -52,5 +52,5 @@ export const pack = (
 		detail: true
 	});
 
-	resolve(_mute);
-});
+	return _mute;
+};

@@ -1,13 +1,20 @@
 import config from '../../../config';
 import Note, { IChoice, IPoll } from '../../../models/note';
 import Resolver from '../resolver';
-import { IQuestion } from '../type';
+import { IObject, IQuestion, isQuestion,  } from '../type';
 import { apLogger } from '../logger';
 
-export async function extractPollFromQuestion(source: string | IQuestion): Promise<IPoll> {
-	const question = typeof source === 'string' ? await new Resolver().resolve(source) as IQuestion : source;
+export async function extractPollFromQuestion(source: string | IObject, resolver?: Resolver): Promise<IPoll> {
+	if (resolver == null) resolver = new Resolver();
+
+	const question = await resolver.resolve(source);
+
+	if (!isQuestion(question)) {
+		throw new Error('invalid type');
+	}
+
 	const multiple = !question.oneOf;
-	const expiresAt = question.endTime ? new Date(question.endTime) : null;
+	const expiresAt = question.endTime ? new Date(question.endTime) : question.closed ? new Date(question.closed) : null;
 
 	if (multiple && !question.anyOf) {
 		throw 'invalid question';

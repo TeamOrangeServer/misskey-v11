@@ -22,13 +22,14 @@ export interface IAuthSession {
  * @param {any} me?
  * @return {Promise<any>}
  */
-export const pack = (
+export const pack = async (
 	session: any,
 	me?: any
-) => new Promise<any>(async (resolve, reject) => {
+) => {
 	let _session: any;
 
 	// TODO: Populate session if it ID
+	// eslint-disable-next-line prefer-const
 	_session = deepcopy(session);
 
 	// Me
@@ -45,5 +46,5 @@ export const pack = (
 	// Populate app
 	_session.app = await packApp(_session.appId, me);
 
-	resolve(_session);
-});
+	return _session;
+};

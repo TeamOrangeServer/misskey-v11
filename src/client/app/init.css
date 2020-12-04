@@ -1,11 +1,9 @@
-@charset "utf-8";
-
 /**
  * Boot screen style
  */
 
 html {
-	font-family: sans-serif;
+	font-family: Roboto, HelveticaNeue, Arial, sans-serif;
 }
 
 body > noscript {

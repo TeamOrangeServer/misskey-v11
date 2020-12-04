@@ -3,18 +3,42 @@
 	class="note"
 	v-show="appearNote.deletedAt == null && !hideThisNote"
 	:tabindex="appearNote.deletedAt == null ? '-1' : null"
-	:class="{ renote: isRenote, smart: $store.state.device.postStyle == 'smart', mini: narrow }"
+	:class="{
+		renote: isRenote,
+		smart: $store.state.device.postStyle == 'smart',
+		mini: narrow,
+	}"
 	v-hotkey="keymap"
 >
+	<mk-renote class="renote" v-if="isRenote" :note="note"/>
 	<x-sub v-for="note in conversation" :key="note.id" :note="note"/>
-	<div class="reply-to" v-if="appearNote.reply && (!$store.getters.isSignedIn || $store.state.settings.showReplyTarget)">
+	<div
+		class="reply-to"
+		:class="{
+			'visibility-home': appearNote.reply.visibility === 'home',
+			'visibility-followers': appearNote.reply.visibility === 'followers',
+			'visibility-specified': appearNote.reply.visibility === 'specified',
+			'coloring-bg': $store.state.device.visibilityColoring === 'bg',
+			'coloring-left': $store.state.device.visibilityColoring === 'left',
+		}"
+		v-if="appearNote.reply && (!$store.getters.isSignedIn || $store.state.settings.showReplyTarget)"
+	>
 		<x-sub :note="appearNote.reply"/>
 	</div>
-	<mk-renote class="renote" v-if="isRenote" :note="note"/>
-	<article class="article">
+	<article
+		class="article"
+		:class="{
+			'visibility-home': appearNote.visibility === 'home',
+			'visibility-followers': appearNote.visibility === 'followers',
+			'visibility-specified': appearNote.visibility === 'specified',
+			'coloring-bg': $store.state.device.visibilityColoring === 'bg',
+			'coloring-left': $store.state.device.visibilityColoring === 'left',
+		}"
+	>
 		<mk-avatar class="avatar" :user="appearNote.user" v-if="$store.state.device.postStyle != 'smart'"/>
 		<div class="main">
 			<mk-note-header class="header" :note="appearNote" :mini="true"/>
+			<x-instance-info v-if="appearNote.user.instance && !$store.state.device.disableShowingInstanceInfo" :instance="appearNote.user.instance" />
 			<div class="body" v-if="appearNote.deletedAt == null">
 				<p v-if="appearNote.cw != null" class="cw">
 				<mfm v-if="appearNote.cw != ''" class="text" :text="appearNote.cw" :author="appearNote.user" :i="$store.state.i" :custom-emojis="appearNote.emojis" />
@@ -28,32 +52,34 @@
 						<a class="rp" v-if="appearNote.renote != null">RN:</a>
 					</div>
 					<div class="files" v-if="appearNote.files.length > 0">
-						<mk-media-list :media-list="appearNote.files"/>
+						<mk-media-list :media-list="appearNote.files" :hide="!$store.state.device.alwaysShowNsfw && appearNote.cw == null"/>
 					</div>
 					<mk-poll v-if="appearNote.poll" :note="appearNote" ref="pollViewer"/>
 					<mk-url-preview v-for="url in urls" :url="url" :key="url" :compact="true"/>
 					<a class="location" v-if="appearNote.geo" :href="`https://maps.google.com/maps?q=${appearNote.geo.coordinates[1]},${appearNote.geo.coordinates[0]}`" rel="noopener" target="_blank"><fa icon="map-marker-alt"/> {{ $t('location') }}</a>
 					<div class="renote" v-if="appearNote.renote"><mk-note-preview :note="appearNote.renote"/></div>
 				</div>
-				<span class="app" v-if="appearNote.app && $store.state.settings.showVia">via <b>{{ appearNote.app.name }}</b></span>
 			</div>
-			<footer v-if="appearNote.deletedAt == null" class="footer">
+			<footer v-if="appearNote.deletedAt == null && !preview" class="footer">
 				<mk-reactions-viewer :note="appearNote" ref="reactionsViewer"/>
 				<button @click="reply()" class="button">
 					<template v-if="appearNote.reply"><fa icon="reply-all"/></template>
 					<template v-else><fa icon="reply"/></template>
 					<p class="count" v-if="appearNote.repliesCount > 0">{{ appearNote.repliesCount }}</p>
 				</button>
-				<button v-if="['public', 'home'].includes(appearNote.visibility)" @click="renote()" title="Renote" class="button">
+				<button v-if="appearNote.myRenoteId != null" @click="undoRenote()" title="Undo" class="button renoted">
+					<fa icon="retweet"/><p class="count" v-if="appearNote.renoteCount > 0">{{ appearNote.renoteCount }}</p>
+				</button>
+				<button v-else-if="['public', 'home'].includes(appearNote.visibility)" @click="renote()" title="Renote" class="button">
 					<fa icon="retweet"/><p class="count" v-if="appearNote.renoteCount > 0">{{ appearNote.renoteCount }}</p>
 				</button>
 				<button v-else class="button">
 					<fa icon="ban"/>
 				</button>
-				<button v-if="!isMyNote && appearNote.myReaction == null" class="button" @click="react()" ref="reactButton">
+				<button v-if="appearNote.myReaction == null" class="button" @click="react()" ref="reactButton">
 					<fa icon="plus"/>
 				</button>
-				<button v-if="!isMyNote && appearNote.myReaction != null" class="button reacted" @click="undoReact(appearNote)" ref="reactButton">
+				<button v-if="appearNote.myReaction != null" class="button reacted" @click="undoReact(appearNote)" ref="reactButton">
 					<fa icon="minus"/>
 				</button>
 				<button class="button" @click="menu()" ref="menuButton">
@@ -74,11 +100,13 @@ import i18n from '../../../i18n';
 import XSub from './note.sub.vue';
 import noteMixin from '../../../common/scripts/note-mixin';
 import noteSubscriber from '../../../common/scripts/note-subscriber';
+import XInstanceInfo from '../../../common/views/components/instance-info.vue';
 
 export default Vue.extend({
 	i18n: i18n('mobile/views/components/note.vue'),
 	components: {
-		XSub
+		XSub,
+		XInstanceInfo
 	},
 
 	mixins: [
@@ -94,6 +122,11 @@ export default Vue.extend({
 			required: true
 		},
 		detail: {
+			type: Boolean,
+			required: false,
+			default: false
+		},
+		preview: {
 			type: Boolean,
 			required: false,
 			default: false
@@ -136,7 +169,7 @@ export default Vue.extend({
 .note
 	overflow hidden
 	font-size 13px
-	border-bottom solid var(--lineWidth) var(--faceDivider)
+	box-shadow 0 1px 8px rgba(0, 0, 0, 0.2)
 
 	&:last-of-type
 		border-bottom none
@@ -151,7 +184,7 @@ export default Vue.extend({
 
 		> .article
 			@media (min-width 600px)
-				padding 32px 32px 22px
+				padding 16px 32px
 
 			> .avatar
 				@media (min-width 350px)
@@ -166,10 +199,6 @@ export default Vue.extend({
 					border-radius 8px
 
 			> .main
-				> .header
-					@media (min-width 500px)
-						margin-bottom 2px
-
 				> .body
 					@media (min-width 700px)
 						font-size 1.1em
@@ -184,9 +213,54 @@ export default Vue.extend({
 	> .renote + .article
 		padding-top 8px
 
+	> .reply-to
+		&.coloring-bg
+			&.visibility-home
+				background-color var(--noteHomeBg)
+
+			&.visibility-followers
+				background-color var(--noteFollowersBg)
+
+			&.visibility-specified
+				background-color var(--noteSpecifiedBg)
+
+		&.coloring-left
+			border-left: transparent solid 5px
+
+			&.visibility-home
+				border-left-color var(--noteHomeBorder)
+
+			&.visibility-followers
+				border-left-color var(--noteFollowersBorder)
+
+			&.visibility-specified
+				border-left-color var(--noteSpecifiedBorder)
+
 	> .article
 		display flex
-		padding 16px 16px 9px
+		padding 12px 12px 6px
+
+		&.coloring-bg
+			&.visibility-home
+				background-color var(--noteHomeBg)
+
+			&.visibility-followers
+				background-color var(--noteFollowersBg)
+
+			&.visibility-specified
+				background-color var(--noteSpecifiedBg)
+
+		&.coloring-left
+			border-left: transparent solid 5px
+
+			&.visibility-home
+				border-left-color var(--noteHomeBorder)
+
+			&.visibility-followers
+				border-left-color var(--noteFollowersBorder)
+
+			&.visibility-specified
+				border-left-color var(--noteSpecifiedBorder)
 
 		> .avatar
 			flex-shrink 0
@@ -223,7 +297,9 @@ export default Vue.extend({
 						padding 0
 						overflow-wrap break-word
 						color var(--noteText)
-						font-size calc(1em + var(--fontSize))
+						max-height 200px
+						overflow auto
+						font-size 1em
 
 						> .reply
 							margin-right 8px
@@ -258,12 +334,12 @@ export default Vue.extend({
 						font-size 80%
 
 					> .renote
-						margin 8px 0
+						margin 0.3em 0.6em
+						opacity 0.9
 
 						> *
-							padding 16px
-							border dashed var(--lineWidth) var(--quoteBorder)
-							border-radius 8px
+							padding 0.7em
+							border-left 3px solid var(--mfmQuoteLine)
 
 				> .app
 					font-size 12px
@@ -293,6 +369,9 @@ export default Vue.extend({
 						opacity 0.7
 
 					&.reacted
+						color var(--primary)
+
+					&.renoted
 						color var(--primary)
 
 			> .deleted

@@ -1,0 +1,19 @@
+[Unit]
+Description=misskey
+After=network.target
+
+[Service]
+Type=simple
+User=misskey
+ExecStart=/usr/bin/npm start
+WorkingDirectory=/home/misskey/misskey
+Environment="NODE_ENV=production"
+ExecReload=/bin/kill -SIGUSR1 $MAINPID
+TimeoutSec=60
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=misskey
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

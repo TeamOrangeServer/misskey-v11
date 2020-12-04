@@ -34,14 +34,14 @@ export default Vue.extend({
 	},
 	mounted() {
 		this.fetch();
-		this.clock = setInterval(this.fetch, 1000 * 60);
+		this.clock = setInterval(this.fetch, 1000 * 600);
 	},
 	beforeDestroy() {
 		clearInterval(this.clock);
 	},
 	methods: {
 		fetch() {
-			this.$root.api('hashtags/trend').then(stats => {
+			this.$root.api('hashtags/trend', {}, false, true).then(stats => {
 				this.stats = stats;
 				this.fetching = false;
 			});
@@ -71,9 +71,6 @@ export default Vue.extend({
 			display flex
 			align-items center
 			padding 14px 16px
-
-			&:not(:last-child)
-				border-bottom solid 1px var(--faceDivider)
 
 			> .tag
 				flex 1

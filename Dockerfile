@@ -1,8 +1,6 @@
-FROM node:11-alpine AS base
+FROM node:14.15.1-alpine3.12 AS base
 
 ENV NODE_ENV=production
-
-RUN npm i -g npm@latest
 
 WORKDIR /misskey
 
@@ -19,20 +17,23 @@ RUN apk add --no-cache \
     make \
     nasm \
     pkgconfig \
-    python \
-    zlib-dev
-RUN npm i -g yarn
+    python3 \
+    zlib-dev \
+    vips-dev \
+    vips
 
-COPY . ./
+COPY package.json yarn.lock ./
 RUN yarn install
+COPY . ./
 RUN yarn build
 
 FROM base AS runner
 
 RUN apk add --no-cache \
     ffmpeg \
-    tini
-RUN npm i -g web-push
+    tini \
+    vips
+
 ENTRYPOINT ["/sbin/tini", "--"]
 
 COPY --from=builder /misskey/node_modules ./node_modules

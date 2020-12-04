@@ -10,6 +10,7 @@ import Logger from '../logger';
 import { registerOrFetchInstanceDoc } from '../register-or-fetch-instance-doc';
 import Instance from '../../models/instance';
 import instanceChart from '../../services/chart/instance';
+import { publishFollowingChanged } from '../create-event';
 
 const logger = new Logger('following/delete');
 
@@ -24,10 +25,28 @@ export default async function(follower: IUser, followee: IUser, silent = false) 
 		return;
 	}
 
-	Following.remove({
+	await Following.remove({
 		_id: following._id
 	});
 
+	decrementFollowing(follower, followee);
+
+	// Publish unfollow event
+	if (!silent && isLocalUser(follower)) {
+		packUser(followee, follower, {
+			detail: true
+		}).then(packed => publishMainStream(follower._id, 'unfollow', packed));
+
+		publishFollowingChanged(follower._id);
+	}
+
+	if (isLocalUser(follower) && isRemoteUser(followee)) {
+		const content = renderActivity(renderUndo(renderFollow(follower, followee), follower));
+		deliver(follower, content, followee.inbox);
+	}
+}
+
+export async function decrementFollowing(follower: IUser, followee: IUser) {
 	//#region Decrement following count
 	User.update({ _id: follower._id }, {
 		$inc: {
@@ -69,16 +88,4 @@ export default async function(follower: IUser, followee: IUser, silent = false) 
 	//#endregion
 
 	perUserFollowingChart.update(follower, followee, false);
-
-	// Publish unfollow event
-	if (!silent && isLocalUser(follower)) {
-		packUser(followee, follower, {
-			detail: true
-		}).then(packed => publishMainStream(follower._id, 'unfollow', packed));
-	}
-
-	if (isLocalUser(follower) && isRemoteUser(followee)) {
-		const content = renderActivity(renderUndo(renderFollow(follower, followee), follower));
-		deliver(follower, content, followee.inbox);
-	}
 }

@@ -17,7 +17,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'account-read',
+	kind: ['read:notifications', 'read:account', 'account-read', 'account/read'],
 
 	params: {
 		limit: {
@@ -46,12 +46,12 @@ export const meta = {
 		},
 
 		includeTypes: {
-			validator: $.optional.arr($.str.or(['follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'poll_vote', 'receiveFollowRequest'])),
+			validator: $.optional.arr($.str.or(['follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'poll_vote', 'poll_finished', 'receiveFollowRequest', 'highlight'])),
 			default: [] as string[]
 		},
 
 		excludeTypes: {
-			validator: $.optional.arr($.str.or(['follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'poll_vote', 'receiveFollowRequest'])),
+			validator: $.optional.arr($.str.or(['follow', 'mention', 'reply', 'renote', 'quote', 'reaction', 'poll_vote', 'poll_finished', 'receiveFollowRequest', 'highlight'])),
 			default: [] as string[]
 		}
 	},
@@ -65,7 +65,7 @@ export const meta = {
 };
 
 export default define(meta, async (ps, user) => {
-	const hideUserIds = await getHideUserIds(user);
+	const hideUserIds = await getHideUserIds(user, false);
 
 	const query = {
 		notifieeId: user._id,
@@ -114,6 +114,7 @@ export default define(meta, async (ps, user) => {
 
 	const notifications = await Notification
 		.find(query, {
+			maxTimeMS: 20000,
 			limit: ps.limit,
 			sort: sort
 		});

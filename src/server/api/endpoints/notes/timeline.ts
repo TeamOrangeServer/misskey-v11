@@ -1,11 +1,16 @@
 import $ from 'cafy';
 import ID, { transform } from '../../../../misc/cafy-id';
 import Note from '../../../../models/note';
-import { getFriends } from '../../common/get-friends';
+import { getFriendIds } from '../../common/get-friends';
 import { packMany } from '../../../../models/note';
 import define from '../../define';
 import activeUsersChart from '../../../../services/chart/active-users';
 import { getHideUserIds } from '../../common/get-hide-users';
+import UserList from '../../../../models/user-list';
+import { concat } from '../../../../prelude/array';
+import { isSelfHost } from '../../../../misc/convert-host';
+import { getHideRenoteUserIds } from '../../common/get-hide-renote-users';
+import { oidIncludes } from '../../../../prelude/oid';
 
 export const meta = {
 	desc: {
@@ -80,10 +85,41 @@ export const meta = {
 			}
 		},
 
+		excludeForeignReply: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'フォロー外リプライを含めない'
+			}
+		},
+
 		withFiles: {
 			validator: $.optional.bool,
 			desc: {
 				'ja-JP': 'true にすると、ファイルが添付された投稿だけ取得します'
+			}
+		},
+
+		fileType: {
+			validator: $.optional.arr($.str),
+			desc: {
+				'ja-JP': '指定された種類のファイルが添付された投稿のみを取得します'
+			}
+		},
+
+		excludeNsfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されたファイルを除外します(fileTypeが指定されている場合のみ有効)'
+			}
+		},
+
+		excludeSfw: {
+			validator: $.optional.bool,
+			default: false,
+			desc: {
+				'ja-JP': 'true にすると、NSFW指定されてないファイルを除外します(fileTypeが指定されている場合のみ有効)'
 			}
 		},
 
@@ -105,40 +141,40 @@ export const meta = {
 };
 
 export default define(meta, async (ps, user) => {
-	const [followings, hideUserIds] = await Promise.all([
+	const [followingIds, hideUserIds, hideFromHomeLists, hideRenoteUserIds] = await Promise.all([
 		// フォローを取得
 		// Fetch following
-		getFriends(user._id),
+		getFriendIds(user._id),
 
 		// 隠すユーザーを取得
-		getHideUserIds(user)
+		getHideUserIds(user, false),
+
+		// Homeから隠すリストを取得
+		UserList.find({
+			userId: user._id,
+			hideFromHome: true,
+		}),
+
+		// リノートを隠すユーザーを取得
+		getHideRenoteUserIds(user),
 	]);
+
+	const hideFromHomeUsers = concat(hideFromHomeLists.map(list => list.userIds));
+	const hideFromHomeHosts = concat<string>(hideFromHomeLists.map(list => list.hosts || [])).map(x => isSelfHost(x) ? null : x);
 
 	//#region Construct query
 	const sort = {
 		_id: -1
 	};
 
-	const followQuery = followings.map(f => ({
-		userId: f.id,
+	// どうせフィルタされるユーザーはフォローしてない扱いにして最初のuserのIXSCANの精度を少しでも高くする
+	const realFollowingIds = followingIds
+		.filter(x => !oidIncludes(hideUserIds, x))
+		.filter(x => !oidIncludes(hideFromHomeUsers, x));
 
-		/*// リプライは含めない(ただし投稿者自身の投稿へのリプライ、自分の投稿へのリプライ、自分のリプライは含める)
-		$or: [{
-			// リプライでない
-			replyId: null
-		}, { // または
-			// リプライだが返信先が投稿者自身の投稿
-			$expr: {
-				$eq: ['$_reply.userId', '$userId']
-			}
-		}, { // または
-			// リプライだが返信先が自分(フォロワー)の投稿
-			'_reply.userId': user._id
-		}, { // または
-			// 自分(フォロワー)が送信したリプライ
-			userId: user._id
-		}]*/
-	}));
+	const followQuery = [{
+		userId: { $in: realFollowingIds }
+	}];
 
 	const visibleQuery = user == null ? [{
 		visibility: { $in: [ 'public', 'home' ] }
@@ -166,7 +202,7 @@ export default define(meta, async (ps, user) => {
 
 			// mute
 			userId: {
-				$nin: hideUserIds
+				$nin: hideUserIds.concat(hideFromHomeUsers)
 			},
 			'_reply.userId': {
 				$nin: hideUserIds
@@ -174,12 +210,44 @@ export default define(meta, async (ps, user) => {
 			'_renote.userId': {
 				$nin: hideUserIds
 			},
+
+			'_user.host': {
+				$nin: hideFromHomeHosts
+			},
 		}]
 	} as any;
 
 	// MongoDBではトップレベルで否定ができないため、De Morganの法則を利用してクエリします。
 	// つまり、「『自分の投稿かつRenote』ではない」を「『自分の投稿ではない』または『Renoteではない』」と表現します。
 	// for details: https://en.wikipedia.org/wiki/De_Morgan%27s_laws
+
+	if (ps.excludeForeignReply) {
+		query.$and.push({
+			$or: [{
+				'_reply.userId': null
+			}, {
+				'_reply.userId': { $in : concat([followingIds, [user._id]]) }
+			}, {
+				userId: user._id
+			}]
+		});
+	}
+
+	if (hideRenoteUserIds.length > 0) {
+		query.$and.push({
+			$or: [{
+				userId: { $nin: hideRenoteUserIds }
+			}, {
+				renoteId: null
+			}, {
+				text: { $ne: null }
+			}, {
+				fileIds: { $ne: [] }
+			}, {
+				poll: { $ne: null }
+			}]
+		});
+	}
 
 	if (ps.includeMyRenotes === false) {
 		query.$and.push({
@@ -237,6 +305,25 @@ export default define(meta, async (ps, user) => {
 		});
 	}
 
+	if (ps.fileType) {
+		query.fileIds = { $exists: true, $ne: [] };
+
+		query['_files.contentType'] = {
+			$in: ps.fileType
+		};
+
+		if (ps.excludeNsfw) {
+			query['_files.metadata.isSensitive'] = {
+				$ne: true
+			};
+			query['cw'] = null;
+		}
+
+		if (ps.excludeSfw) {
+			query['_files.metadata.isSensitive'] = true;
+		}
+	}
+
 	if (ps.sinceId) {
 		sort._id = 1;
 		query._id = {
@@ -259,6 +346,7 @@ export default define(meta, async (ps, user) => {
 	//#endregion
 
 	const timeline = await Note.find(query, {
+		maxTimeMS: 25000,
 		limit: ps.limit,
 		sort: sort
 	});

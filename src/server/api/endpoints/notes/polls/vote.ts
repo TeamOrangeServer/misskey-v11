@@ -5,12 +5,12 @@ import Note from '../../../../../models/note';
 import Watching from '../../../../../models/note-watching';
 import watch from '../../../../../services/note/watch';
 import { publishNoteStream } from '../../../../../services/stream';
-import notify from '../../../../../services/create-notification';
+import { createNotification } from '../../../../../services/create-notification';
 import define from '../../../define';
 import User, { IRemoteUser } from '../../../../../models/user';
 import { ApiError } from '../../../error';
 import { getNote } from '../../../common/getters';
-import { deliver } from '../../../../../queue';
+import { deliver, createNotifyPollFinishedJob } from '../../../../../queue';
 import { renderActivity } from '../../../../../remote/activitypub/renderer';
 import renderVote from '../../../../../remote/activitypub/renderer/vote';
 import { deliverQuestionUpdate } from '../../../../../services/note/polls/update';
@@ -25,7 +25,7 @@ export const meta = {
 
 	requireCredential: true,
 
-	kind: 'vote-write',
+	kind: ['write:votes', 'vote-write'],
 
 	params: {
 		noteId: {
@@ -79,7 +79,7 @@ export default define(meta, async (ps, user) => {
 	const createdAt = new Date();
 
 	// Get votee
-	const note = await getNote(ps.noteId).catch(e => {
+	const note = await getNote(ps.noteId, user, true).catch(e => {
 		if (e.id === '9725d0ce-ba28-4dde-95a7-2cbb2c15de24') throw new ApiError(meta.errors.noSuchNote);
 		throw e;
 	});
@@ -133,7 +133,7 @@ export default define(meta, async (ps, user) => {
 	});
 
 	// Notify
-	notify(note.userId, user._id, 'poll_vote', {
+	createNotification(note.userId, user._id, 'poll_vote', {
 		noteId: note._id,
 		choice: ps.choice
 	});
@@ -152,7 +152,7 @@ export default define(meta, async (ps, user) => {
 		})
 		.then(watchers => {
 			for (const watcher of watchers) {
-				notify(watcher.userId, user._id, 'poll_vote', {
+				createNotification(watcher.userId, user._id, 'poll_vote', {
 					noteId: note._id,
 					choice: ps.choice
 				});
@@ -162,6 +162,10 @@ export default define(meta, async (ps, user) => {
 	// この投稿をWatchする
 	if (user.settings.autoWatch !== false) {
 		watch(user._id, note);
+	}
+
+	if (note.poll.expiresAt) {
+		createNotifyPollFinishedJob(note, user, note.poll.expiresAt);
 	}
 
 	// リモート投票の場合リプライ送信

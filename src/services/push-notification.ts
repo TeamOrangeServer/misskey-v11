@@ -4,6 +4,7 @@ import Subscription from '../models/sw-subscription';
 import config from '../config';
 import fetchMeta from '../misc/fetch-meta';
 import { IMeta } from '../models/meta';
+import User, { getPushNotificationsValue, isLocalUser } from '../models/user';
 
 let meta: IMeta = null;
 
@@ -24,7 +25,18 @@ export default async function(userId: mongo.ObjectID | string, type: string, bod
 	if (!meta.enableServiceWorker) return;
 
 	if (typeof userId === 'string') {
-		userId = new mongo.ObjectID(userId);
+		userId = new mongo.ObjectID(userId) as mongo.ObjectID;
+	}
+
+	const user = await User.findOne({
+		_id: userId
+	});
+
+	if (user == null || !isLocalUser(user)) return;
+
+	if (body?.type) {
+		const enabled = getPushNotificationsValue(user.settings?.pushNotifications, body.type);
+		if (!enabled) return;
 	}
 
 	// Fetch
@@ -41,9 +53,13 @@ export default async function(userId: mongo.ObjectID | string, type: string, bod
 			}
 		};
 
-		push.sendNotification(pushSubscription, JSON.stringify({
+		const payload = {
 			type, body
-		})).catch((err: any) => {
+		};
+
+		push.sendNotification(pushSubscription, JSON.stringify(payload), {
+			proxy: config.proxy
+		}).catch((err: any) => {
 			//swLogger.info(err.statusCode);
 			//swLogger.info(err.headers);
 			//swLogger.info(err.body);

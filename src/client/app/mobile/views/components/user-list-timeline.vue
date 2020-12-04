@@ -21,7 +21,8 @@ export default Vue.extend({
 				untilId: cursor ? cursor : undefined,
 				includeMyRenotes: this.$store.state.settings.showMyRenotes,
 				includeRenotedMyNotes: this.$store.state.settings.showRenotedMyNotes,
-				includeLocalRenotes: this.$store.state.settings.showLocalRenotes
+				includeLocalRenotes: this.$store.state.settings.showLocalRenotes,
+				excludeForeignReply: this.$store.state.settings.excludeForeignReply,
 			}).then(notes => {
 				if (notes.length == fetchLimit + 1) {
 					notes.pop();
@@ -55,11 +56,15 @@ export default Vue.extend({
 		init() {
 			if (this.connection) this.connection.dispose();
 			this.connection = this.$root.stream.connectToChannel('userList', {
-				listId: this.list.id
+				listId: this.list.id,
+				excludeForeignReply: this.$store.state.settings.excludeForeignReply,
 			});
 			this.connection.on('note', this.onNote);
 			this.connection.on('userAdded', this.onUserAdded);
 			this.connection.on('userRemoved', this.onUserRemoved);
+			this.connection.on('hostAdded', this.onHostAdded);
+			this.connection.on('hostRemoved', this.onHostRemoved);
+			this.connection.on('settingChanged', this.onSettingChanged);
 		},
 
 		onNote(note) {
@@ -73,7 +78,19 @@ export default Vue.extend({
 
 		onUserRemoved() {
 			(this.$refs.timeline as any).reload();
-		}
-	}
+		},
+
+		onHostAdded() {
+			(this.$refs.timeline as any).reload();
+		},
+
+		onHostRemoved() {
+			(this.$refs.timeline as any).reload();
+		},
+
+		onSettingChanged() {
+			(this.$refs.timeline as any).reload();
+		},
+}
 });
 </script>

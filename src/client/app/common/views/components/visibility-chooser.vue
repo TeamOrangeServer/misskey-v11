@@ -3,49 +3,63 @@
 	<div class="backdrop" ref="backdrop" @click="close"></div>
 	<div class="popover" :class="{ isMobile: $root.isMobile }" ref="popover">
 		<div @click="choose('public')" :class="{ active: v == 'public' }">
-			<div><fa icon="globe"/></div>
+			<x-visibility-icon v="public"/>
 			<div>
 				<span>{{ $t('public') }}</span>
+				<span>{{ $t('public-desc') }}</span>
 			</div>
 		</div>
 		<div @click="choose('home')" :class="{ active: v == 'home' }">
-			<div><fa icon="home"/></div>
-			<div>
+			<x-visibility-icon v="home"/>
+		<div>
 				<span>{{ $t('home') }}</span>
 				<span>{{ $t('home-desc') }}</span>
 			</div>
 		</div>
 		<div @click="choose('followers')" :class="{ active: v == 'followers' }">
-			<div><fa icon="unlock"/></div>
+			<x-visibility-icon v="followers"/>
 			<div>
 				<span>{{ $t('followers') }}</span>
 				<span>{{ $t('followers-desc') }}</span>
 			</div>
 		</div>
 		<div @click="choose('specified')" :class="{ active: v == 'specified' }">
-			<div><fa icon="envelope"/></div>
+			<x-visibility-icon v="specified"/>
 			<div>
 				<span>{{ $t('specified') }}</span>
 				<span>{{ $t('specified-desc') }}</span>
 			</div>
 		</div>
+		<div @click="choose('once-public')" :class="{ active: v == 'once-public' }">
+			<x-visibility-icon v="once-public"/>
+			<div>
+				<span>{{ $t('once-public') }}</span>
+				<span>{{ $t('once-public-desc') }}</span>
+			</div>
+		</div>
 		<div @click="choose('local-public')" :class="{ active: v == 'local-public' }">
-			<div><fa icon="globe"/></div>
+			<x-visibility-icon v="local-public"/>
 			<div>
 				<span>{{ $t('local-public') }}</span>
 				<span>{{ $t('local-public-desc') }}</span>
 			</div>
 		</div>
 		<div @click="choose('local-home')" :class="{ active: v == 'local-home' }">
-			<div><fa icon="home"/></div>
+			<x-visibility-icon v="local-home"/>
 			<div>
 				<span>{{ $t('local-home') }}</span>
 			</div>
 		</div>
 		<div @click="choose('local-followers')" :class="{ active: v == 'local-followers' }">
-			<div><fa icon="unlock"/></div>
+			<x-visibility-icon v="local-followers"/>
 			<div>
 				<span>{{ $t('local-followers') }}</span>
+			</div>
+		</div>
+		<div @click="choose('once-specified')" :class="{ active: v == 'once-specified' }">
+			<x-visibility-icon v="once-specified"/>
+			<div>
+				<span>{{ $t('once-specified') }}</span>
 			</div>
 		</div>
 	</div>
@@ -56,9 +70,13 @@
 import Vue from 'vue';
 import i18n from '../../../i18n';
 import anime from 'animejs';
+import XVisibilityIcon from './visibility-icon.vue';
 
 export default Vue.extend({
 	i18n: i18n('common/views/components/visibility-chooser.vue'),
+	components: {
+		XVisibilityIcon,
+	},
 	props: {
 		source: {
 			required: true
@@ -75,33 +93,32 @@ export default Vue.extend({
 	},
 	mounted() {
 		this.$nextTick(() => {
-			const popover = this.$refs.popover as any;
+			const popover = this.$refs.popover as HTMLElement;
+			const sourceRect = (this.source as HTMLElement).getBoundingClientRect();
 
-			const rect = this.source.getBoundingClientRect();
-			const width = popover.offsetWidth;
-			const height = popover.offsetHeight;
+			// このポップアップのサイズ
+			const popW = popover.offsetWidth;
+			const popH = popover.offsetHeight;
 
-			let left;
-			let top;
+			// 呼び出し元 (たいていボタン) の中心地点
+			const sourceX = sourceRect.left + (this.source.offsetWidth / 2);
+			const sourceY = sourceRect.top + (this.source.offsetHeight / 2);
 
-			if (this.$root.isMobile) {
-				const x = rect.left + window.pageXOffset + (this.source.offsetWidth / 2);
-				const y = rect.top + window.pageYOffset + (this.source.offsetHeight / 2);
-				left = (x - (width / 2));
-				top = (y - (height / 2));
-			} else {
-				const x = rect.left + window.pageXOffset + (this.source.offsetWidth / 2);
-				const y = rect.top + window.pageYOffset + this.source.offsetHeight;
-				left = (x - (width / 2));
-				top = y;
-			}
+			// このポップアップは呼び出し元の中心に配置
+			let popX = sourceX - (popover.offsetWidth / 2);
+			let popY = sourceY - (popover.offsetHeight / 2);
 
-			if (left + width > window.innerWidth) {
-				left = window.innerWidth - width;
-			}
+			// 右はみ出し判定
+			if (popX + popW > window.innerWidth) popX = window.innerWidth - popW;
+			// 下はみ出し判定
+			if (popY + popH > window.innerHeight) popY = window.innerHeight - popH;
+			// 左はみ出し判定
+			if (popX < 0) popX = 0;
+			// 上はみ出し判定
+			if (popY < 0) popY = 0;
 
-			popover.style.left = left + 'px';
-			popover.style.top = top + 'px';
+			popover.style.left = `${popX + window.pageXOffset}px`;
+			popover.style.top = `${popY + window.pageYOffset}px`;
 
 			anime({
 				targets: this.$refs.backdrop,
@@ -175,23 +192,6 @@ export default Vue.extend({
 		transform scale(0.5)
 		opacity 0
 
-		&:not(.isMobile)
-			$arrow-size = 10px
-
-			margin-top $arrow-size
-			transform-origin center -($arrow-size)
-
-			&:before
-				content ""
-				display block
-				position absolute
-				top -($arrow-size * 2)
-				left s('calc(50% - %s)', $arrow-size)
-				border-top solid $arrow-size transparent
-				border-left solid $arrow-size transparent
-				border-right solid $arrow-size transparent
-				border-bottom solid $arrow-size $bgcolor
-
 		> div
 			display flex
 			padding 8px 14px
@@ -207,7 +207,7 @@ export default Vue.extend({
 
 			&.active
 				color var(--primaryForeground)
-				background var(--primary)
+				background var(--primaryDarken5)
 
 			> *
 				user-select none

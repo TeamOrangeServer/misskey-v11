@@ -2,9 +2,10 @@
 <div>
 	<ui-card>
 		<template #title><fa :icon="faChartBar"/> {{ $t('title') }}</template>
+
+		<!-- Deliver -->
 		<section class="wptihjuy">
 			<header><fa :icon="faPaperPlane"/> Deliver</header>
-			<ui-info warn v-if="latestStats && latestStats.deliver.waiting > 0">The queue is jammed.</ui-info>
 			<ui-horizon-group inputs v-if="latestStats" class="fit-bottom">
 				<ui-input :value="latestStats.deliver.activeSincePrevTick | number" type="text" readonly>
 					<span>Process</span>
@@ -14,7 +15,7 @@
 				<ui-input :value="latestStats.deliver.active | number" type="text" readonly>
 					<span>Active</span>
 					<template #prefix><fa :icon="farPlayCircle"/></template>
-					<template #suffix>jobs</template>
+					<template #suffix>{{ `/ ${latestStats.deliver.limit | number} jobs` }}</template>
 				</ui-input>
 				<ui-input :value="latestStats.deliver.waiting | number" type="text" readonly>
 					<span>Waiting</span>
@@ -28,10 +29,15 @@
 				</ui-input>
 			</ui-horizon-group>
 			<div ref="deliverChart" class="chart"></div>
+			<ui-horizon-group v-if="$store.getters.isAdminOrModerator" inputs class="fit-bottom">
+				<ui-button @click="promoteJobs('deliver')">{{ $t('promoteJobs') }}</ui-button>
+				<ui-button @click="removeJobs('deliver')">{{ $t('clearJobs') }}</ui-button>
+			</ui-horizon-group >
 		</section>
+
+		<!-- Inbox -->
 		<section class="wptihjuy">
 			<header><fa :icon="faInbox"/> Inbox</header>
-			<ui-info warn v-if="latestStats && latestStats.inbox.waiting > 0">The queue is jammed.</ui-info>
 			<ui-horizon-group inputs v-if="latestStats" class="fit-bottom">
 				<ui-input :value="latestStats.inbox.activeSincePrevTick | number" type="text" readonly>
 					<span>Process</span>
@@ -41,7 +47,7 @@
 				<ui-input :value="latestStats.inbox.active | number" type="text" readonly>
 					<span>Active</span>
 					<template #prefix><fa :icon="farPlayCircle"/></template>
-					<template #suffix>jobs</template>
+					<template #suffix>{{ `/ ${latestStats.inbox.limit | number} jobs` }}</template>
 				</ui-input>
 				<ui-input :value="latestStats.inbox.waiting | number" type="text" readonly>
 					<span>Waiting</span>
@@ -55,13 +61,14 @@
 				</ui-input>
 			</ui-horizon-group>
 			<div ref="inboxChart" class="chart"></div>
-		</section>
-		<section>
-			<ui-button @click="removeAllJobs">{{ $t('remove-all-jobs') }}</ui-button>
+			<ui-horizon-group v-if="$store.getters.isAdminOrModerator" inputs class="fit-bottom">
+				<ui-button @click="promoteJobs('inbox')">{{ $t('promoteJobs') }}</ui-button>
+				<ui-button @click="removeJobs('inbox')">{{ $t('clearJobs') }}</ui-button>
+			</ui-horizon-group >
 		</section>
 	</ui-card>
 
-	<ui-card>
+	<ui-card v-if="$store.getters.isAdminOrModerator">
 		<template #title><fa :icon="faTasks"/> {{ $t('jobs') }}</template>
 		<section class="fit-top">
 			<ui-horizon-group inputs>
@@ -69,23 +76,25 @@
 					<template #label>{{ $t('queue') }}</template>
 					<option value="deliver">{{ $t('domains.deliver') }}</option>
 					<option value="inbox">{{ $t('domains.inbox') }}</option>
+					<option value="db">{{ $t('domains.db') }}</option>
 				</ui-select>
 				<ui-select v-model="state">
 					<template #label>{{ $t('state') }}</template>
 					<option value="delayed">{{ $t('states.delayed') }}</option>
+					<option value="active">{{ $t('states.active') }}</option>
+					<option value="waiting">{{ $t('states.waiting') }}</option>
 				</ui-select>
 			</ui-horizon-group>
-			<sequential-entrance animation="entranceFromTop" delay="25">
-				<div class="xvvuvgsv" v-for="job in jobs">
-					<b>{{ job.id }}</b>
-					<template v-if="domain === 'deliver'">
-						<span>{{ job.data.to }}</span>
-					</template>
-					<template v-if="domain === 'inbox'">
-						<span>{{ job.activity.id }}</span>
-					</template>
-				</div>
-			</sequential-entrance>
+			<div class="xvvuvgsv" v-for="job in jobs" :key="job.id">
+				<b>{{ job.id }}</b>
+				<template v-if="domain === 'deliver'">
+					<span>{{ job.data.to }}</span>
+				</template>
+				<template v-if="domain === 'inbox'">
+					<span>{{ job.data.activity.id }}</span>
+				</template>
+				<span>{{ `(${job.attempts}/${job.maxAttempts}, age=${Math.floor((jobsFetched - job.timestamp) / 1000 / 60)}min${job.delay ? `, firstAttemptDelay=${Math.floor(job.delay / 1000 / 60)}min` : ''})` }}</span>
+			</div>
 			<ui-info v-if="jobs.length == jobsLimit">{{ $t('result-is-truncated', { n: jobsLimit }) }}</ui-info>
 		</section>
 	</ui-card>
@@ -111,7 +120,8 @@ export default Vue.extend({
 			deliverChart: null,
 			inboxChart: null,
 			jobs: [],
-			jobsLimit: 50,
+			jobsLimit: 1000,
+			jobsFetched: Date.now(),
 			domain: 'deliver',
 			state: 'delayed',
 			faTasks, faPaperPlane, faInbox, faStopwatch, faStopCircle, farPlayCircle, fasPlayCircle, faChartBar
@@ -274,6 +284,38 @@ export default Vue.extend({
 			});
 		},
 
+		async removeJobs(domain: string) {
+			this.$root.api('admin/queue/clear', {
+				domain
+			}).then(() => {
+				this.$root.dialog({
+					type: 'success',
+					splash: true
+				});
+			}).catch((e: any) => {
+				this.$root.dialog({
+					type: 'error',
+					text: e.toString()
+				});
+			});
+		},
+
+		async promoteJobs(domain: string) {
+			this.$root.api('admin/queue/promote', {
+				domain
+			}).then(() => {
+				this.$root.dialog({
+					type: 'success',
+					splash: true
+				});
+			}).catch((e: any) => {
+				this.$root.dialog({
+					type: 'error',
+					text: e.toString()
+				});
+			});
+		},
+
 		onStats(stats) {
 			this.stats.push(stats);
 			if (this.stats.length > limit) this.stats.shift();
@@ -291,6 +333,7 @@ export default Vue.extend({
 				state: this.state,
 				limit: this.jobsLimit
 			}).then(jobs => {
+				this.jobsFetched = Date.now(),
 				this.jobs = jobs;
 			});
 		},
@@ -305,7 +348,8 @@ export default Vue.extend({
 		margin 0 -8px
 
 .xvvuvgsv
-	> b
-		margin-right 16px
+	margin-left -6px
+	> b, span
+		margin 0 6px
 
 </style>

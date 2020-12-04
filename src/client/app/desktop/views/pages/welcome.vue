@@ -7,8 +7,6 @@
 		<template v-else><fa :icon="['far', 'moon']"/></template>
 	</button>
 
-	<mk-forkit class="forkit"/>
-
 	<main>
 		<div class="body">
 			<div class="main block">
@@ -24,9 +22,8 @@
 						</span>
 					</div>
 
-					<div class="desc">
+					<div class="desc" style="padding-right: 120px">
 						<span class="desc" v-html="description || $t('@.about')"></span>
-						<a class="about" @click="about">{{ $t('about') }}</a>
 					</div>
 
 					<p class="sign">
@@ -35,14 +32,14 @@
 						<span class="signin" @click="signin">{{ $t('@.signin') }}</span>
 					</p>
 
-					<img v-if="meta" :src="meta.mascotImageUrl" alt="" title="藍" class="char">
+					<img v-if="meta && meta.mascotImageUrl" :src="meta.mascotImageUrl" alt="" title="藍" class="char">
 				</div>
 			</div>
 
 			<div class="announcements block">
 				<header><fa icon="broadcast-tower"/> {{ $t('announcements') }}</header>
 				<div v-if="announcements && announcements.length > 0">
-					<div v-for="announcement in announcements">
+					<div v-for="(announcement, i) in announcements" :key="i">
 						<h1 v-html="announcement.title"></h1>
 						<div v-html="announcement.text"></div>
 					</div>
@@ -52,7 +49,7 @@
 			<div class="photos block">
 				<header><fa :icon="['far', 'images']"/> {{ $t('photos') }}</header>
 				<div>
-					<div v-for="photo in photos" :style="`background-image: url(${photo.thumbnailUrl})`"></div>
+					<div v-for="(photo, i) in photos" :key="i" :style="`background-image: url(${photo.thumbnailUrl})`"></div>
 				</div>
 			</div>
 
@@ -76,7 +73,7 @@
 				</div>
 
 				<div class="tl block">
-					<header><fa :icon="['far', 'comment-alt']"/> {{ $t('timeline') }}</header>
+					<header><fa :icon="['far', 'comment-alt']"/> {{ $t('@.featured-notes') }}</header>
 					<div>
 						<mk-welcome-timeline class="tl" :max="20"/>
 					</div>
@@ -149,7 +146,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import i18n from '../../../i18n';
-import { host, copyright } from '../../../config';
+import { host, constants } from '../../../config';
 import { concat } from '../../../../../prelude/array';
 import { toUnicode } from 'punycode';
 
@@ -160,7 +157,7 @@ export default Vue.extend({
 			meta: null,
 			stats: null,
 			banner: null,
-			copyright,
+			copyright: constants.copyright,
 			host: toUnicode(host),
 			name: 'Misskey',
 			description: '',
@@ -170,7 +167,7 @@ export default Vue.extend({
 	},
 
 	created() {
-		this.$root.getMeta().then(meta => {
+		this.$root.getMeta().then((meta: any) => {
 			this.meta = meta;
 			this.name = meta.name;
 			this.description = meta.description;
@@ -178,21 +175,19 @@ export default Vue.extend({
 			this.banner = meta.bannerUrl;
 		});
 
-		this.$root.api('stats').then(stats => {
+		this.$root.api('stats', {}, false, true).then((stats: any) => {
 			this.stats = stats;
 		});
 
-		const image = [
-			'image/jpeg',
-			'image/png',
-			'image/gif'
-		];
+		const image = ['image/jpeg','image/png','image/apng','image/gif','image/webp'];
 
-		this.$root.api('notes/local-timeline', {
+		this.$root.api('notes/featured', {
 			fileType: image,
+			limit: 6,
+			days: 2,
 			excludeNsfw: true,
-			limit: 6
-		}).then((notes: any[]) => {
+		}, false, true).then((notes: any[]) => {
+			notes.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 			const files = concat(notes.map((n: any): any[] => n.files));
 			this.photos = files.filter(f => image.includes(f.type)).slice(0, 6);
 		});
@@ -240,7 +235,7 @@ export default Vue.extend({
 		font-size 1.5em
 
 	.v--modal-box
-		background var(--face)
+		background var(--bg)
 		color var(--text)
 
 		.formHeader
@@ -321,11 +316,6 @@ export default Vue.extend({
 			height 100px
 			background linear-gradient(transparent, var(--bg))
 
-	> .forkit
-		position absolute
-		top 0
-		right 0
-
 	> button
 		position fixed
 		z-index 1
@@ -337,7 +327,7 @@ export default Vue.extend({
 
 	> main
 		margin 0 auto
-		padding 64px
+		padding 32px 64px
 		width 100%
 		max-width 1200px
 
@@ -351,7 +341,6 @@ export default Vue.extend({
 				padding 0 16px
 				line-height 48px
 				background var(--faceHeader)
-				box-shadow 0 1px 0px rgba(0, 0, 0, 0.1)
 
 				& + div
 					max-height calc(100% - 48px)
@@ -369,6 +358,7 @@ export default Vue.extend({
 			> .main
 				grid-row 1
 				grid-column 1 / 3
+				border-radius 6px
 
 				> div
 					padding 32px
@@ -395,9 +385,6 @@ export default Vue.extend({
 
 							> *
 								margin-right 16px
-
-					> .desc
-						max-width calc(100% - 150px)
 
 					> .sign
 						font-size 120%
@@ -427,6 +414,7 @@ export default Vue.extend({
 			> .announcements
 				grid-row 2
 				grid-column 1
+				border-radius 6px
 
 				> div
 					padding 32px
@@ -443,6 +431,7 @@ export default Vue.extend({
 			> .photos
 				grid-row 2
 				grid-column 2
+				border-radius 6px
 
 				> div
 					display grid
@@ -460,6 +449,7 @@ export default Vue.extend({
 			> .tag-cloud
 				grid-row 3
 				grid-column 1 / 3
+				border-radius 6px
 
 				> div
 					height 256px
@@ -472,6 +462,7 @@ export default Vue.extend({
 				grid-row 4
 				grid-column 1 / 3
 				font-size 14px
+				border-radius 6px
 
 			> .side
 				display grid
@@ -485,15 +476,18 @@ export default Vue.extend({
 					grid-row 1
 					grid-column 1
 					overflow auto
+					border-radius 6px
 
 				> .trends
 					grid-row 2
 					grid-column 1
 					padding 8px
+					border-radius 6px
 
 				> .info
 					grid-row 3
 					grid-column 1
+					border-radius 6px
 
 					> div
 						padding 16px

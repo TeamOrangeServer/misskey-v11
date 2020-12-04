@@ -1,53 +1,56 @@
 <template>
-<div class="header" :class="navbar" :data-shadow="$store.state.device.useShadow">
-	<div class="body">
-		<div class="post">
-			<button @click="post" :title="$t('title')"><fa icon="pencil-alt"/></button>
-		</div>
-
+<div class="header" :class="navbar">
+	<div class="body" style="display: flex; flex-direction: column;">
 		<div class="nav" v-if="$store.getters.isSignedIn">
-			<div class="home" :class="{ active: $route.name == 'index' }" @click="goToTop">
+			<div class="post" >
+				<button :title="$t('@.new-post')" @click="post"><fa icon="pencil-alt"/></button>
+			</div>
+			<div :title="$t('@.timeline')" class="home" :class="{ active: $route.name == 'index' }" @click="goToTop">
 				<router-link to="/"><fa icon="home"/></router-link>
 			</div>
-			<div class="featured" :class="{ active: $route.name == 'featured' }">
+			<div :title="$t('@.featured')" class="featured" :class="{ active: $route.name == 'featured' }">
 				<router-link to="/featured"><fa :icon="faNewspaper"/></router-link>
 			</div>
-			<div class="explore" :class="{ active: $route.name == 'explore' || $route.name == 'explore-tag' }">
-				<router-link to="/explore"><fa :icon="faHashtag"/></router-link>
+			<div :title="$t('@.explore')" class="explore" :class="{ active: $route.name == 'explore' || $route.name == 'explore-tag' }">
+				<router-link to="/explore"><fa :icon="faUsers"/></router-link>
 			</div>
-			<div class="game">
+			<div :title="$t('@.game')" class="game">
 				<a @click="game"><fa icon="gamepad"/><template v-if="hasGameInvitations"><fa icon="circle"/></template></a>
+			</div>
+			<div :title="$t('@.pages')" class="pages">
+				<router-link to="/i/pages"><fa :icon="faStickyNote"/></router-link>
+			</div>
+			<div :title="$t('@.room')" class="room">
+				<router-link :to="`/@${ $store.state.i.username }/room`"><fa :icon="faDoorOpen"/></router-link>
 			</div>
 		</div>
 
-		<div class="nav bottom" v-if="$store.getters.isSignedIn">
-			<div>
+		<div class="nav bottom" style="margin-top: auto" v-if="$store.getters.isSignedIn">
+			<div :title="$t('@.search')">
+				<a @click="search"><fa icon="search"/></a>
+			</div>
+			<div :title="$t('@.drive')">
 				<a @click="drive"><fa icon="cloud"/></a>
 			</div>
-			<div ref="notificationsButton" :class="{ active: showNotifications }">
+			<div :title="$t('@.notifications')" ref="notificationsButton" :class="{ active: showNotifications }">
 				<a @click="notifications"><fa :icon="['far', 'bell']"/></a>
 			</div>
-			<div class="messaging">
+			<div :title="$t('@.messaging')" class="messaging">
 				<a @click="messaging"><fa icon="comments"/><template v-if="hasUnreadMessagingMessage"><fa icon="circle"/></template></a>
 			</div>
-			<div>
+			<div :title="$t('@.settings')">
 				<a @click="settings"><fa icon="cog"/></a>
 			</div>
-			<div class="signout">
-				<a @click="signout"><fa icon="power-off"/></a>
-			</div>
-			<div>
+			<div :title="$t('@.favorites')">
 				<router-link to="/i/favorites"><fa icon="star"/></router-link>
 			</div>
-			<div v-if="($store.state.i.isLocked || $store.state.i.carefulBot)">
+			<div :title="$t('@.noteReactions')">
+				<router-link to="/i/reactions"><fa :icon="faThumbsUp"/></router-link>
+			</div>
+			<div :title="$t('@.follow-requests')">
 				<a @click="followRequests"><fa :icon="['far', 'envelope']"/><i v-if="$store.state.i.pendingReceivedFollowRequestsCount">{{ $store.state.i.pendingReceivedFollowRequestsCount }}</i></a>
 			</div>
-			<div class="account">
-				<router-link :to="`/@${ $store.state.i.username }`">
-					<mk-avatar class="avatar" :user="$store.state.i"/>
-				</router-link>
-			</div>
-			<div>
+			<div :title="$t($store.state.device.inDeckMode ? '@.home' : '@.deck')">
 				<template v-if="$store.state.device.inDeckMode">
 					<a @click="toggleDeckMode(false)"><fa icon="home"/></a>
 				</template>
@@ -55,14 +58,14 @@
 					<a @click="toggleDeckMode(true)"><fa icon="columns"/></a>
 				</template>
 			</div>
-			<div>
+			<div :title="$t($store.state.device.darkmode ? '@.turn-off-darkmode' : '@.turn-on-darkmode')">
 				<a @click="dark"><template v-if="$store.state.device.darkmode"><fa icon="moon"/></template><template v-else><fa :icon="['far', 'moon']"/></template></a>
 			</div>
 		</div>
 	</div>
 
 	<transition :name="`slide-${navbar}`">
-		<div class="notifications" v-if="showNotifications" ref="notifications" :class="navbar" :data-shadow="$store.state.device.useShadow">
+		<div class="notifications" v-if="showNotifications" ref="notifications" :class="navbar">
 			<mk-notifications/>
 		</div>
 	</transition>
@@ -74,12 +77,11 @@ import Vue from 'vue';
 import i18n from '../../../i18n';
 import MkUserListsWindow from './user-lists-window.vue';
 import MkFollowRequestsWindow from './received-follow-requests-window.vue';
-import MkSettingsWindow from './settings-window.vue';
 import MkDriveWindow from './drive-window.vue';
 import MkMessagingWindow from './messaging-window.vue';
 import MkGameWindow from './game-window.vue';
 import contains from '../../../common/scripts/contains';
-import { faNewspaper, faHashtag } from '@fortawesome/free-solid-svg-icons';
+import { faNewspaper, faUsers, faStickyNote, faDoorOpen, faThumbsUp } from '@fortawesome/free-solid-svg-icons';
 
 export default Vue.extend({
 	i18n: i18n('desktop/views/components/ui.sidebar.vue'),
@@ -88,7 +90,8 @@ export default Vue.extend({
 			hasGameInvitations: false,
 			connection: null,
 			showNotifications: false,
-			faNewspaper, faHashtag
+			searching: false,
+			faNewspaper, faUsers, faStickyNote, faDoorOpen, faThumbsUp
 		};
 	},
 
@@ -143,15 +146,47 @@ export default Vue.extend({
 			this.$post();
 		},
 
+		search() {
+			if (this.searching) return;
+
+			this.$root.dialog({
+				title: this.$t('@.search'),
+				input: true
+			}).then(async ({ canceled, result: query }) => {
+				if (canceled) return;
+
+				const q = query.trim();
+				if (q.startsWith('@')) {
+					this.$router.push(`/${q}`);
+				} else if (q.startsWith('#')) {
+					this.$router.push(`/tags/${encodeURIComponent(q.substr(1))}`);
+				} else if (q.startsWith('https://')) {
+					this.searching = true;
+					try {
+						const res = await this.$root.api('ap/show', {
+							uri: q
+						});
+						if (res.type == 'User') {
+							this.$router.push(`/@${res.object.username}@${res.object.host}`);
+						} else if (res.type == 'Note') {
+							this.$router.push(`/notes/${res.object.id}`);
+						}
+					} catch (e) {
+						// TODO
+					}
+					this.searching = false;
+				} else {
+					this.$router.push(`/search?q=${encodeURIComponent(q)}`);
+				}
+			});
+		},
+
 		drive() {
 			this.$root.new(MkDriveWindow);
 		},
 
 		list() {
-			const w = this.$root.new(MkUserListsWindow);
-			w.$once('choosen', list => {
-				this.$router.push(`i/lists/${ list.id }`);
-			});
+			this.$root.new(MkUserListsWindow);
 		},
 
 		followRequests() {
@@ -159,7 +194,7 @@ export default Vue.extend({
 		},
 
 		settings() {
-			this.$root.new(MkSettingsWindow);
+			this.$router.push(`/i/settings`);
 		},
 
 		signout() {
@@ -226,15 +261,11 @@ export default Vue.extend({
 
 	&.left
 		left 0
-
-		&[data-shadow]
-			box-shadow 4px 0 4px rgba(0, 0, 0, 0.1)
+		box-shadow 4px 0 4px rgba(0, 0, 0, 0.1)
 
 	&.right
 		right 0
-
-		&[data-shadow]
-			box-shadow -4px 0 4px rgba(0, 0, 0, 0.1)
+		box-shadow -4px 0 4px rgba(0, 0, 0, 0.1)
 
 	> .body
 		position fixed
@@ -244,43 +275,7 @@ export default Vue.extend({
 		height 100%
 		background var(--desktopHeaderBg)
 
-		> .post
-			width $width
-			height $width
-			padding 12px
-
-			> button
-				display inline-block
-				margin 0
-				padding 0
-				height 100%
-				width 100%
-				font-size 1.2em
-				font-weight normal
-				text-decoration none
-				color var(--primaryForeground)
-				background var(--primary) !important
-				outline none
-				border none
-				border-radius 100%
-				transition background 0.1s ease
-				cursor pointer
-
-				*
-					pointer-events none
-
-				&:hover
-					background var(--primaryLighten10) !important
-
-				&:active
-					background var(--primaryDarken10) !important
-					transition background 0s ease
-
 		> .nav.bottom
-			position absolute
-			bottom 0
-			left 0
-
 			> .account
 				width $width
 				height $width
@@ -302,19 +297,15 @@ export default Vue.extend({
 		width 350px
 		height 100%
 		overflow auto
-		background var(--face)
+		background var(--secondary) 
 
 		&.left
 			left $width
-
-			&[data-shadow]
-				box-shadow 4px 0 4px rgba(0, 0, 0, 0.1)
+			box-shadow 4px 0 4px rgba(0, 0, 0, 0.1)
 
 		&.right
 			right $width
-
-			&[data-shadow]
-				box-shadow -4px 0 4px rgba(0, 0, 0, 0.1)
+			box-shadow -4px 0 4px rgba(0, 0, 0, 0.1)
 
 	.nav
 		> *
@@ -326,6 +317,9 @@ export default Vue.extend({
 				font-size 18px
 				color var(--desktopHeaderFg)
 
+				@media (max-height 800px)
+					line-height 32px
+
 				&:hover
 					background rgba(0, 0, 0, 0.05)
 					color var(--desktopHeaderHoverFg)
@@ -333,6 +327,31 @@ export default Vue.extend({
 
 				&:active
 					background rgba(0, 0, 0, 0.1)
+
+		.post
+			width $width
+			height $width
+			padding 12px
+
+			> button
+				display flex
+				justify-content center
+				align-items center
+				height 100%
+				width 100%
+				color var(--primaryForeground)
+				background var(--primary) !important
+				border-radius 100%
+				cursor pointer
+
+				*
+					pointer-events none
+
+				&:hover
+					background var(--primaryLighten10) !important
+
+				&:active
+					background var(--primaryDarken10) !important
 
 	&.left
 		.nav

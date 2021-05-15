@@ -1,4 +1,4 @@
-FROM node:14.16.0-alpine3.13 AS base
+FROM node:fermium-alpine3.13 AS base
 
 ENV NODE_ENV=production
 

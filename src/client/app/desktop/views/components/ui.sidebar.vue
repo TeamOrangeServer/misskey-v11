@@ -42,7 +42,7 @@
 			<div>
 				<router-link to="/i/favorites"><fa icon="star"/></router-link>
 			</div>
-			<div v-if="($store.state.i.isLocked || $store.state.i.carefulBot)">
+			<div>
 				<a @click="followRequests"><fa :icon="['far', 'envelope']"/><i v-if="$store.state.i.pendingReceivedFollowRequestsCount">{{ $store.state.i.pendingReceivedFollowRequestsCount }}</i></a>
 			</div>
 			<div class="account">

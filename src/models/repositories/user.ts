@@ -283,6 +283,7 @@ export class UserRepository extends Repository<User> {
 				autoWatch: profile!.autoWatch,
 				alwaysMarkNsfw: profile!.alwaysMarkNsfw,
 				carefulBot: profile!.carefulBot,
+				carefulMassive: profile!.carefulMassive,
 				autoAcceptFollowed: profile!.autoAcceptFollowed,
 				noCrawle: profile!.noCrawle,
 				isExplorable: user.isExplorable,

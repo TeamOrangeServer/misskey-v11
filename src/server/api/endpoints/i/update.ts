@@ -107,6 +107,13 @@ export const meta = {
 			}
 		},
 
+		carefulMassive: {
+			validator: $.optional.bool,
+			desc: {
+				'ja-JP': '大量フォロワーのフォローを承認制にするか'
+			}
+		},
+
 		autoAcceptFollowed: {
 			validator: $.optional.bool,
 			desc: {
@@ -221,6 +228,7 @@ export default define(meta, async (ps, user, app) => {
 	if (typeof ps.isExplorable == 'boolean') updates.isExplorable = ps.isExplorable;
 	if (typeof ps.isBot == 'boolean') updates.isBot = ps.isBot;
 	if (typeof ps.carefulBot == 'boolean') profileUpdates.carefulBot = ps.carefulBot;
+	if (typeof ps.carefulMassive == 'boolean') profileUpdates.carefulMassive = ps.carefulMassive;
 	if (typeof ps.autoAcceptFollowed == 'boolean') profileUpdates.autoAcceptFollowed = ps.autoAcceptFollowed;
 	if (typeof ps.noCrawle == 'boolean') profileUpdates.noCrawle = ps.noCrawle;
 	if (typeof ps.isCat == 'boolean') updates.isCat = ps.isCat;

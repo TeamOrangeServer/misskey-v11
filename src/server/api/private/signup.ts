@@ -130,6 +130,7 @@ export default async (ctx: Koa.Context) => {
 
 		await transactionalEntityManager.save(new UserProfile({
 			userId: account.id,
+			carefulMassive: true,
 			autoAcceptFollowed: true,
 			autoWatch: false,
 			password: hash,

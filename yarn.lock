@@ -666,12 +666,12 @@
   dependencies:
     "@types/koa" "*"
 
-"@types/koa-views@2.0.4":
-  version "2.0.4"
-  resolved "https://registry.yarnpkg.com/@types/koa-views/-/koa-views-2.0.4.tgz#3fa87ba13174f9816c6f7701fbf129dfe9855e39"
-  integrity sha512-aGFBVLiPC7FkXTqHLhnmjKhx3COV+GeJHO9OkLX/p/iAQTgDB5bbnsddx3XgrS6aACWyxR3BpQJVDdSqCNY1lw==
+"@types/koa-views@7.0.0":
+  version "7.0.0"
+  resolved "https://registry.yarnpkg.com/@types/koa-views/-/koa-views-7.0.0.tgz#5613450c77ab69c980c47104378da4b7669c5f2e"
+  integrity sha512-AB/NB+oFHcLOZJYFv3bG5Af8YbwYCD9/zK0WcKALsbjI/FRKrcXTUTC64RebDrkyOkBm3bpCgpGndhAH/3YQ2Q==
   dependencies:
-    "@types/koa" "*"
+    koa-views "*"
 
 "@types/koa@*", "@types/koa@^2.13.1":
   version "2.13.3"
@@ -6448,7 +6448,7 @@ koa-slow@2.1.0:
     lodash.isregexp "3.0.5"
     q "1.4.1"
 
-koa-views@7.0.1:
+koa-views@*, koa-views@7.0.1:
   version "7.0.1"
   resolved "https://registry.yarnpkg.com/koa-views/-/koa-views-7.0.1.tgz#0c8f8e65d5cd2e08249430cb83dc361e49a17a5a"
   integrity sha512-yS8751DXHXXDbdl/oUZd0PsgnxR0MLiguu77Eqrgu6yawE9Hi99wNKiVENb0Kfgsmvq/8px7YCI+USgxaTB1LA==
@@ -9793,13 +9793,6 @@ semver@6.3.0, semver@^6.0.0, semver@^6.1.2, semver@^6.3.0:
   integrity sha512-b39TBaTSfV6yBrapU89p5fKekE2m/NwnDocOVruQFS1/veMgdzuPcnOM34M6CwxW8jH/lxEa5rBoDeUwu5HHTw==
 
 semver@^7.3.2, semver@^7.3.4, semver@^7.3.5:
-  version "7.3.5"
-  resolved "https://registry.yarnpkg.com/semver/-/semver-7.3.5.tgz#0b621c879348d8998e4b0e4be94b3f12e6018ef7"
-  integrity sha512-PoeGJYh8HK4BTO/a9Tf6ZG3veo/A7ZVsYrSA6J8ny9nb3B1VrpkuN+z9OE5wfE5p6H4LchYZsegiQgbJD94ZFQ==
-  dependencies:
-    lru-cache "^6.0.0"
-
-semver@^7.3.5:
   version "7.3.5"
   resolved "https://registry.yarnpkg.com/semver/-/semver-7.3.5.tgz#0b621c879348d8998e4b0e4be94b3f12e6018ef7"
   integrity sha512-PoeGJYh8HK4BTO/a9Tf6ZG3veo/A7ZVsYrSA6J8ny9nb3B1VrpkuN+z9OE5wfE5p6H4LchYZsegiQgbJD94ZFQ==

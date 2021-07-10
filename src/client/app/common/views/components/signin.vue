@@ -10,6 +10,7 @@
 		<ui-input v-model="password" type="password" :with-password-toggle="true" v-if="!user || user && !user.usePasswordLessLogin" required>
 			<span>{{ $t('password') }}</span>
 			<template #prefix><fa icon="lock"/></template>
+			<template #desc><button class="_textButton" @click="resetPassword">{{ $t('forgot-password') }}</button></template>
 		</ui-input>
 		<ui-button type="submit" :disabled="signing">{{ signing ? $t('signing-in') : $t('@.signin') }}</ui-button>
 		<p v-if="meta && meta.enableTwitterIntegration" style="margin: 8px 0;"><a :href="`${apiUrl}/signin/twitter`"><fa :icon="['fab', 'twitter']"/> {{ $t('signin-with-twitter') }}</a></p>
@@ -39,6 +40,10 @@
 			<ui-button type="submit" :disabled="signing">{{ signing ? $t('signing-in') : $t('@.signin') }}</ui-button>
 		</div>
 	</div>
+	<modal name="resetPassword" class="modal" width="370px" height="auto" scrollable>
+		<header class="formHeader">{{ $t('@.forgot-assword') }}</header>
+		<mk-signup class="form"/>
+	</modal>
 </form>
 </template>
 
@@ -181,6 +186,10 @@ export default Vue.extend({
 					this.signing = false;
 				});
 			}
+		},
+
+		resetPassword() {
+			this.$modal.show('resetPassword');
 		}
 	}
 });

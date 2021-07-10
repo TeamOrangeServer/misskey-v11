@@ -29,6 +29,7 @@ common:
   featured-notes: "ハイライト"
   dark-mode: "ダークモード"
   signin: "ログイン"
+  forgot-assword: "パスワードを忘れた"
   signup: "新規登録"
   signout: "ログアウト"
   reload-to-apply-the-setting: "この設定を反映するにはページをリロードする必要があります。今すぐリロードしますか？"
@@ -760,6 +761,7 @@ common/views/components/signin.vue:
   login-failed: "ログインできませんでした。ユーザー名とパスワードを確認してください。"
   tap-key: "セキュリティキーをクリックしてログイン"
   enter-2fa-code: "認証コードを入力してください"
+  forgot-assword: "パスワードを忘れた"
 
 common/views/components/signup.vue:
   invitation-code: "招待コード"
@@ -786,6 +788,14 @@ common/views/components/signup.vue:
   tos: "利用規約"
   create: "アカウント作成"
   some-error: "何らかの原因によりアカウントの作成に失敗しました。再度お試しください。"
+
+common/views/components/forgot-password.vue:
+  username: "ユーザー名"
+  email-address: "メールアドレス"
+  send: "送信"
+  enter-email: "アカウントに登録したメールアドレスを入力してください。そのアドレス宛てに、パスワードリセット用のリンクが送信されます。"
+  if-no-email: "メールアドレスを登録していない場合は、管理者までお問い合わせください。"
+  contact-admin: "このインスタンスではメールがサポートされていないため、パスワードリセットを行う場合は管理者までお問い合わせください。"
 
 common/views/components/special-message.vue:
   new-year: "Happy New Year!"

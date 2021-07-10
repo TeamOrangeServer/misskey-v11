@@ -55,6 +55,7 @@ import { Antenna } from '../models/entities/antenna';
 import { AntennaNote } from '../models/entities/antenna-note';
 import { Relay } from '../models/entities/relay';
 import { RegistryItem } from '../models/entities/registry-item';
+import { PasswordResetRequest } from '../models/entities/password-reset-request';
 
 const sqlLogger = dbLogger.createSubLogger('sql', 'white', false);
 
@@ -142,6 +143,7 @@ export const entities = [
 	ReversiMatching,
 	Relay,
 	RegistryItem,
+	PasswordResetRequest,
 	...charts as any
 ];
 

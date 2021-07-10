@@ -51,6 +51,7 @@ import { AntennaRepository } from './repositories/antenna';
 import { AntennaNote } from './entities/antenna-note';
 import { RelayRepository } from './repositories/relay';
 import { RegistryItem } from './entities/registry-item';
+import { PasswordResetRequest } from './entities/password-reset-request';
 
 export const Apps = getCustomRepository(AppRepository);
 export const Notes = getCustomRepository(NoteRepository);
@@ -104,3 +105,4 @@ export const Antennas = getCustomRepository(AntennaRepository);
 export const AntennaNotes = getRepository(AntennaNote);
 export const Relays = getCustomRepository(RelayRepository);
 export const RegistryItems = getRepository(RegistryItem);
+export const PasswordResetRequests = getRepository(PasswordResetRequest);

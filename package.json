@@ -119,7 +119,7 @@
 		"bcryptjs": "2.4.3",
 		"blurhash": "1.1.3",
 		"bootstrap-vue": "2.21.2",
-		"bull": "3.23.0",
+		"bull": "3.25.0",
 		"cafy": "15.2.1",
 		"cbor": "7.0.6",
 		"chalk": "4.1.1",
